@@ -3,6 +3,9 @@ uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 authors = ["Tamas Gal"]
 version = "0.1.0"
 
+[deps]
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
 julia = "1"
 
