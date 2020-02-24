@@ -4,7 +4,7 @@ using StaticArrays
 
 include("io.jl")
 
-struct TKey #{T<:Integer}
+@io struct TKey #{T<:Integer}
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
     fVersion::Int32                # File format version
     fBEGIN::Int32                  # Pointer to first data record
