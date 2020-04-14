@@ -32,9 +32,17 @@ using Test
 end
 
 
-@testset "TKey" begin
+@testset "Header and Preamble" begin
     fobj = open(joinpath("test", "samples", "raw.root"))
-    tkey = ROOTIO.unpack(fobj, ROOTIO.TKey)
-    @test "root" == String(tkey.identifier)
-    println(tkey)
+    file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
+    @test "root" == String(file_preamble.identifier)
+
+    file_header = ROOTIO.unpack(fobj, ROOTIO.FileHeader32)
+    @test 100 == file_header.fBEGIN
+end
+
+
+@testset "Opening files" begin
+    rootfile = ROOTIO.open(joinpath("test", "samples", "raw.root"))
+    @test 100 == rootfile.header.fBEGIN
 end
