@@ -42,7 +42,7 @@ end
 end
 
 
-@testset "Opening files" begin
-    rootfile = ROOTIO.open(joinpath("test", "samples", "raw.root"))
+@testset "ROOTFile" begin
+    rootfile = ROOTFile(joinpath("test", "samples", "raw.root"))
     @test 100 == rootfile.header.fBEGIN
 end

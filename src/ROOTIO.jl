@@ -1,5 +1,8 @@
 module ROOTIO
 
+export ROOTFile
+
+import Base: keys
 using StaticArrays
 
 include("io.jl")
@@ -44,10 +47,11 @@ const FileHeader = Union{FileHeader32, FileHeader64}
 struct ROOTFile
     format_version::Int32
     header::FileHeader
+    fobj::IOStream
 end
 
 
-function open(filename)
+function ROOTFile(filename::AbstractString)
     fobj = Base.open(filename)
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
@@ -58,7 +62,58 @@ function open(filename)
     else
         header = unpack(fobj, FileHeader64)
     end
-    ROOTFile(format_version, header)
+    ROOTFile(format_version, header, fobj)
+end
+
+
+@io struct TKey32
+    fNBytes::Int32
+    fVersion::Int16
+    fObjLen::Int32
+    fDatime::UInt32
+    fKeylen::Int16
+    fCycle::Int16
+    fSeekKey::Int32
+    fSeekPdir::Int32
+    fClassName::ROOTString
+    fName::ROOTString
+    fTitle::ROOTString
+end
+
+@io struct TKey64
+    fNBytes::Int32
+    fVersion::Int16
+    fObjLen::Int32
+    fDatime::UInt32
+    fKeylen::Int16
+    fCycle::Int16
+    fSeekKey::Int64
+    fSeekPdir::Int64
+    fClassName::ROOTString
+    fName::ROOTString
+    fTitle::ROOTString
+end
+
+const TKey = Union{TKey32, TKey64}
+
+function Base.keys(f::ROOTFile)
+    # f.header.fSeekInfo -> TKey for streamers
+    tkeys = Vector{TKey}()
+
+    cursor = f.header.fBEGIN
+    while true
+        seek(f.fobj, cursor)
+        tkey = unpack(f.fobj, TKey32)
+        if tkey.fVersion > 1000
+            seek(f.fobj, f.header.fBEGIN)
+            tkey = unpack(f.fobj, TKey64)
+        end
+        push!(tkeys, tkey)
+
+        cursor += tkey.fNBytes
+    end
+
+    tkeys
 end
 
 end # module
