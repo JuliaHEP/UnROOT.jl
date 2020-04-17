@@ -49,3 +49,16 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
     @test 100 == rootfile.header.fBEGIN
 end
+
+@testset "ROOTDictionary" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
+    rootdir = ROOTIO.ROOTDirectory(rootfile)
+    @test 5 == rootdir.fVersion
+    @test 1658540644 == rootdir.fDatimeC
+    @test 1658540645 == rootdir.fDatimeM
+    @test 629 == rootdir.fNbytesKeys
+    @test 68 == rootdir.fNbytesName
+    @test 100 == rootdir.fSeekDir
+    @test 0 == rootdir.fSeekParent
+    @test 1619244 == rootdir.fSeekKeys
+end
