@@ -2,7 +2,7 @@ module ROOTIO
 
 export ROOTFile
 
-import Base: keys, get
+import Base: keys, get, getindex
 using StaticArrays
 
 include("io.jl")
@@ -157,10 +157,10 @@ function ROOTFile(filename::AbstractString)
     ROOTFile(format_version, header, fobj, tkey, directory)
 end
 
+function Base.getindex(f::ROOTFile, s::AbstractString)
+    f.directory.keys[findfirst(isequal(s), keys(f))]
+end
 
-# function Base.keys(f::ROOTDirectory)
-
-# end
 
 function unpack(io::IOStream, ::Type{ROOTDirectoryHeader})
     fVersion = readtype(io, Int16)
