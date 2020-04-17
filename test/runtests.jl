@@ -5,13 +5,14 @@ using Test
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
 
+ROOTIO.@io struct Foo
+    a::Int32
+    b::Int64
+    c::Float32
+    d::SVector{5, UInt8}
+end
+
 @testset "io" begin
-    ROOTIO.@io struct Foo
-        a::Int32
-        b::Int64
-        c::Float32
-        d::SVector{5, UInt8}
-    end
 
     d = SA{UInt8}[1, 2, 3, 4, 5]
 
