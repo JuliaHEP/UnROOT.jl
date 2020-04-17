@@ -37,6 +37,16 @@ end
 
 const TKey = Union{TKey32, TKey64}
 
+function unpack(io, ::Type{TKey})
+    start = position(io)
+    skip(io, 4)
+    fVersion = readtype(io, Int16)
+    if fVersion <= 1000
+        seek(io, start)
+        return unpack(io, TKey32)
+    end
+    unpack(io, TKey64)
+end
 
 @io struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
@@ -75,11 +85,42 @@ end
 const FileHeader = Union{FileHeader32, FileHeader64}
 
 
+@io struct ROOTDirectoryHeader32
+    fVersion::Int16
+    fDatimeC::UInt32
+    fDatimeM::UInt32
+    fNbytesKeys::Int32
+    fNbytesName::Int32
+    fSeekDir::Int32
+    fSeekParent::Int32
+    fSeekKeys::Int32
+end
+
+@io struct ROOTDirectoryHeader64
+    fVersion::Int16
+    fDatimeC::UInt32
+    fDatimeM::UInt32
+    fNbytesKeys::Int32
+    fNbytesName::Int32
+    fSeekDir::Int64
+    fSeekParent::Int64
+    fSeekKeys::Int64
+end
+
+const ROOTDirectoryHeader = Union{ROOTDirectoryHeader32, ROOTDirectoryHeader64}
+
+struct ROOTDirectory
+    name::AbstractString
+    header::ROOTDirectoryHeader
+    keys::Vector{TKey}
+end
+
 struct ROOTFile
     format_version::Int32
     header::FileHeader
     fobj::IOStream
-    tfile::TKey
+    tkey::TKey
+    directory::ROOTDirectory
 end
 
 
@@ -96,67 +137,51 @@ function ROOTFile(filename::AbstractString)
     end
 
     seek(fobj, header.fBEGIN)
-    tfile = unpack(fobj, TKey32)
-    if tfile.fVersion > 1000
-        seek(fobj, header.fBEGIN)
-        tfile = unpack(fobj, TKey64)
+    tkey = unpack(fobj, TKey)
+
+    # Reading the header key for the top ROOT directory
+    seek(fobj, header.fBEGIN + header.fNbytesName)
+    dir_header = unpack(fobj, ROOTDirectoryHeader)
+    if dir_header.fSeekKeys == 0
+        ROOTFile(format_version, header, fobj, tkey, [])
     end
 
-    ROOTFile(format_version, header, fobj, tfile)
+    seek(fobj, dir_header.fSeekKeys)
+    header_key = unpack(fobj, TKey)
+
+    n_keys = readtype(fobj, Int32)
+    keys = [unpack(fobj, TKey) for _ in 1:n_keys]
+
+    directory = ROOTDirectory(tkey.fName.value, dir_header, keys)
+
+    ROOTFile(format_version, header, fobj, tkey, directory)
 end
 
 
-function Base.keys(f::ROOTFile)
-    # f.header.fSeekInfo -> TKey for streamers
-    tkeys = Vector{TKey}()
+# function Base.keys(f::ROOTDirectory)
 
-    # seek(f.fobj, f.header.fBEGIN)
-    # tkey = unpack(f.fobj, TKey32)
-    # if tkey.fVersion > 1000
-    #     seek(f.fobj, f.header.fBEGIN)
-    #     tkey = unpack(f.fobj, TKey64)
-    # end
-    # push!(tkeys, tkey)
+# end
 
-    tkeys
-end
-
-@io struct ROOTDirectory32
-    fVersion::Int16
-    fDatimeC::UInt32
-    fDatimeM::UInt32
-    fNbytesKeys::Int32
-    fNbytesName::Int32
-    fSeekDir::Int32
-    fSeekParent::Int32
-    fSeekKeys::Int32
-end
-
-@io struct ROOTDirectory64
-    fVersion::Int16
-    fDatimeC::UInt32
-    fDatimeM::UInt32
-    fNbytesKeys::Int32
-    fNbytesName::Int32
-    fSeekDir::Int64
-    fSeekParent::Int64
-    fSeekKeys::Int64
-end
-
-const ROOTDirectory = Union{ROOTDirectory32, ROOTDirectory64}
-
-function ROOTDirectory(f::ROOTFile)
-    seek(f.fobj, f.header.fBEGIN + f.header.fNbytesName)
-    fVersion = readtype(f.fobj, Int16)
-    seek(f.fobj, f.header.fBEGIN + f.header.fNbytesName)
+function unpack(io::IOStream, ::Type{ROOTDirectoryHeader})
+    fVersion = readtype(io, Int16)
+    skip(io, -2)
 
     if fVersion <= 1000
-        return unpack(f.fobj, ROOTDirectory32)
+        return unpack(io, ROOTDirectoryHeader32)
     else
-        return unpack(f.fobj, ROOTDirectory64)
+        return unpack(io, ROOTDirectoryHeader64)
     end
 
 end
+
+function Base.keys(f::ROOTFile)
+    keys(f.directory)
+end
+
+function Base.keys(d::ROOTDirectory)
+    [key.fName.value for key in d.keys]
+end
+
 
 function Base.get(f::ROOTFile, k::TKey)
 end

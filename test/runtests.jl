@@ -48,17 +48,28 @@ end
 @testset "ROOTFile" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
     @test 100 == rootfile.header.fBEGIN
+    @test 10 == length(rootfile.directory.keys)
+    @test "E" ∈ keys(rootfile.directory)
+    @test "META" ∈ keys(rootfile.directory)
+    @test "JTRIGGER::JTriggerParameters" ∈ keys(rootfile.directory)
+    @test "KM3NET_TIMESLICE" ∈ keys(rootfile.directory)
+    @test "KM3NET_TIMESLICE_L0" ∈ keys(rootfile.directory)
+    @test "KM3NET_TIMESLICE_L1" ∈ keys(rootfile.directory)
+    @test "KM3NET_TIMESLICE_L2" ∈ keys(rootfile.directory)
+    @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile.directory)
+    @test "KM3NET_EVENT" ∈ keys(rootfile.directory)
+    @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile.directory)
 end
 
-@testset "ROOTDictionary" begin
+@testset "ROOTDirectoryHeader" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
-    rootdir = ROOTIO.ROOTDirectory(rootfile)
-    @test 5 == rootdir.fVersion
-    @test 1658540644 == rootdir.fDatimeC
-    @test 1658540645 == rootdir.fDatimeM
-    @test 629 == rootdir.fNbytesKeys
-    @test 68 == rootdir.fNbytesName
-    @test 100 == rootdir.fSeekDir
-    @test 0 == rootdir.fSeekParent
-    @test 1619244 == rootdir.fSeekKeys
+    header = rootfile.directory.header
+    @test 5 == header.fVersion
+    @test 1658540644 == header.fDatimeC
+    @test 1658540645 == header.fDatimeM
+    @test 629 == header.fNbytesKeys
+    @test 68 == header.fNbytesName
+    @test 100 == header.fSeekDir
+    @test 0 == header.fSeekParent
+    @test 1619244 == header.fSeekKeys
 end
