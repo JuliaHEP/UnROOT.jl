@@ -46,6 +46,12 @@ julia> keys(f)
  "KM3NET_TIMESLICE_SN"
  "KM3NET_EVENT"
  "KM3NET_SUMMARYSLICE"
+
+julia> f["E"]  # currently only returning the TKey of the directory
+ROOTIO.TKey32(4490, 4, 41076, 0x62db5265, 35, 1, 1578572, 100,
+              ROOTIO.ROOTString("TTree"),
+              ROOTIO.ROOTString("E"),
+              ROOTIO.ROOTString(""))
 ```
 
 ## Main challenges
