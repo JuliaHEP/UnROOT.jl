@@ -26,6 +26,28 @@ documentation](https://github.com/scikit-hep/uproot/issues/401)
 The project is in early alpha prototyping phase and contributions are very
 welcome.
 
+At least the reading of the top level dictionary is already working, but
+everything is in a very early alpha stage, as mentioned above:
+
+``` julia
+julia> using ROOTIO
+
+julia> f = ROOTFile("test/samples/raw.root");
+
+julia> keys(f)
+10-element Array{String,1}:
+ "JTRIGGER::JTriggerParameters"
+ "META"
+ "E"
+ "KM3NET_TIMESLICE"
+ "KM3NET_TIMESLICE_L0"
+ "KM3NET_TIMESLICE_L1"
+ "KM3NET_TIMESLICE_L2"
+ "KM3NET_TIMESLICE_SN"
+ "KM3NET_EVENT"
+ "KM3NET_SUMMARYSLICE"
+```
+
 ## Main challenges
 
 - ROOT data is generally stored as big endian and is a
@@ -41,6 +63,7 @@ welcome.
 Pick one ;)
 
 - [x] Parsing the file header
+- [x] Read the `TKey`s of the top level dictionary
 - [ ] Reading the available trees
 - [ ] Reading the available streamers
 - [ ] Reading a simple dataset with primitive streamers
