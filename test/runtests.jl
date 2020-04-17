@@ -2,6 +2,8 @@ using ROOTIO
 using StaticArrays
 using Test
 
+const SAMPLES_DIR = joinpath(@__DIR__, "samples")
+
 
 @testset "io" begin
     ROOTIO.@io struct Foo
@@ -33,7 +35,7 @@ end
 
 
 @testset "Header and Preamble" begin
-    fobj = open(joinpath("test", "samples", "raw.root"))
+    fobj = open(joinpath(SAMPLES_DIR, "raw.root"))
     file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
     @test "root" == String(file_preamble.identifier)
 
@@ -43,6 +45,6 @@ end
 
 
 @testset "ROOTFile" begin
-    rootfile = ROOTFile(joinpath("test", "samples", "raw.root"))
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
     @test 100 == rootfile.header.fBEGIN
 end
