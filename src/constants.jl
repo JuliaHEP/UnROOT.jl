@@ -73,7 +73,7 @@ const kSTLstring            = 365
 const kStreamer             = 500
 const kStreamLoop           = 501
 
-const # constants from core/foundation/inc/ESTLType.h
+# constants from core/foundation/inc/ESTLType.h
 
 const kNotSTL               = 0
 const kSTLvector            = 1
@@ -92,7 +92,7 @@ const kSTLunorderedmultimap = 13
 const kSTLend               = 14
 const kSTLany               = 300
 
-const # IOFeatures
+# IOFeatures
 
 const kGenerateOffsetMap    = 1
 
