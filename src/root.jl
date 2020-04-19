@@ -27,9 +27,12 @@ function ROOTFile(filename::AbstractString)
     end
 
     # Streamers
+    @show Int32(header.fSeekInfo)
     if header.fSeekInfo != 0
         seek(fobj, header.fSeekInfo)
         streamer_key = unpack(fobj, TKey)
+
+        tlist = unpack(fobj, streamer_key, TList)
     end
 
     seek(fobj, header.fBEGIN)
