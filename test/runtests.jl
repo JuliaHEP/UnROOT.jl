@@ -46,22 +46,43 @@ end
 
 
 @testset "ROOTFile" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
+    @test 100 == rootfile.header.fBEGIN
+    @test 1 == length(rootfile.directory.keys)
+    @test "t1" ∈ keys(rootfile)
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_custom_struct.root"))
+    @test 100 == rootfile.header.fBEGIN
+    @test 1 == length(rootfile.directory.keys)
+    @test "T" ∈ keys(rootfile)
+
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     @test 100 == rootfile.header.fBEGIN
     @test 10 == length(rootfile.directory.keys)
-    @test "E" ∈ keys(rootfile.directory)
-    @test "META" ∈ keys(rootfile.directory)
-    @test "JTRIGGER::JTriggerParameters" ∈ keys(rootfile.directory)
-    @test "KM3NET_TIMESLICE" ∈ keys(rootfile.directory)
-    @test "KM3NET_TIMESLICE_L0" ∈ keys(rootfile.directory)
-    @test "KM3NET_TIMESLICE_L1" ∈ keys(rootfile.directory)
-    @test "KM3NET_TIMESLICE_L2" ∈ keys(rootfile.directory)
-    @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile.directory)
-    @test "KM3NET_EVENT" ∈ keys(rootfile.directory)
-    @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile.directory)
+    @test "E" ∈ keys(rootfile)
+    @test "META" ∈ keys(rootfile)
+    @test "JTRIGGER::JTriggerParameters" ∈ keys(rootfile)
+    @test "KM3NET_TIMESLICE" ∈ keys(rootfile)
+    @test "KM3NET_TIMESLICE_L0" ∈ keys(rootfile)
+    @test "KM3NET_TIMESLICE_L1" ∈ keys(rootfile)
+    @test "KM3NET_TIMESLICE_L2" ∈ keys(rootfile)
+    @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile)
+    @test "KM3NET_EVENT" ∈ keys(rootfile)
+    @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile)
 end
 
 @testset "ROOTDirectoryHeader" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
+    header = rootfile.directory.header
+    @test 5 == header.fVersion
+    @test 1697049339 == header.fDatimeC
+    @test 1697049339  == header.fDatimeM
+    @test 111 == header.fNbytesKeys
+    @test 78 == header.fNbytesName
+    @test 100 == header.fSeekDir
+    @test 0 == header.fSeekParent
+    @test 1398 == header.fSeekKeys
+
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     header = rootfile.directory.header
     @test 5 == header.fVersion
