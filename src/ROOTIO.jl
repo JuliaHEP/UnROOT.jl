@@ -120,6 +120,7 @@ struct ROOTFile
     header::FileHeader
     fobj::IOStream
     tkey::TKey
+    streamer_key::TKey
     directory::ROOTDirectory
 end
 
@@ -134,6 +135,12 @@ function ROOTFile(filename::AbstractString)
         header = unpack(fobj, FileHeader32)
     else
         header = unpack(fobj, FileHeader64)
+    end
+
+    # Streamers
+    if header.fSeekInfo != 0
+        seek(fobj, header.fSeekInfo)
+        streamer_key = unpack(fobj, TKey)
     end
 
     seek(fobj, header.fBEGIN)
@@ -154,7 +161,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName.value, dir_header, keys)
 
-    ROOTFile(format_version, header, fobj, tkey, directory)
+    ROOTFile(format_version, header, fobj, tkey, streamer_key, directory)
 end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
