@@ -7,9 +7,9 @@
     fCycle::Int16
     fSeekKey::Int32
     fSeekPdir::Int32
-    fClassName::ROOTString
-    fName::ROOTString
-    fTitle::ROOTString
+    fClassName::String
+    fName::String
+    fTitle::String
 end
 
 @io struct TKey64
@@ -21,9 +21,9 @@ end
     fCycle::Int16
     fSeekKey::Int64
     fSeekPdir::Int64
-    fClassName::ROOTString
-    fName::ROOTString
-    fTitle::ROOTString
+    fClassName::String
+    fName::String
+    fTitle::String
 end
 
 const TKey = Union{TKey32, TKey64}
@@ -131,43 +131,30 @@ end
 end
 
 function unpack(io::IOStream, tkey::TKey, ::Type{TList})
-    # TODO fix this, compressed may be larger than fObjlen
-    bytes_to_read = min(tkey.fNbytes - tkey.fKeylen, tkey.fObjlen)
-    @show bytes_to_read
-    if tkey.fObjlen != bytes_to_read
-        println("Compressed")
-
+    if tkey.fObjlen != tkey.fNbytes - tkey.fKeylen
+        # Compressed
         seek(io, tkey.fSeekKey + tkey.fKeylen)
         compression_header = unpack(io, CompressionHeader)
         if String(compression_header.algo) != "ZL"
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
 
-
         stream = IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
-        @show Int32.(read(stream, 20))
-        seek(stream, 0)
     else
-        println("Uncompressed")
+        # Uncompressed
         stream = io
     end
     preamble = Preamble(stream)
-    @show preamble
-    @show tkey.fNbytes
-    @show position(stream)
     skiptobj(stream)
 
-    @show position(stream)
-    name = readtype(stream, ROOTString)
-    @show name
+    name = readtype(stream, String)
     size = readtype(stream, Int32)
-    @show size
     objects = []
     for i ∈ 1:size
         push!(objects, i)
     end
 
-    @warn "Skipping streamer parsing"
+    @warn "Skipping streamer parsing as it is not implemented yet."
     read(stream)
 
     endcheck(stream, preamble)

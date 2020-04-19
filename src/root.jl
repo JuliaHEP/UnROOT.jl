@@ -27,7 +27,6 @@ function ROOTFile(filename::AbstractString)
     end
 
     # Streamers
-    @show Int32(header.fSeekInfo)
     if header.fSeekInfo != 0
         seek(fobj, header.fSeekInfo)
         streamer_key = unpack(fobj, TKey)
@@ -51,7 +50,7 @@ function ROOTFile(filename::AbstractString)
     n_keys = readtype(fobj, Int32)
     keys = [unpack(fobj, TKey) for _ in 1:n_keys]
 
-    directory = ROOTDirectory(tkey.fName.value, dir_header, keys)
+    directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
     ROOTFile(format_version, header, fobj, tkey, streamer_key, directory)
 end
@@ -66,7 +65,7 @@ function Base.keys(f::ROOTFile)
 end
 
 function Base.keys(d::ROOTDirectory)
-    [key.fName.value for key in d.keys]
+    [key.fName for key in d.keys]
 end
 
 

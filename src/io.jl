@@ -1,13 +1,9 @@
 function unpack() end
 
-struct ROOTString
-    value::AbstractString
-end
-
 readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
 readtype(io, ::Type{T}) where T<:AbstractVector{UInt8} = read(io, sizeof(T))
 
-function readtype(io, ::Type{ROOTString})
+function readtype(io, ::Type{T}) where T<:AbstractString
     start = position(io)
     length = readtype(io, UInt8)
 
@@ -16,7 +12,7 @@ function readtype(io, ::Type{ROOTString})
         length = readtype(io, UInt32)
     end
 
-    ROOTString(String(read(io, length)))
+    T(read(io, length))
 end
 
 
@@ -32,11 +28,13 @@ macro io(data)
         push!(types, f.args[2])
     end
 
-    struct_size = sum([sizeof(eval(t)) for t in types])
+    # TODO: Need to figure out how to deal with Strings, probably dynamically
+    # create the sizes instead of defining it just based on sizeof.
+    # struct_size = sum([sizeof(eval(t)) for t in types])
 
     quote
         $(esc(data))  # executing the code to create the actual struct
-        Base.sizeof(::Type{$(esc(struct_name))}) = $struct_size
+        # Base.sizeof(::Type{$(esc(struct_name))}) = $struct_size
 
         function $(@__MODULE__).unpack(io, ::Type{$(esc(struct_name))})
             $(esc(struct_name))($([:(readtype(io, $t)) for t in types]...))
