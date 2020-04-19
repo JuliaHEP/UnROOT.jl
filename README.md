@@ -32,7 +32,7 @@ everything is in a very early alpha stage, as mentioned above:
 ``` julia
 julia> using ROOTIO
 
-julia> f = ROOTFile("test/samples/raw.root");
+julia> f = ROOTFile("test/samples/km3net_online.root");
 
 julia> keys(f)
 10-element Array{String,1}:

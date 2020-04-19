@@ -36,7 +36,7 @@ end
 
 
 @testset "Header and Preamble" begin
-    fobj = open(joinpath(SAMPLES_DIR, "raw.root"))
+    fobj = open(joinpath(SAMPLES_DIR, "km3net_online.root"))
     file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
     @test "root" == String(file_preamble.identifier)
 
@@ -46,7 +46,7 @@ end
 
 
 @testset "ROOTFile" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     @test 100 == rootfile.header.fBEGIN
     @test 10 == length(rootfile.directory.keys)
     @test "E" ∈ keys(rootfile.directory)
@@ -62,7 +62,7 @@ end
 end
 
 @testset "ROOTDirectoryHeader" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "raw.root"))
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     header = rootfile.directory.header
     @test 5 == header.fVersion
     @test 1658540644 == header.fDatimeC
