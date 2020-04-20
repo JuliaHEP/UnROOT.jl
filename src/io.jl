@@ -15,6 +15,20 @@ function readtype(io, ::Type{T}) where T<:AbstractString
     T(read(io, length))
 end
 
+struct CString
+    value::String
+end
+
+function readtype(io, ::Type{CString})
+    out = Char[]
+    char = read(io, Char)
+    while char != '\0'
+        push!(out, char)
+        char = read(io, Char)
+    end
+    String(out)
+end
+
 
 macro io(data)
     struct_name = data.args[2]

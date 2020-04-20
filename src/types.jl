@@ -32,12 +32,16 @@ function unpack(io, ::Type{TKey})
     start = position(io)
     skip(io, 4)
     fVersion = readtype(io, Int16)
+    seek(io, start)
     if fVersion <= 1000
-        seek(io, start)
         return unpack(io, TKey32)
     end
     unpack(io, TKey64)
 end
+
+iscompressed(t::TKey) = t.fObjlen != t.fNbytes - t.fKeylen
+origin(t::TKey) = iscompressed(t) ? -t.fKeylen : t.fSeekKey
+seekstart(io, t::TKey) = seek(io, t.fSeekKey + t.fKeylen)
 
 @io struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
@@ -112,11 +116,148 @@ function unpack(io::IOStream, ::Type{ROOTDirectoryHeader})
 
 end
 
-struct TList
-    preamble
+struct TStreamerInfo
+    fName
+    fTitle
+    fCheckSum
+    fClassVersion
+    fElements
+end
+
+function nametitle(io)
+    preamble = Preamble(io)
+    skiptobj(io)
+    name = readtype(io, String)
+    title = readtype(io, String)
+    endcheck(io, preamble)
+    name, title
+end
+
+function unpack(io, tkey::TKey, ::Type{TStreamerInfo})
+    preamble = Preamble(io)
+    fName, fTitle = nametitle(io)
+    fCheckSum = readtype(io, UInt32)
+    fClassVersion = readtype(io, Int32)
+    @show fName, fTitle, fCheckSum, fClassVersion
+    fElements = readobjany(io, tkey)
+    endcheck(io, preamble)
+    TStreamerInfo(fName, fTitle, fCheckSum, fClassVersion, fElements)
+end
+
+struct TObjArray
     name
-    size
-    objects
+    low
+    elements
+end
+
+function unpack(io, tkey::TKey, ::Type{TObjArray})
+    println("          TObjArray")
+    @show position(io)
+    preamble = Preamble(io)
+    skiptobj(io)
+    name = readtype(io, String)
+    size = readtype(io, Int32)
+    low = readtype(io, Int32)
+    @show name size low
+    @show position(io)
+    elements = [readobjany(io, tkey) for i in 1:size]
+    endcheck(io, preamble)
+    return TObjArray(name, low, elements)
+end
+
+struct TStreamerElement
+    version
+    fOffset
+    fName
+    fTitle
+    fType
+    fSize
+    fArrayLength
+    fArrayDim
+    fMaxIndex
+    fTypeName
+    fXmin
+    fXmax
+    fFactor
+end
+
+function unpack(io, tkey::TKey, ::Type{TStreamerElement})
+    preamble = Preamble(io)
+    fOffset = 0
+    fName, fTitle = nametitle(io)
+    fType = readtype(io, Int32)
+    fSize = readtype(io, Int32)
+    fArrayLength = readtype(io, Int32)
+    fArrayDim = readtype(io, Int32)
+
+    n = preamble.version == 1 ? readtype(io, Int32) : 5
+    fMaxIndex = [readtype(io, Int32) for _ in 1:n]
+
+    fTypeName = readtype(io, String)
+
+    if fType == 11 && (fTypename == "Bool_t" || fTypename == "bool")
+        fType = 18
+    end
+
+    fXmin = 0.0
+    fXmax = 0.0
+    fFactor = 0.0
+
+    if preamble.version == 3
+        fXmin = readtype(io, Float64)
+        fXmax = readtype(io, Float64)
+        fFactor = readtype(io, Float64)
+    end
+
+    endcheck(io, preamble)
+
+    TStreamerElement(
+        preamble.version,
+        fOffset,
+        fName,
+        fTitle,
+        fType,
+        fSize,
+        fArrayLength,
+        fArrayDim,
+        fMaxIndex,
+        fTypeName,
+        fXmin,
+        fXmax,
+        fFactor
+    )
+end
+
+
+mutable struct TStreamerBase
+    version
+    fOffset
+    fName
+    fTitle
+    fType
+    fSize
+    fArrayLength
+    fArrayDim
+    fMaxIndex
+    fTypeName
+    fXmin
+    fXmax
+    fFactor
+    fBaseVersion
+end
+
+
+function unpack(io, tkey::TKey, ::Type{TStreamerBase})
+    preamble = Preamble(io)
+    sb = unpack(io, tkey, TStreamerElement)
+    obj = TStreamerBase(sb.version, sb.fOffset, sb.fName, sb.fTitle, sb.fType, sb.fSize, sb.fArrayLength,
+                        sb.fArrayDim, sb.fMaxIndex, sb.fTypeName, sb.fXmin, sb.fXmax, sb.fFactor,
+                        0)
+    if obj.version >= 2
+        obj.fBaseVersion = readtype(io, Int32)
+    end
+    endcheck(io, preamble)
+    obj
 end
 
 @io struct CompressionHeader
@@ -130,10 +271,17 @@ end
     u3::UInt8
 end
 
+struct TList
+    preamble
+    name
+    size
+    objects
+end
+
+
 function unpack(io::IOStream, tkey::TKey, ::Type{TList})
-    if tkey.fObjlen != tkey.fNbytes - tkey.fKeylen
-        # Compressed
-        seek(io, tkey.fSeekKey + tkey.fKeylen)
+    if iscompressed(tkey)
+        seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
         if String(compression_header.algo) != "ZL"
             error("Unsupported compression type '$(String(compression_header.algo))'")
@@ -141,7 +289,6 @@ function unpack(io::IOStream, tkey::TKey, ::Type{TList})
 
         stream = IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
     else
-        # Uncompressed
         stream = io
     end
     preamble = Preamble(stream)
@@ -149,14 +296,67 @@ function unpack(io::IOStream, tkey::TKey, ::Type{TList})
 
     name = readtype(stream, String)
     size = readtype(stream, Int32)
+    @show size
+    @show origin(tkey)
     objects = []
     for i ∈ 1:size
-        push!(objects, i)
+        push!(objects, readobjany(stream, tkey))
     end
 
     @warn "Skipping streamer parsing as it is not implemented yet."
-    read(stream)
+    # read(stream)
 
     endcheck(stream, preamble)
     TList(preamble, name, size, objects)
+end
+
+
+function readobjany(io, tkey::TKey)
+    println("====== Reading objany")
+    @show position(io)
+    beg = position(io) - origin(tkey)
+    @show beg
+    bcnt = readtype(io, UInt32)
+    if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
+        println("New class or 0 bytes")
+        version = 0
+        start = 0
+        tag = bcnt
+        bcnt = 0
+    else
+        version = 1
+        start = position(io) - origin(tkey)
+        tag = readtype(io, UInt32)
+    end
+    @show Int64(bcnt) version start Int64(tag)
+
+    if Int64(tag) & Const.kClassMask == 0
+        if tag == 0
+            return missing
+        elseif tag == 1
+            error("Returning parent is not implemented yet")
+        else
+            # skipping
+            seek(io, origin(tkey) + beg + bcnt + 4)
+        end
+    elseif tag == Const.kNewClassTag
+        cname = readtype(io, CString)
+        @show cname
+        streamer = getfield(@__MODULE__, Symbol(cname))
+
+        # here need a reference to the corresponding streamer class
+        # if version > 0
+        #     ref = start + Const.kMapOffset
+        # else
+        #     ref = NUMBER_OF_REFS + 1
+        # end
+        # println("ref $(start + Const.kMapOffset) needs to be parsed as '$cname'")
+
+        obj = unpack(io, tkey, streamer)
+
+        return obj
+    else
+        error("Reference class not implemented yet.")
+    end
+    println("-----")
 end
