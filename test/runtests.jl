@@ -47,14 +47,21 @@ end
 
 @testset "ROOTFile" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
+    show(rootfile)
     @test 100 == rootfile.header.fBEGIN
     @test 1 == length(rootfile.directory.keys)
     @test "t1" ∈ keys(rootfile)
+    for key in keys(rootfile)
+        rootfile[key]
+    end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_custom_struct.root"))
     @test 100 == rootfile.header.fBEGIN
     @test 1 == length(rootfile.directory.keys)
     @test "T" ∈ keys(rootfile)
+    for key in keys(rootfile)
+        rootfile[key]
+    end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     @test 100 == rootfile.header.fBEGIN
@@ -69,6 +76,9 @@ end
     @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile)
     @test "KM3NET_EVENT" ∈ keys(rootfile)
     @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile)
+    for key in keys(rootfile)
+        rootfile[key]
+    end
 end
 
 @testset "ROOTDirectoryHeader" begin
