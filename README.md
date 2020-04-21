@@ -5,10 +5,10 @@
 [![Build Status](https://travis-ci.com/tamasgal/ROOTIO.jl.svg?branch=master)](https://travis-ci.com/tamasgal/ROOTIO.jl)
 [![Codecov](https://codecov.io/gh/tamasgal/ROOTIO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/ROOTIO.jl)
 
-ROOTIO.jl is a reader for the [CERN ROOT](https://root.cern) file format written
-entirely in Julia, without depending on any official ROOT libraries. In contrast
-to the C++ ROOT framework, this packages focuses only on the parsing of the
-binary files and make them available as Julia structures.
+ROOTIO.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
+written entirely in Julia, without depending on any official ROOT libraries.
+In contrast to the C++ ROOT framework, this packages focuses only on parsing of
+the files.
 
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
@@ -78,3 +78,12 @@ Pick one ;)
 - [ ] Reading the available trees
 - [ ] Reading the available streamers
 - [ ] Reading a simple dataset with primitive streamers
+
+## Acknowledgements
+
+Special thanks to Jim Pivarski ([@jpivarski](https://github.com/jpivarski))
+from the [Scikit-HEP](https://github.com/scikit-hep) project, who is the
+main author of [uproot](https://github.com/scikit-hep/uproot), a native
+Python library to read and write ROOT files, which was and is a great source
+of inspiration and information for reverse engineering the ROOT binary
+structures.
