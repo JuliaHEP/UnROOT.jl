@@ -317,6 +317,24 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPo
     T(element, fCountVersion, fCountName, fCountClass)
 end
 
+struct TStreamerLoop
+    element::TStreamerElement
+    fCountVersion
+    fCountName
+    fCountClass
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerElement)
+    fCountVersion = readtype(io, Int32)
+    fCountName = readtype(io, String)
+    fCountClass = readtype(io, String)
+    endcheck(io, preamble)
+    T(element, fCountVersion, fCountName, fCountClass)
+end
+
+
 struct TStreamerSTL
     element::TStreamerElement
     fSTLType
@@ -341,6 +359,21 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTL})
     endcheck(io, preamble)
     T(element, fSTLtype, fCtype)
 end
+
+
+struct TStreamerSTLstring
+    element::TStreamerSTL
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTLstring})
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerSTL)
+    endcheck(io, preamble)
+    T(element)
+end
+
+
+
 
 const TObjString = String
 
