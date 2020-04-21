@@ -133,13 +133,13 @@ function nametitle(io)
     name, title
 end
 
-function unpack(io, tkey::TKey, ::Type{TStreamerInfo})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerInfo})
     preamble = Preamble(io)
     fName, fTitle = nametitle(io)
     fCheckSum = readtype(io, UInt32)
     fClassVersion = readtype(io, Int32)
     @show fName, fTitle, fCheckSum, fClassVersion
-    fElements = readobjany(io, tkey)
+    fElements = readobjany!(io, tkey, refs)
     endcheck(io, preamble)
     TStreamerInfo(fName, fTitle, fCheckSum, fClassVersion, fElements)
 end
@@ -150,7 +150,7 @@ struct TObjArray
     elements
 end
 
-function unpack(io, tkey::TKey, ::Type{TObjArray})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TObjArray})
     println("          TObjArray")
     @show position(io)
     preamble = Preamble(io)
@@ -160,12 +160,12 @@ function unpack(io, tkey::TKey, ::Type{TObjArray})
     low = readtype(io, Int32)
     @show name size low
     @show position(io)
-    elements = [readobjany(io, tkey) for i in 1:size]
+    elements = [readobjany!(io, tkey, refs) for i in 1:size]
     endcheck(io, preamble)
     return TObjArray(name, low, elements)
 end
 
-struct TStreamerElement
+mutable struct TStreamerElement
     version
     fOffset
     fName
@@ -181,7 +181,7 @@ struct TStreamerElement
     fFactor
 end
 
-function unpack(io, tkey::TKey, ::Type{TStreamerElement})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
     preamble = Preamble(io)
     fOffset = 0
     fName, fTitle = nametitle(io)
@@ -247,9 +247,9 @@ mutable struct TStreamerBase
 end
 
 
-function unpack(io, tkey::TKey, ::Type{TStreamerBase})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerBase})
     preamble = Preamble(io)
-    sb = unpack(io, tkey, TStreamerElement)
+    sb = unpack(io, tkey, refs, TStreamerElement)
     obj = TStreamerBase(sb.version, sb.fOffset, sb.fName, sb.fTitle, sb.fType, sb.fSize, sb.fArrayLength,
                         sb.fArrayDim, sb.fMaxIndex, sb.fTypeName, sb.fXmin, sb.fXmax, sb.fFactor,
                         0)
@@ -258,6 +258,87 @@ function unpack(io, tkey::TKey, ::Type{TStreamerBase})
     end
     endcheck(io, preamble)
     obj
+end
+
+
+struct TStreamerBasicType
+    element::TStreamerElement
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerElement)
+    if Const.kOffsetL < element.fType < Const.kOffsetP
+        element.fType -= Const.kOffsetP
+    end
+    basic = true
+    if element.fType ∈ (Const.kBool, Const.kUChar, Const.kChar)
+        element.fSize = 1
+    elseif element.fType in (Const.kUShort, Const.kShort)
+        element.fSize = 2
+    elseif element.fType in (Const.kBits, Const.kUInt, Const.kInt, Const.kCounter)
+        element.fSize = 4
+    elseif element.fType in (Const.kULong, Const.kULong64, Const.kLong, Const.kLong64)
+        element.fSize = 8
+    elseif element.fType in (Const.kFloat, Const.kFloat16)
+        element.fSize = 4
+    elseif element.fType in (Const.kDouble, Const.kDouble32)
+        element.fSize = 8
+    elseif element.fType == Const.kCharStar
+        element.fSize = sizeof(Int)
+    else
+        basic = false
+    end
+
+    if basic && element.fArrayLength > 0
+        element.fSize *= element.fArrayLength
+    end
+
+    endcheck(io, preamble)
+    T(element)
+end
+
+
+struct TStreamerBasicPointer
+    element::TStreamerElement
+    fCountVersion
+    fCountName
+    fCountClass
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPointer})
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerElement)
+    fCountVersion = readtype(io, Int32)
+    fCountName = readtype(io, String)
+    fCountClass = readtype(io, String)
+    endcheck(io, preamble)
+    T(element, fCountVersion, fCountName, fCountClass)
+end
+
+abstract type AbstractTStreamerObject end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T<:AbstractTStreamerObject
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerElement)
+    endcheck(io, preamble)
+    T(element)
+end
+
+struct TStreamerObject <: AbstractTStreamerObject
+    element::TStreamerElement
+end
+
+struct TStreamerObjectAny <: AbstractTStreamerObject
+    element::TStreamerElement
+end
+
+struct TStreamerObjectAnyPointer <: AbstractTStreamerObject
+    element::TStreamerElement
+end
+
+struct TStreamerObjectPointer <: AbstractTStreamerObject
+    element::TStreamerElement
 end
 
 @io struct CompressionHeader
@@ -279,7 +360,9 @@ struct TList
 end
 
 
-function unpack(io::IOStream, tkey::TKey, ::Type{TList})
+function read_streamers(io, tkey::TKey)
+    refs = Dict{Int32, Any}()
+
     if iscompressed(tkey)
         seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
@@ -300,25 +383,25 @@ function unpack(io::IOStream, tkey::TKey, ::Type{TList})
     @show origin(tkey)
     objects = []
     for i ∈ 1:size
-        push!(objects, readobjany(stream, tkey))
+        push!(objects, readobjany!(stream, tkey, refs))
     end
 
     @warn "Skipping streamer parsing as it is not implemented yet."
     # read(stream)
 
     endcheck(stream, preamble)
-    TList(preamble, name, size, objects)
+    refs, TList(preamble, name, size, objects)
 end
 
 
-function readobjany(io, tkey::TKey)
+function readobjany!(io, tkey::TKey, refs)
     println("====== Reading objany")
     @show position(io)
     beg = position(io) - origin(tkey)
     @show beg
     bcnt = readtype(io, UInt32)
     if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
-        println("New class or 0 bytes")
+        error("New class or 0 bytes")
         version = 0
         start = 0
         tag = bcnt
@@ -331,32 +414,60 @@ function readobjany(io, tkey::TKey)
     @show Int64(bcnt) version start Int64(tag)
 
     if Int64(tag) & Const.kClassMask == 0
+        # reference object
         if tag == 0
             return missing
         elseif tag == 1
             error("Returning parent is not implemented yet")
-        else
+        elseif !haskey(refs, tag)
             # skipping
             seek(io, origin(tkey) + beg + bcnt + 4)
+            return missing
+        else
+            return refs[tag]
         end
+
     elseif tag == Const.kNewClassTag
         cname = readtype(io, CString)
         @show cname
         streamer = getfield(@__MODULE__, Symbol(cname))
 
-        # here need a reference to the corresponding streamer class
-        # if version > 0
-        #     ref = start + Const.kMapOffset
-        # else
-        #     ref = NUMBER_OF_REFS + 1
-        # end
-        # println("ref $(start + Const.kMapOffset) needs to be parsed as '$cname'")
+        if version > 0
+            ref_pos = start + Const.kMapOffset
+            @show ref_pos
+            refs[start + Const.kMapOffset] = streamer
+        else
+            ref_pos = length(refs) + 1
+            @show ref_pos
+            refs[length(refs) + 1] = streamer
+        end
 
-        obj = unpack(io, tkey, streamer)
+        obj = unpack(io, tkey, refs, streamer)
+
+        if version > 0
+            refs[beg + Const.kMapOffset] = obj
+        else
+            refs[length(refs) + 1] = obj
+        end
 
         return obj
     else
-        error("Reference class not implemented yet.")
+        # reference class, new object
+        ref = Int64(tag) & ~Const.kClassMask
+        @show sort(collect(keys(refs)))
+        @show ref
+        haskey(refs, ref) || error("Invalid class reference.")
+
+        streamer = refs[ref]
+        obj = unpack(io, tkey, refs, streamer)
+
+        if version > 0
+            refs[beg + Const.kMapOffset] = obj
+        else
+            refs[length(refs) + 1] = obj
+        end
+
+        return obj
     end
     println("-----")
 end

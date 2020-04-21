@@ -30,8 +30,7 @@ function ROOTFile(filename::AbstractString)
     if header.fSeekInfo != 0
         seek(fobj, header.fSeekInfo)
         streamer_key = unpack(fobj, TKey)
-
-        tlist = unpack(fobj, streamer_key, TList)
+        refs, tlist = read_streamers(fobj, streamer_key)
     end
 
     seek(fobj, header.fBEGIN)
