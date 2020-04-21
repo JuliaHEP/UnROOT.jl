@@ -183,6 +183,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
     preamble = Preamble(io)
+    @show preamble
     fOffset = 0
     fName, fTitle = nametitle(io)
     fType = readtype(io, Int32)
@@ -195,7 +196,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement}
 
     fTypeName = readtype(io, String)
 
-    if fType == 11 && (fTypename == "Bool_t" || fTypename == "bool")
+    if fType == 11 && (fTypeName == "Bool_t" || fTypeName == "bool")
         fType = 18
     end
 
@@ -316,6 +317,42 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPo
     T(element, fCountVersion, fCountName, fCountClass)
 end
 
+struct TStreamerSTL
+    element::TStreamerElement
+    fSTLType
+    fCtype
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTL})
+    preamble = Preamble(io)
+    element = unpack(io, tkey, refs, TStreamerElement)
+
+    fSTLtype = readtype(io, Int32)
+    fCtype = readtype(io, Int32)
+
+    if fSTLtype == Const.kSTLmultimap || fSTLtype == Const.kSTLset
+        if startswith(element.fTypeName, "std::set") || startswith(element.fTypeName, "set")
+            fSTLtype = Const.kSTLset
+        elseif startswith(element.fTypeName, "std::multimap") || startswith(element.fTypeName, "multimap")
+            fSTLtype = Const.kSTLmultimap
+        end
+    end
+
+    endcheck(io, preamble)
+    T(element, fSTLtype, fCtype)
+end
+
+const TObjString = String
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjString})
+    preamble = Preamble(io)
+    skiptobj(io)
+    value = readtype(io, String)
+    endcheck(io, preamble)
+    T(value)
+end
+
+
 abstract type AbstractTStreamerObject end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T<:AbstractTStreamerObject
@@ -341,6 +378,11 @@ struct TStreamerObjectPointer <: AbstractTStreamerObject
     element::TStreamerElement
 end
 
+struct TStreamerString <: AbstractTStreamerObject
+    element::TStreamerElement
+end
+
+
 @io struct CompressionHeader
     algo::SVector{2, UInt8}
     method::UInt8
@@ -357,6 +399,25 @@ struct TList
     name
     size
     objects
+end
+
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
+    preamble = Preamble(io)
+    skiptobj(io)
+
+    name = readtype(io, String)
+    size = readtype(io, Int32)
+    @show size
+    @show origin(tkey)
+    objects = []
+    for i ∈ 1:size
+        push!(objects, readobjany!(io, tkey, refs))
+        skip(io, readtype(io, UInt8))
+    end
+
+    endcheck(io, preamble)
+    TList(preamble, name, size, objects)
 end
 
 
@@ -384,10 +445,8 @@ function read_streamers(io, tkey::TKey)
     objects = []
     for i ∈ 1:size
         push!(objects, readobjany!(stream, tkey, refs))
+        skip(stream, readtype(stream, UInt8))
     end
-
-    @warn "Skipping streamer parsing as it is not implemented yet."
-    # read(stream)
 
     endcheck(stream, preamble)
     refs, TList(preamble, name, size, objects)
@@ -400,6 +459,7 @@ function readobjany!(io, tkey::TKey, refs)
     beg = position(io) - origin(tkey)
     @show beg
     bcnt = readtype(io, UInt32)
+    @show Int64(bcnt)
     if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
         error("New class or 0 bytes")
         version = 0
@@ -411,7 +471,7 @@ function readobjany!(io, tkey::TKey, refs)
         start = position(io) - origin(tkey)
         tag = readtype(io, UInt32)
     end
-    @show Int64(bcnt) version start Int64(tag)
+    @show version start Int64(tag)
 
     if Int64(tag) & Const.kClassMask == 0
         # reference object
@@ -445,6 +505,7 @@ function readobjany!(io, tkey::TKey, refs)
         obj = unpack(io, tkey, refs, streamer)
 
         if version > 0
+            @show cname
             refs[beg + Const.kMapOffset] = obj
         else
             refs[length(refs) + 1] = obj
@@ -459,11 +520,17 @@ function readobjany!(io, tkey::TKey, refs)
         haskey(refs, ref) || error("Invalid class reference.")
 
         streamer = refs[ref]
+        @show streamer
         obj = unpack(io, tkey, refs, streamer)
+        @show obj
 
         if version > 0
+            ref_pos = beg + Const.kMapOffset
+            @show ref_pos
             refs[beg + Const.kMapOffset] = obj
         else
+            ref_pos = length(refs) + 1
+            @show ref_pos
             refs[length(refs) + 1] = obj
         end
 
