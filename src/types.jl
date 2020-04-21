@@ -138,7 +138,6 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerInfo})
     fName, fTitle = nametitle(io)
     fCheckSum = readtype(io, UInt32)
     fClassVersion = readtype(io, Int32)
-    @show fName, fTitle, fCheckSum, fClassVersion
     fElements = readobjany!(io, tkey, refs)
     endcheck(io, preamble)
     TStreamerInfo(fName, fTitle, fCheckSum, fClassVersion, fElements)
@@ -151,15 +150,11 @@ struct TObjArray
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TObjArray})
-    println("          TObjArray")
-    @show position(io)
     preamble = Preamble(io)
     skiptobj(io)
     name = readtype(io, String)
     size = readtype(io, Int32)
     low = readtype(io, Int32)
-    @show name size low
-    @show position(io)
     elements = [readobjany!(io, tkey, refs) for i in 1:size]
     endcheck(io, preamble)
     return TObjArray(name, low, elements)
@@ -183,7 +178,6 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
     preamble = Preamble(io)
-    @show preamble
     fOffset = 0
     fName, fTitle = nametitle(io)
     fType = readtype(io, Int32)
@@ -434,6 +428,8 @@ struct TList
     objects
 end
 
+Base.length(l::TList) = length(l.objects)
+
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
     preamble = Preamble(io)
@@ -441,8 +437,6 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
 
     name = readtype(io, String)
     size = readtype(io, Int32)
-    @show size
-    @show origin(tkey)
     objects = []
     for i ∈ 1:size
         push!(objects, readobjany!(io, tkey, refs))
@@ -453,6 +447,10 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
     TList(preamble, name, size, objects)
 end
 
+struct Streamers
+    refs::Dict{Int32, Any}
+    streamers::TList
+end
 
 function read_streamers(io, tkey::TKey)
     refs = Dict{Int32, Any}()
@@ -473,8 +471,6 @@ function read_streamers(io, tkey::TKey)
 
     name = readtype(stream, String)
     size = readtype(stream, Int32)
-    @show size
-    @show origin(tkey)
     objects = []
     for i ∈ 1:size
         push!(objects, readobjany!(stream, tkey, refs))
@@ -482,17 +478,13 @@ function read_streamers(io, tkey::TKey)
     end
 
     endcheck(stream, preamble)
-    refs, TList(preamble, name, size, objects)
+    Streamers(refs, TList(preamble, name, size, objects))
 end
 
 
 function readobjany!(io, tkey::TKey, refs)
-    println("====== Reading objany")
-    @show position(io)
     beg = position(io) - origin(tkey)
-    @show beg
     bcnt = readtype(io, UInt32)
-    @show Int64(bcnt)
     if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
         error("New class or 0 bytes")
         version = 0
@@ -504,7 +496,6 @@ function readobjany!(io, tkey::TKey, refs)
         start = position(io) - origin(tkey)
         tag = readtype(io, UInt32)
     end
-    @show version start Int64(tag)
 
     if Int64(tag) & Const.kClassMask == 0
         # reference object
@@ -522,23 +513,17 @@ function readobjany!(io, tkey::TKey, refs)
 
     elseif tag == Const.kNewClassTag
         cname = readtype(io, CString)
-        @show cname
         streamer = getfield(@__MODULE__, Symbol(cname))
 
         if version > 0
-            ref_pos = start + Const.kMapOffset
-            @show ref_pos
             refs[start + Const.kMapOffset] = streamer
         else
-            ref_pos = length(refs) + 1
-            @show ref_pos
             refs[length(refs) + 1] = streamer
         end
 
         obj = unpack(io, tkey, refs, streamer)
 
         if version > 0
-            @show cname
             refs[beg + Const.kMapOffset] = obj
         else
             refs[length(refs) + 1] = obj
@@ -548,26 +533,17 @@ function readobjany!(io, tkey::TKey, refs)
     else
         # reference class, new object
         ref = Int64(tag) & ~Const.kClassMask
-        @show sort(collect(keys(refs)))
-        @show ref
         haskey(refs, ref) || error("Invalid class reference.")
 
         streamer = refs[ref]
-        @show streamer
         obj = unpack(io, tkey, refs, streamer)
-        @show obj
 
         if version > 0
-            ref_pos = beg + Const.kMapOffset
-            @show ref_pos
             refs[beg + Const.kMapOffset] = obj
         else
-            ref_pos = length(refs) + 1
-            @show ref_pos
             refs[length(refs) + 1] = obj
         end
 
         return obj
     end
-    println("-----")
 end

@@ -5,11 +5,13 @@ struct ROOTDirectory
 end
 
 struct ROOTFile
+    filename::AbstractString
     format_version::Int32
     header::FileHeader
     fobj::IOStream
     tkey::TKey
     streamer_key::TKey
+    streamers::Streamers
     directory::ROOTDirectory
 end
 
@@ -30,7 +32,7 @@ function ROOTFile(filename::AbstractString)
     if header.fSeekInfo != 0
         seek(fobj, header.fSeekInfo)
         streamer_key = unpack(fobj, TKey)
-        refs, tlist = read_streamers(fobj, streamer_key)
+        streamers = read_streamers(fobj, streamer_key)
     end
 
     seek(fobj, header.fBEGIN)
@@ -51,7 +53,13 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(format_version, header, fobj, tkey, streamer_key, directory)
+    ROOTFile(filename, format_version, header, fobj, tkey, streamer_key, streamers, directory)
+end
+
+function Base.show(io::IO, f::ROOTFile)
+    print(io, typeof(f))
+    print(io, "(\"$(f.filename)\") with $(length(f.directory.keys)) entries ")
+    print(io, "and $(length(f.streamers.streamers)) streamers.")
 end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)

@@ -2,7 +2,7 @@ module ROOTIO
 
 export ROOTFile
 
-import Base: keys, get, getindex
+import Base: keys, get, getindex, show, length
 using StaticArrays
 using CodecZlib
 
