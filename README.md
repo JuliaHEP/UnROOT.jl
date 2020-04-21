@@ -32,23 +32,31 @@ everything is in a very early alpha stage, as mentioned above:
 ``` julia
 julia> using ROOTIO
 
-julia> f = ROOTFile("test/samples/km3net_online.root");
+julia> f = ROOTFile("test/samples/km3net_online.root")
+ROOTFile("test/samples/km3net_online.root") with 10 entries and 56 streamers.
 
 julia> keys(f)
 10-element Array{String,1}:
  "JTRIGGER::JTriggerParameters"
- "META"
- "E"
- "KM3NET_TIMESLICE"
- "KM3NET_TIMESLICE_L0"
- "KM3NET_TIMESLICE_L1"
- "KM3NET_TIMESLICE_L2"
- "KM3NET_TIMESLICE_SN"
- "KM3NET_EVENT"
- "KM3NET_SUMMARYSLICE"
+ "META"                        
+ "E"                           
+ "KM3NET_TIMESLICE"            
+ "KM3NET_TIMESLICE_L0"         
+ "KM3NET_TIMESLICE_L1"         
+ "KM3NET_TIMESLICE_L2"         
+ "KM3NET_TIMESLICE_SN"         
+ "KM3NET_EVENT"                
+ "KM3NET_SUMMARYSLICE"         
 
-julia> f["E"]  # currently only returning the TKey of the directory
-ROOTIO.TKey32(4490, 4, 41076, 0x62db5265, 35, 1, 1578572, 100, "TTree", "E", "")
+julia> f.streamers.streamers.objects[1:4]
+4-element Array{Any,1}:
+ ROOTIO.TStreamerInfo("TNamed", "", 0xdfb74a3c, 1, ROOTIO.TObjArray("", 0, Any[ROOTIO.TStreamerBase(0x0004, 0, "TObject", "Basic ROOT object", 66, 0, 0, 0, Int32[0, -1877229523, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 1), ROOTIO.TStreamerString(ROOTIO.TStreamerElement(0x0004, 0, "fName", "object identifier", 65, 24, 0, 0, Int32[0, 0, 0, 0, 0], "TString", 0.0, 0.0, 0.0)), ROOTIO.TStreamerString(ROOTIO.TStreamerElement(0x0004, 0, "fTitle", "object title", 65, 24, 0, 0, Int32[0, 0, 0, 0, 0], "TString", 0.0, 0.0, 0.0))]))
+ ROOTIO.TStreamerInfo("TObject", "", 0x901bc02d, 1, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBasicType[ROOTIO.TStreamerBasicType(ROOTIO.TStreamerElement(0x0004, 0, "fUniqueID", "object unique identifier", 13, 4, 0, 0, Int32[0, 0, 0, 0, 0], "unsigned int", 0.0, 0.0, 0.0)), ROOTIO.TStreamerBasicType(ROOTIO.TStreamerElement(0x0004, 0, "fBits", "bit field status word", 15, 4, 0, 0, Int32[0, 0, 0, 0, 0], "unsigned int", 0.0, 0.0, 0.0))]))                                                                                
+ ROOTIO.TStreamerInfo("TList", "", 0x69c5c3bb, 5, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBase[ROOTIO.TStreamerBase(0x0004, 0, "TSeqCollection", "Sequenceable collection ABC", 0, 0, 0, 0, Int32[0, -60015674, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 0)]))                                                                                                                                                                                                                                                                              
+ ROOTIO.TStreamerInfo("TSeqCollection", "", 0xfc6c3bc6, 0, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBase[ROOTIO.TStreamerBase(0x0004, 0, "TCollection", "Collection abstract base class", 0, 0, 0, 0, Int32[0, 1474546588, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 3)]))                                                                                                                                                                                                                                                                    
+
+julia> f["KM3NET_TIMESLICE_L2"]
+ROOTIO.TKey32(2475, 4, 18062, 0x62db5265, 53, 1, 1593451, 100, "TTree", "KM3NET_TIMESLICE_L2", "")
 ```
 
 ## Main challenges
