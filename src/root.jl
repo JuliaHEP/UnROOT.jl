@@ -57,13 +57,18 @@ function ROOTFile(filename::AbstractString)
 end
 
 function Base.show(io::IO, f::ROOTFile)
+    n_entries = length(f.directory.keys)
+    entries_suffix = n_entries == 1 ? "entry" : "entries"
+    n_streamers = length(f.streamers.streamers)
+    streamers_suffix = n_streamers == 1 ? "streamer" : "streamers"
     print(io, typeof(f))
-    print(io, "(\"$(f.filename)\") with $(length(f.directory.keys)) entries ")
-    print(io, "and $(length(f.streamers.streamers)) streamers.")
+    print(io, "(\"$(f.filename)\") with $n_entries $entries_suffix ")
+    print(io, "and $n_streamers $streamers_suffix.")
 end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
-    f.directory.keys[findfirst(isequal(s), keys(f))]
+    tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
+    tkey.fClassName
 end
 
 
