@@ -9,6 +9,7 @@ using CodecZlib
 include("constants.jl")
 include("io.jl")
 include("types.jl")
+include("streamers.jl")
 include("root.jl")
 
 end # module

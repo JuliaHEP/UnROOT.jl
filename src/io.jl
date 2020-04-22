@@ -117,3 +117,13 @@ function endcheck(io, preamble::Preamble)
     end
     return true
 end
+
+
+function nametitle(io)
+    preamble = Preamble(io)
+    skiptobj(io)
+    name = readtype(io, String)
+    title = readtype(io, String)
+    endcheck(io, preamble)
+    name, title
+end
