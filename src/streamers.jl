@@ -160,7 +160,10 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TObjArray})
     return TObjArray(name, low, elements)
 end
 
-mutable struct TStreamerElement
+
+abstract type AbstractTStreamerElement end
+
+@premix @with_kw mutable struct TStreamerElementTemplate
     version
     fOffset
     fName
@@ -176,51 +179,48 @@ mutable struct TStreamerElement
     fFactor
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
+@TStreamerElementTemplate mutable struct TStreamerElement end
+
+@pour initparse begin
+    fields = Dict{Symbol, Any}()
+end
+
+@pour parseTStreamerElement begin
     preamble = Preamble(io)
-    fOffset = 0
-    fName, fTitle = nametitle(io)
-    fType = readtype(io, Int32)
-    fSize = readtype(io, Int32)
-    fArrayLength = readtype(io, Int32)
-    fArrayDim = readtype(io, Int32)
+    fields[:version] = preamble.version
+    fields[:fOffset] = 0
+    fields[:fName], fields[:fTitle] = nametitle(io)
+    fields[:fType] = readtype(io, Int32)
+    fields[:fSize] = readtype(io, Int32)
+    fields[:fArrayLength] = readtype(io, Int32)
+    fields[:fArrayDim] = readtype(io, Int32)
 
     n = preamble.version == 1 ? readtype(io, Int32) : 5
-    fMaxIndex = [readtype(io, Int32) for _ in 1:n]
+    fields[:fMaxIndex] = [readtype(io, Int32) for _ in 1:n]
 
-    fTypeName = readtype(io, String)
+    fields[:fTypeName] = readtype(io, String)
 
-    if fType == 11 && (fTypeName == "Bool_t" || fTypeName == "bool")
-        fType = 18
+    if fields[:fType] == 11 && (fields[:fTypeName] == "Bool_t" || fields[:fTypeName] == "bool")
+        fields[:fType] = 18
     end
 
-    fXmin = 0.0
-    fXmax = 0.0
-    fFactor = 0.0
+    fields[:fXmin] = 0.0
+    fields[:fXmax] = 0.0
+    fields[:fFactor] = 0.0
 
     if preamble.version == 3
-        fXmin = readtype(io, Float64)
-        fXmax = readtype(io, Float64)
-        fFactor = readtype(io, Float64)
+        fields[:fXmin] = readtype(io, Float64)
+        fields[:fXmax] = readtype(io, Float64)
+        fields[:fFactor] = readtype(io, Float64)
     end
 
     endcheck(io, preamble)
+end
 
-    TStreamerElement(
-        preamble.version,
-        fOffset,
-        fName,
-        fTitle,
-        fType,
-        fSize,
-        fArrayLength,
-        fArrayDim,
-        fMaxIndex,
-        fTypeName,
-        fXmin,
-        fXmax,
-        fFactor
-    )
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
+    @initparse
+    @parseTStreamerElement
+    TStreamerElement(;fields...)
 end
 
 
@@ -256,41 +256,45 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerBase})
 end
 
 
-struct TStreamerBasicType
-    element::TStreamerElement
-end
+@TStreamerElementTemplate mutable struct TStreamerBasicType end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
-    preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerElement)
-    if Const.kOffsetL < element.fType < Const.kOffsetP
-        element.fType -= Const.kOffsetP
+@pour parseTStreamerBasicType begin
+    @parseTStreamerElement
+
+    if Const.kOffsetL < fields[:fType] < Const.kOffsetP
+        fields[:fType] -= Const.kOffsetP
     end
     basic = true
-    if element.fType ∈ (Const.kBool, Const.kUChar, Const.kChar)
-        element.fSize = 1
-    elseif element.fType in (Const.kUShort, Const.kShort)
-        element.fSize = 2
-    elseif element.fType in (Const.kBits, Const.kUInt, Const.kInt, Const.kCounter)
-        element.fSize = 4
-    elseif element.fType in (Const.kULong, Const.kULong64, Const.kLong, Const.kLong64)
-        element.fSize = 8
-    elseif element.fType in (Const.kFloat, Const.kFloat16)
-        element.fSize = 4
-    elseif element.fType in (Const.kDouble, Const.kDouble32)
-        element.fSize = 8
-    elseif element.fType == Const.kCharStar
-        element.fSize = sizeof(Int)
+    if fields[:fType] ∈ (Const.kBool, Const.kUChar, Const.kChar)
+        fields[:fSize] = 1
+    elseif fields[:fType] in (Const.kUShort, Const.kShort)
+        fields[:fSize] = 2
+    elseif fields[:fType] in (Const.kBits, Const.kUInt, Const.kInt, Const.kCounter)
+        fields[:fSize] = 4
+    elseif fields[:fType] in (Const.kULong, Const.kULong64, Const.kLong, Const.kLong64)
+        fields[:fSize] = 8
+    elseif fields[:fType] in (Const.kFloat, Const.kFloat16)
+        fields[:fSize] = 4
+    elseif fields[:fType] in (Const.kDouble, Const.kDouble32)
+        fields[:fSize] = 8
+    elseif fields[:fType] == Const.kCharStar
+        fields[:fSize] = sizeof(Int)
     else
         basic = false
     end
 
-    if basic && element.fArrayLength > 0
-        element.fSize *= element.fArrayLength
+    if basic && fields[:fArrayLength] > 0
+        fields[:fSize] *= fields[:fArrayLength]
     end
 
     endcheck(io, preamble)
-    T(element)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
+    preamble = Preamble(io)
+    @initparse
+    @parseTStreamerBasicType
+    T(;fields...)
 end
 
 
@@ -411,5 +415,6 @@ end
 
 
 
-function TTree(tkey::TKey)
+function TTree(io, tkey::TKey)
+    preamble = Preamble(io)
 end

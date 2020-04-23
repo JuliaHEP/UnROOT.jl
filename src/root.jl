@@ -68,7 +68,7 @@ end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
-    tkey.fClassName
+    # streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
 end
 
 
