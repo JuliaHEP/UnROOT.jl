@@ -1,3 +1,8 @@
+"""
+    function read_streamers(io, tkey::TKey)
+
+Reads all the streamers from the ROOT source.
+"""
 function read_streamers(io, tkey::TKey)
     refs = Dict{Int32, Any}()
 
@@ -27,6 +32,14 @@ function read_streamers(io, tkey::TKey)
     Streamers(refs, TList(preamble, name, size, objects))
 end
 
+
+"""
+    function readobjany!(io, tkey::TKey, refs)
+
+The main entrypoint where streamers are parsed cached for later use. The `refs`
+dictionary holds the streamers or parsed data which are reused when already
+available.
+"""
 function readobjany!(io, tkey::TKey, refs)
     beg = position(io) - origin(tkey)
     bcnt = readtype(io, UInt32)
@@ -307,13 +320,21 @@ end
     fCountClass
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
-    @initparse
-    preamble = Preamble(io)
-    parsefields!(io, fields, TStreamerElement)
+components(::Type{TStreamerLoop}) = [TStreamerElement]
+
+function parsefields!(io, fields, ::Type{TStreamerLoop})
     fields[:fCountVersion] = readtype(io, Int32)
     fields[:fCountName] = readtype(io, String)
     fields[:fCountClass] = readtype(io, String)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
+    @initparse
+    preamble = Preamble(io)
+    for component in components(T)
+        parsefields!(io, fields, component)
+    end
+    parsefields!(io, fields, T)
     endcheck(io, preamble)
     T(;fields...)
 end
