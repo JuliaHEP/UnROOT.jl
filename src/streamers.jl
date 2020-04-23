@@ -101,14 +101,14 @@ struct TStreamerInfo
     fElements
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerInfo})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerInfo})
     preamble = Preamble(io)
     fName, fTitle = nametitle(io)
     fCheckSum = readtype(io, UInt32)
     fClassVersion = readtype(io, Int32)
     fElements = readobjany!(io, tkey, refs)
     endcheck(io, preamble)
-    TStreamerInfo(fName, fTitle, fCheckSum, fClassVersion, fElements)
+    T(fName, fTitle, fCheckSum, fClassVersion, fElements)
 end
 
 struct TList
