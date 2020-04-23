@@ -217,41 +217,32 @@ end
     endcheck(io, preamble)
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerElement})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerElement})
     @initparse
     @parseTStreamerElement
-    TStreamerElement(;fields...)
+    T(;fields...)
 end
 
 
-mutable struct TStreamerBase
-    version
-    fOffset
-    fName
-    fTitle
-    fType
-    fSize
-    fArrayLength
-    fArrayDim
-    fMaxIndex
-    fTypeName
-    fXmin
-    fXmax
-    fFactor
+@TStreamerElementTemplate mutable struct TStreamerBase
     fBaseVersion
 end
 
-
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TStreamerBase})
+@pour parseTStreamerBase begin
     preamble = Preamble(io)
     sb = unpack(io, tkey, refs, TStreamerElement)
-    obj = TStreamerBase(sb.version, sb.fOffset, sb.fName, sb.fTitle, sb.fType, sb.fSize, sb.fArrayLength,
+    obj = T(sb.version, sb.fOffset, sb.fName, sb.fTitle, sb.fType, sb.fSize, sb.fArrayLength,
                         sb.fArrayDim, sb.fMaxIndex, sb.fTypeName, sb.fXmin, sb.fXmax, sb.fFactor,
                         0)
     if obj.version >= 2
         obj.fBaseVersion = readtype(io, Int32)
     end
     endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBase})
+    @initparse
+    @parseTStreamerBase
     obj
 end
 
@@ -287,13 +278,13 @@ end
         fields[:fSize] *= fields[:fArrayLength]
     end
 
-    endcheck(io, preamble)
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
     preamble = Preamble(io)
     @initparse
     @parseTStreamerBasicType
+    endcheck(io, preamble)
     T(;fields...)
 end
 
