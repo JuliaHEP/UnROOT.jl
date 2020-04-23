@@ -185,7 +185,7 @@ end
     fields = Dict{Symbol, Any}()
 end
 
-@pour parseTStreamerElement begin
+function parsefields!(io, fields, ::Type{TStreamerElement})
     preamble = Preamble(io)
     fields[:version] = preamble.version
     fields[:fOffset] = 0
@@ -219,7 +219,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerElement})
     @initparse
-    @parseTStreamerElement
+    parsefields!(io, fields, T)
     T(;fields...)
 end
 
@@ -228,29 +228,24 @@ end
     fBaseVersion
 end
 
-@pour parseTStreamerBase begin
+function parsefields!(io, fields, ::Type{TStreamerBase})
     preamble = Preamble(io)
-    sb = unpack(io, tkey, refs, TStreamerElement)
-    obj = T(sb.version, sb.fOffset, sb.fName, sb.fTitle, sb.fType, sb.fSize, sb.fArrayLength,
-                        sb.fArrayDim, sb.fMaxIndex, sb.fTypeName, sb.fXmin, sb.fXmax, sb.fFactor,
-                        0)
-    if obj.version >= 2
-        obj.fBaseVersion = readtype(io, Int32)
-    end
+    parsefields!(io, fields, TStreamerElement)
+    fields[:fBaseVersion] = fields[:version] >= 2 ? readtype(io, Int32) : 0
     endcheck(io, preamble)
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBase})
     @initparse
-    @parseTStreamerBase
-    obj
+    parsefields!(io, fields, T)
+    T(;fields...)
 end
 
 
 @TStreamerElementTemplate mutable struct TStreamerBasicType end
 
-@pour parseTStreamerBasicType begin
-    @parseTStreamerElement
+function parsefields!(io, fields, ::Type{TStreamerBasicType})
+    parsefields!(io, fields, TStreamerElement)
 
     if Const.kOffsetL < fields[:fType] < Const.kOffsetP
         fields[:fType] -= Const.kOffsetP
@@ -281,72 +276,72 @@ end
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
-    preamble = Preamble(io)
     @initparse
-    @parseTStreamerBasicType
+    preamble = Preamble(io)
+    parsefields!(io, fields, T)
     endcheck(io, preamble)
     T(;fields...)
 end
 
 
-struct TStreamerBasicPointer
-    element::TStreamerElement
+@TStreamerElementTemplate mutable struct TStreamerBasicPointer
     fCountVersion
     fCountName
     fCountClass
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPointer})
+    @initparse
     preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerElement)
-    fCountVersion = readtype(io, Int32)
-    fCountName = readtype(io, String)
-    fCountClass = readtype(io, String)
+    parsefields!(io, fields, TStreamerElement)
+    fields[:fCountVersion] = readtype(io, Int32)
+    fields[:fCountName] = readtype(io, String)
+    fields[:fCountClass] = readtype(io, String)
     endcheck(io, preamble)
-    T(element, fCountVersion, fCountName, fCountClass)
+    T(;fields...)
 end
 
-struct TStreamerLoop
-    element::TStreamerElement
+@TStreamerElementTemplate mutable struct TStreamerLoop
     fCountVersion
     fCountName
     fCountClass
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
+    @initparse
     preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerElement)
-    fCountVersion = readtype(io, Int32)
-    fCountName = readtype(io, String)
-    fCountClass = readtype(io, String)
+    parsefields!(io, fields, TStreamerElement)
+    fields[:fCountVersion] = readtype(io, Int32)
+    fields[:fCountName] = readtype(io, String)
+    fields[:fCountClass] = readtype(io, String)
     endcheck(io, preamble)
-    T(element, fCountVersion, fCountName, fCountClass)
+    T(;fields...)
 end
 
 
-struct TStreamerSTL
-    element::TStreamerElement
-    fSTLType
+@TStreamerElementTemplate mutable struct TStreamerSTL
+    fSTLtype
     fCtype
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTL})
+    @initparse
     preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerElement)
+    parsefields!(io, fields, TStreamerElement)
 
-    fSTLtype = readtype(io, Int32)
-    fCtype = readtype(io, Int32)
+    fields[:fSTLtype] = readtype(io, Int32)
+    fields[:fCtype] = readtype(io, Int32)
 
-    if fSTLtype == Const.kSTLmultimap || fSTLtype == Const.kSTLset
-        if startswith(element.fTypeName, "std::set") || startswith(element.fTypeName, "set")
-            fSTLtype = Const.kSTLset
-        elseif startswith(element.fTypeName, "std::multimap") || startswith(element.fTypeName, "multimap")
-            fSTLtype = Const.kSTLmultimap
+    if fields[:fSTLtype] == Const.kSTLmultimap || fields[:fSTLtype] == Const.kSTLset
+        if startswith(fields[:fTypeName], "std::set") || startswith(fields[:fTypeName], "set")
+            fields[:fSTLtype] = Const.kSTLset
+        elseif startswith(fields[:fTypeName], "std::multimap") || startswith(fields[:fTypeName], "multimap")
+            fields[:fSTLtype] = Const.kSTLmultimap
         end
     end
 
     endcheck(io, preamble)
-    T(element, fSTLtype, fCtype)
+    T(;fields...)
 end
 
 
@@ -378,31 +373,18 @@ end
 abstract type AbstractTStreamerObject end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T<:AbstractTStreamerObject
+    @initparse
     preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerElement)
+    parsefields!(io, fields, TStreamerElement)
     endcheck(io, preamble)
-    T(element)
+    T(;fields...)
 end
 
-struct TStreamerObject <: AbstractTStreamerObject
-    element::TStreamerElement
-end
-
-struct TStreamerObjectAny <: AbstractTStreamerObject
-    element::TStreamerElement
-end
-
-struct TStreamerObjectAnyPointer <: AbstractTStreamerObject
-    element::TStreamerElement
-end
-
-struct TStreamerObjectPointer <: AbstractTStreamerObject
-    element::TStreamerElement
-end
-
-struct TStreamerString <: AbstractTStreamerObject
-    element::TStreamerElement
-end
+@TStreamerElementTemplate mutable struct TStreamerObject <: AbstractTStreamerObject end
+@TStreamerElementTemplate mutable struct TStreamerObjectAny <: AbstractTStreamerObject end
+@TStreamerElementTemplate mutable struct TStreamerObjectAnyPointer <: AbstractTStreamerObject end
+@TStreamerElementTemplate mutable struct TStreamerObjectPointer <: AbstractTStreamerObject end
+@TStreamerElementTemplate mutable struct TStreamerString <: AbstractTStreamerObject end
 
 
 
