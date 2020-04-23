@@ -318,14 +318,23 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
     T(;fields...)
 end
 
+abstract type AbstractTStreamSTL end
 
-@TStreamerElementTemplate mutable struct TStreamerSTL
+@TStreamerElementTemplate mutable struct TStreamerSTL <: AbstractTStreamSTL
     fSTLtype
     fCtype
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTL})
+@TStreamerElementTemplate mutable struct TStreamerSTLstring <: AbstractTStreamSTL
+    fSTLtype
+    fCtype
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T <: AbstractTStreamSTL
     @initparse
+    if T == TStreamerSTLstring
+        wrapper_preamble = Preamble(io)
+    end
     preamble = Preamble(io)
     parsefields!(io, fields, TStreamerElement)
 
@@ -341,22 +350,11 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTL})
     end
 
     endcheck(io, preamble)
+    if T == TStreamerSTLstring
+        endcheck(io, wrapper_preamble)
+    end
     T(;fields...)
 end
-
-
-struct TStreamerSTLstring
-    element::TStreamerSTL
-end
-
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerSTLstring})
-    preamble = Preamble(io)
-    element = unpack(io, tkey, refs, TStreamerSTL)
-    endcheck(io, preamble)
-    T(element)
-end
-
-
 
 
 const TObjString = String
