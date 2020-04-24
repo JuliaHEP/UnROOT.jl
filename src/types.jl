@@ -43,6 +43,17 @@ iscompressed(t::TKey) = t.fObjlen != t.fNbytes - t.fKeylen
 origin(t::TKey) = iscompressed(t) ? -t.fKeylen : t.fSeekKey
 seekstart(io, t::TKey) = seek(io, t.fSeekKey + t.fKeylen)
 
+function datastream(io, tkey::TKey)
+    !iscompressed(tkey) && return io
+    seekstart(io, tkey)
+    compression_header = unpack(io, CompressionHeader)
+    if String(compression_header.algo) != "ZL"
+        error("Unsupported compression type '$(String(compression_header.algo))'")
+    end
+    IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
+end
+
+
 @io struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
     fVersion::Int32                # File format version
