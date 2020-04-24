@@ -471,3 +471,26 @@ end
 # function TTree(io, tkey::TKey)
 #     preamble = Preamble(io)
 # end
+
+
+abstract type ROOTStreamedObject end
+
+struct TObject <: ROOTStreamedObject end
+parsefields!(io, fields, ::TObject) = skiptobj(io)
+
+struct TString <: ROOTStreamedObject end
+unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TString}) = readtype(io, String)
+
+@with_kw struct TNamed <: ROOTStreamedObject
+    fName
+    fTitle
+end
+
+function parsefields!(io, fields, T::Type{TNamed})
+    preamble = Preamble(io)
+    parsefields!(io, fields, TObject)
+    fields[:fName] = readtype(io, String)
+    fields[:fTitle] = readtype(io, String)
+    endcheck(preamble)
+    T(;fields...)
+end

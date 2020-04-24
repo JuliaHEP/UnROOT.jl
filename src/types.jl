@@ -130,9 +130,6 @@ end
 
 
 # Built-in types
-function TObject end
-function TString end
-function TNamed end
 function THashList end
 function TRef end
 function TArray end
