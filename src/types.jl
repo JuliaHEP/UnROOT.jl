@@ -145,3 +145,11 @@ function TArrayF end
 function TArrayD end
 function TRefArray end
 function ROOT_3a3a_TIOFeatures end
+
+function aliasfor(classname)
+    if classname == "ROOT::TIOFeatures"
+        return ROOT_3a3a_TIOFeatures
+    else
+        nothing
+    end
+end

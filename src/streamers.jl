@@ -54,7 +54,8 @@ end
 """
     function topological_sort(streamer_infos)
 
-Sort the streamers with respect to their dependencies.
+Sort the streamers with respect to their dependencies and keep only those
+which are not defined already.
 
 The implementation is based on https://stackoverflow.com/a/11564769/1623645
 """
@@ -66,8 +67,10 @@ function topological_sort(streamer_infos)
         emitted = false
 
         for streamer_info in streamer_infos
-            if all(d -> isdefined(@__MODULE__, Symbol(d)) || d in provided, streamer_info.dependencies)
-                push!(sorted_streamer_infos, streamer_info)
+            if all(d -> isdefined(@__MODULE__, Symbol(d)) || d ∈ provided, streamer_info.dependencies)
+                if !isdefined(@__MODULE__, Symbol(streamer_info.streamer.fName)) && aliasfor(streamer_info.streamer.fName) === nothing
+                    push!(sorted_streamer_infos, streamer_info)
+                end
                 push!(provided, streamer_info.streamer.fName)
                 emitted = true
             else
@@ -92,7 +95,6 @@ function define_streamers(streamer_infos)
         # for dep in streamer_info.dependencies
         #     println("  $dep")
         # end
-        # isdefined(@__MODULE__, Symbol(streamer.fName)) && continue
     end
 end
 
