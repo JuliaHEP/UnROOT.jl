@@ -569,8 +569,17 @@ function TTree(io, tkey::TKey)
     fields[:fAutoFlush] = readtype(io, Int64)
     fields[:fEstimate] = readtype(io, Int64)
 
+    # FIXME what about speedbumps??
+    speedbump = true
+
+    speedbump && skip(io, 1)
+    fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
+    speedbump && skip(io, 1)
+    fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
+
 
 
     println(fields)
+
     endcheck(io, preamble)
 end
