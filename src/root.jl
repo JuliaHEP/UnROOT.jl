@@ -11,7 +11,7 @@ struct ROOTFile
     fobj::IOStream
     tkey::TKey
     streamer_key::TKey
-    streamers::Streamers
+    streamer_infos::Vector{StreamerInfo}
     directory::ROOTDirectory
 end
 
@@ -33,6 +33,7 @@ function ROOTFile(filename::AbstractString)
         seek(fobj, header.fSeekInfo)
         streamer_key = unpack(fobj, TKey)
         streamers = read_streamers(fobj, streamer_key)
+        define_streamers(streamers)
     end
 
     seek(fobj, header.fBEGIN)
@@ -59,7 +60,7 @@ end
 function Base.show(io::IO, f::ROOTFile)
     n_entries = length(f.directory.keys)
     entries_suffix = n_entries == 1 ? "entry" : "entries"
-    n_streamers = length(f.streamers.streamers)
+    n_streamers = length(f.streamer_infos)
     streamers_suffix = n_streamers == 1 ? "streamer" : "streamers"
     print(io, typeof(f))
     print(io, "(\"$(f.filename)\") with $n_entries $entries_suffix ")

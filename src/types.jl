@@ -128,3 +128,20 @@ end
     u3::UInt8
 end
 
+
+# Built-in types
+function TObject end
+function TString end
+function TNamed end
+function THashList end
+function TRef end
+function TArray end
+function TArrayC end
+function TArrayS end
+function TArrayI end
+function TArrayL end
+function TArrayL64 end
+function TArrayF end
+function TArrayD end
+function TRefArray end
+function ROOT_3a3a_TIOFeatures end

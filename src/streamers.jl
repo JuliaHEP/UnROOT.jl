@@ -1,3 +1,13 @@
+struct StreamerInfo
+    streamer
+    dependencies
+end
+
+struct Streamers
+    refs::Dict{Int32, Any}
+    elements
+end
+
 """
     function read_streamers(io, tkey::TKey)
 
@@ -22,14 +32,68 @@ function read_streamers(io, tkey::TKey)
 
     name = readtype(stream, String)
     size = readtype(stream, Int32)
-    objects = []
+    streamer_infos = Vector{StreamerInfo}()
     for i ∈ 1:size
-        push!(objects, readobjany!(stream, tkey, refs))
+        obj = readobjany!(stream, tkey, refs)
+        if typeof(obj) == TStreamerInfo
+            dependencies = Set()
+            for element in obj.fElements.elements
+                if typeof(element) == TStreamerBase
+                    push!(dependencies, element.fName)
+                end
+            end
+            push!(streamer_infos, StreamerInfo(obj, dependencies))
+        end
         skip(stream, readtype(stream, UInt8))
     end
 
     endcheck(stream, preamble)
-    Streamers(refs, TList(preamble, name, size, objects))
+    topological_sort(streamer_infos)
+end
+
+"""
+    function topological_sort(streamer_infos)
+
+Sort the streamers with respect to their dependencies.
+
+The implementation is based on https://stackoverflow.com/a/11564769/1623645
+"""
+function topological_sort(streamer_infos)
+    provided = Set{String}()
+    sorted_streamer_infos = []
+    while length(streamer_infos) > 0
+        remaining_items = []
+        emitted = false
+
+        for streamer_info in streamer_infos
+            if all(d -> isdefined(@__MODULE__, Symbol(d)) || d in provided, streamer_info.dependencies)
+                push!(sorted_streamer_infos, streamer_info)
+                push!(provided, streamer_info.streamer.fName)
+                emitted = true
+            else
+                push!(remaining_items, streamer_info)
+            end
+        end
+
+        if !emitted
+            for streamer_info in streamer_infos
+                filter!(isequal(streamer_info), remaining_items)
+            end
+        end
+
+        streamer_infos = remaining_items
+    end
+    sorted_streamer_infos
+end
+
+function define_streamers(streamer_infos)
+    for streamer_info in streamer_infos
+        # println(streamer_info.streamer.fName)
+        # for dep in streamer_info.dependencies
+        #     println("  $dep")
+        # end
+        # isdefined(@__MODULE__, Symbol(streamer.fName)) && continue
+    end
 end
 
 
@@ -148,11 +212,6 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
 
     endcheck(io, preamble)
     TList(preamble, name, size, objects)
-end
-
-struct Streamers
-    refs::Dict{Int32, Any}
-    streamers::TList
 end
 
 
@@ -407,6 +466,6 @@ end
 
 
 
-function TTree(io, tkey::TKey)
-    preamble = Preamble(io)
-end
+# function TTree(io, tkey::TKey)
+#     preamble = Preamble(io)
+# end
