@@ -32,7 +32,7 @@ function Streamers(io)
     else
         stream = io
     end
-    preamble = Preamble(stream)
+    preamble = Preamble(stream, Streamers)
     skiptobj(stream)
 
     name = readtype(stream, String)
@@ -187,7 +187,7 @@ struct TStreamerInfo
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerInfo})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     fName, fTitle = nametitle(io)
     fCheckSum = readtype(io, UInt32)
     fClassVersion = readtype(io, Int32)
@@ -206,8 +206,8 @@ end
 Base.length(l::TList) = length(l.objects)
 
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TList})
-    preamble = Preamble(io)
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TList})
+    preamble = Preamble(io, T)
     skiptobj(io)
 
     name = readtype(io, String)
@@ -229,8 +229,8 @@ struct TObjArray
     elements
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TObjArray})
-    preamble = Preamble(io)
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjArray})
+    preamble = Preamble(io, T)
     skiptobj(io)
     name = readtype(io, String)
     size = readtype(io, Int32)
@@ -265,8 +265,8 @@ end
     fields = Dict{Symbol, Any}()
 end
 
-function parsefields!(io, fields, ::Type{TStreamerElement})
-    preamble = Preamble(io)
+function parsefields!(io, fields, T::Type{TStreamerElement})
+    preamble = Preamble(io, T)
     fields[:version] = preamble.version
     fields[:fOffset] = 0
     fields[:fName], fields[:fTitle] = nametitle(io)
@@ -308,8 +308,8 @@ end
     fBaseVersion
 end
 
-function parsefields!(io, fields, ::Type{TStreamerBase})
-    preamble = Preamble(io)
+function parsefields!(io, fields, T::Type{TStreamerBase})
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TStreamerElement)
     fields[:fBaseVersion] = fields[:version] >= 2 ? readtype(io, Int32) : 0
     endcheck(io, preamble)
@@ -357,7 +357,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicType})
     @initparse
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, T)
     endcheck(io, preamble)
     T(;fields...)
@@ -372,7 +372,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPointer})
     @initparse
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TStreamerElement)
     fields[:fCountVersion] = readtype(io, Int32)
     fields[:fCountName] = readtype(io, String)
@@ -397,7 +397,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerLoop})
     @initparse
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     for component in components(T)
         parsefields!(io, fields, component)
     end
@@ -421,9 +421,9 @@ end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T <: AbstractTStreamSTL
     @initparse
     if T == TStreamerSTLstring
-        wrapper_preamble = Preamble(io)
+        wrapper_preamble = Preamble(io, T)
     end
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TStreamerElement)
 
     fields[:fSTLtype] = readtype(io, Int32)
@@ -448,7 +448,7 @@ end
 const TObjString = String
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjString})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     skiptobj(io)
     value = readtype(io, String)
     endcheck(io, preamble)
@@ -460,7 +460,7 @@ abstract type AbstractTStreamerObject end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T<:AbstractTStreamerObject
     @initparse
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TStreamerElement)
     endcheck(io, preamble)
     T(;fields...)
@@ -482,13 +482,21 @@ parsefields!(io, fields, ::Type{TObject}) = skiptobj(io)
 struct TString <: ROOTStreamedObject end
 unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TString}) = readtype(io, String)
 
+struct Undefined <: ROOTStreamedObject end
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{Undefined})
+    preamble = Preamble(io, T)
+    skip(io, preamble.cnt - 6)
+    endcheck(io, preamble)
+end
+
+
 @with_kw struct TNamed <: ROOTStreamedObject
     fName
     fTitle
 end
 
 function parsefields!(io, fields, T::Type{TNamed})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TObject)
     fields[:fName] = readtype(io, String)
     fields[:fTitle] = readtype(io, String)
@@ -500,7 +508,7 @@ end
 end
 
 function parsefields!(io, fields, T::Type{ROOT_3a3a_TIOFeatures})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     skip(io, 4)
     fields[:fIOBits] = readtype(io, UInt8)
     endcheck(io, preamble)
@@ -524,24 +532,23 @@ end
 end
 
 function parsefields!(io, fields, T::Type{TAttLine})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     fields[:fLineColor] = readtype(io, Int16)
-    fields[:fTLineStyle] = readtype(io, Int16)
-    fields[:fTLineWidth] = readtype(io, Int16)
+    fields[:fLineStyle] = readtype(io, Int16)
+    fields[:fLineWidth] = readtype(io, Int16)
     endcheck(io, preamble)
 end
 
 # FIXME this should be generated
 @with_kw struct TAttFill <: ROOTStreamedObject
-    fLineColor
-    fLineStyle
-    fLineWidth
+    fFillColor
+    fFillStyle
 end
 
 function parsefields!(io, fields, T::Type{TAttFill})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     fields[:fFillColor] = readtype(io, Int16)
-    fields[:fTFillStyle] = readtype(io, Int16)
+    fields[:fFillStyle] = readtype(io, Int16)
     endcheck(io, preamble)
 end
 
@@ -553,7 +560,7 @@ end
 end
 
 function parsefields!(io, fields, T::Type{TAttMarker})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     fields[:fMarkerColor] = readtype(io, Int16)
     fields[:fMarkerStyle] = readtype(io, Int16)
     fields[:fMarkerSize] = readtype(io, Float32)
@@ -575,7 +582,7 @@ end
 end
 
 function parsefields!(io, fields, T::Type{TLeaf})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TNamed)
     fields[:fLen] = readtype(io, Int32)
     fields[:fLenType] = readtype(io, Int32)
@@ -606,7 +613,7 @@ end
 end
 
 function parsefields!(io, fields, T::Type{TLeafI})
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TLeaf)
     fields[:fMinimum] = readtype(io, Int32)
     fields[:fMaximum] = readtype(io, Int32)
@@ -615,18 +622,81 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafI})
     @initparse
-    parsefields!(io, fields, TLeafI)
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+# FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafF
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafF})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Float32)
+    fields[:fMaximum] = readtype(io, Float32)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafF})
+    @initparse
+    parsefields!(io, fields, T)
     T(;fields...)
 end
 
 # FIXME this should be generated
-struct TBranch
+@with_kw struct TBranch
+    # from TNamed
+    fName
+    fTitle
 
+    # from TAttFill
+    fFillColor
+    fFillStyle
+
+    fCompress
+    fBasketSize
+    fEntryOffsetLen
+    fWriteBasket
+    fEntryNumber
+
+    fIOFeatures
+
+    fOffset
+    fMaxBaskets
+    fSplitLevel
+    fEntries
+    fFirstEntry
+    fTotBytes
+    fZipBytes
+
+    fBranches
+    fLeaves
+    fBaskets
+    fBasketBytes
+    fBasketEntry
+    fBasketSeek
+    fFileName
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TBranch})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
     @initparse
-    preamble = Preamble(io)
+    preamble = Preamble(io, T)
     parsefields!(io, fields, TNamed)
     parsefields!(io, fields, TAttFill)
 
@@ -638,19 +708,35 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TBranch})
 
     fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
 
-    fOffset = readtype(io, Int32)
-    fMaxBaskets = readtype(io, UInt32)
-    fSplitLevel = readtype(io, Int32)
-    fEntries = readtype(io, Int64)
-    fFirstEntry = readtype(io, Int64)
-    fTotBytes = readtype(io, Int64)
-    fZipBytes = readtype(io, Int64)
+    fields[:fOffset] = readtype(io, Int32)
+    fields[:fMaxBaskets] = readtype(io, UInt32)
+    fields[:fSplitLevel] = readtype(io, Int32)
+    fields[:fEntries] = readtype(io, Int64)
+    fields[:fFirstEntry] = readtype(io, Int64)
+    fields[:fTotBytes] = readtype(io, Int64)
+    fields[:fZipBytes] = readtype(io, Int64)
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+    fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
+    speedbump = true  # FIXME speedbump?
 
+    speedbump && skip(io, 1)
+
+    fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    fields[:fFileName] = readtype(io, String)
 
     endcheck(io, preamble)
+
+    T(;fields...)
 end
 
 
@@ -660,7 +746,7 @@ function TTree(io, tkey::TKey, refs)
 
     @initparse
 
-    preamble = Preamble(io)
+    preamble = Preamble(io, Missing)
 
     parsefields!(io, fields, TNamed)
 
@@ -697,9 +783,11 @@ function TTree(io, tkey::TKey, refs)
     fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
-
-
     println(fields)
+    fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+
+
+    println(fields[:fBranches])
 
     endcheck(io, preamble)
 end

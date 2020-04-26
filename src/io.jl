@@ -64,6 +64,7 @@ struct Preamble
     start
     cnt
     version
+    type::Type
 end
 
 """
@@ -71,17 +72,17 @@ Reads the preamble of an object.
 
 The cursor will be put into the right place depending on the data.
 """
-function Preamble(io)
+function Preamble(io, T::Type)
     start = position(io)
     cnt = readtype(io, UInt32)
     version = readtype(io, UInt16)
     if Int64(cnt) & Const.kByteCountMask > 0
         cnt = Int64(cnt) & ~Const.kByteCountMask
-        return Preamble(start, cnt + 4, version)
+        return Preamble(start, cnt + 4, version, T)
     else
         seek(io, start)
         version = readtype(io, UInt16)
-        return Preamble(start, missing, version)
+        return Preamble(start, missing, version, T)
     end
 end
 
@@ -113,7 +114,7 @@ function endcheck(io, preamble::Preamble)
     if !ismissing(preamble.cnt)
         observed = position(io) - preamble.start
         if observed != preamble.cnt
-            error("Object has $(observed) bytes; expected $(preamble.cnt)")
+            error("Object '$(preamble.type)' has $(observed) bytes; expected $(preamble.cnt)")
         end
     end
     return true
@@ -121,7 +122,7 @@ end
 
 
 function nametitle(io)
-    preamble = Preamble(io)
+    preamble = Preamble(io, Missing)
     skiptobj(io)
     name = readtype(io, String)
     title = readtype(io, String)
