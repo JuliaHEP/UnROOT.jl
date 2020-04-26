@@ -152,7 +152,6 @@ function TArrayL64 end
 function TArrayF end
 function TArrayD end
 function TRefArray end
-function ROOT_3a3a_TIOFeatures end
 
 function aliasfor(classname)
     if classname == "ROOT::TIOFeatures"
