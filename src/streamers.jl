@@ -560,9 +560,102 @@ function parsefields!(io, fields, T::Type{TAttMarker})
     endcheck(io, preamble)
 end
 
+# FIXME this should be generated
+@with_kw struct TLeaf
+    # FIXME these two come from TNamed
+    fName
+    fTitle
+
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+end
+
+function parsefields!(io, fields, T::Type{TLeaf})
+    preamble = Preamble(io)
+    parsefields!(io, fields, TNamed)
+    fields[:fLen] = readtype(io, Int32)
+    fields[:fLenType] = readtype(io, Int32)
+    fields[:fOffset] = readtype(io, Int32)
+    fields[:fIsRange] = readtype(io, Bool)
+    fields[:fIsUnsigned] = readtype(io, Bool)
+    fields[:fLeafCount] = readtype(io, UInt32)
+    endcheck(io, preamble)
+end
+
+# FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafI
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafI})
+    preamble = Preamble(io)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Int32)
+    fields[:fMaximum] = readtype(io, Int32)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafI})
+    @initparse
+    parsefields!(io, fields, TLeafI)
+    T(;fields...)
+end
+
+# FIXME this should be generated
+struct TBranch
+
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TBranch})
+    @initparse
+    preamble = Preamble(io)
+    parsefields!(io, fields, TNamed)
+    parsefields!(io, fields, TAttFill)
+
+    fields[:fCompress] = readtype(io, Int32)
+    fields[:fBasketSize] = readtype(io, Int32)
+    fields[:fEntryOffsetLen] = readtype(io, Int32)
+    fields[:fWriteBasket] = readtype(io, Int32)
+    fields[:fEntryNumber] = readtype(io, Int64)
+
+    fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
+
+    fOffset = readtype(io, Int32)
+    fMaxBaskets = readtype(io, UInt32)
+    fSplitLevel = readtype(io, Int32)
+    fEntries = readtype(io, Int64)
+    fFirstEntry = readtype(io, Int64)
+    fTotBytes = readtype(io, Int64)
+    fZipBytes = readtype(io, Int64)
+
+    fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
+    fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+
+
+    endcheck(io, preamble)
+end
+
 
 # FIXME preliminary TTree implementation
-function TTree(io, tkey::TKey)
+function TTree(io, tkey::TKey, refs)
     io = datastream(io, tkey)
 
     @initparse
@@ -602,6 +695,8 @@ function TTree(io, tkey::TKey)
     fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
 
     fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
+
+    fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
 
 
     println(fields)

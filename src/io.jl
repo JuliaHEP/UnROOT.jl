@@ -1,6 +1,7 @@
 function unpack() end
 
 readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
+readtype(io, ::Type{T}) where T<:Bool = read(io, T)
 readtype(io, ::Type{T}) where T<:AbstractVector{UInt8} = read(io, sizeof(T))
 
 function readtype(io, ::Type{T}) where T<:AbstractString
