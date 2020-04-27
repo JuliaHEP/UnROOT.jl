@@ -61,14 +61,14 @@ end
 end
 
 
-@testset "Header and Preamble" begin
-    fobj = open(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
-    @test "root" == String(file_preamble.identifier)
+# @testset "Header and Preamble" begin
+#     fobj = open(joinpath(SAMPLES_DIR, "km3net_online.root"))
+#     file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
+#     @test "root" == String(file_preamble.identifier)
 
-    file_header = ROOTIO.unpack(fobj, ROOTIO.FileHeader32)
-    @test 100 == file_header.fBEGIN
-end
+#     file_header = ROOTIO.unpack(fobj, ROOTIO.FileHeader32)
+#     @test 100 == file_header.fBEGIN
+# end
 
 
 @testset "ROOTFile" begin
@@ -89,22 +89,22 @@ end
         rootfile[key]
     end
 
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    @test 100 == rootfile.header.fBEGIN
-    @test 10 == length(rootfile.directory.keys)
-    @test "E" ∈ keys(rootfile)
-    @test "META" ∈ keys(rootfile)
-    @test "JTRIGGER::JTriggerParameters" ∈ keys(rootfile)
-    @test "KM3NET_TIMESLICE" ∈ keys(rootfile)
-    @test "KM3NET_TIMESLICE_L0" ∈ keys(rootfile)
-    @test "KM3NET_TIMESLICE_L1" ∈ keys(rootfile)
-    @test "KM3NET_TIMESLICE_L2" ∈ keys(rootfile)
-    @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile)
-    @test "KM3NET_EVENT" ∈ keys(rootfile)
-    @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile)
-    for key in keys(rootfile)
-        rootfile[key]
-    end
+    # rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    # @test 100 == rootfile.header.fBEGIN
+    # @test 10 == length(rootfile.directory.keys)
+    # @test "E" ∈ keys(rootfile)
+    # @test "META" ∈ keys(rootfile)
+    # @test "JTRIGGER::JTriggerParameters" ∈ keys(rootfile)
+    # @test "KM3NET_TIMESLICE" ∈ keys(rootfile)
+    # @test "KM3NET_TIMESLICE_L0" ∈ keys(rootfile)
+    # @test "KM3NET_TIMESLICE_L1" ∈ keys(rootfile)
+    # @test "KM3NET_TIMESLICE_L2" ∈ keys(rootfile)
+    # @test "KM3NET_TIMESLICE_SN" ∈ keys(rootfile)
+    # @test "KM3NET_EVENT" ∈ keys(rootfile)
+    # @test "KM3NET_SUMMARYSLICE" ∈ keys(rootfile)
+    # for key in keys(rootfile)
+    #     rootfile[key]
+    # end
 end
 
 @testset "ROOTDirectoryHeader" begin
@@ -119,14 +119,14 @@ end
     @test 0 == header.fSeekParent
     @test 1398 == header.fSeekKeys
 
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    header = rootfile.directory.header
-    @test 5 == header.fVersion
-    @test 1658540644 == header.fDatimeC
-    @test 1658540645 == header.fDatimeM
-    @test 629 == header.fNbytesKeys
-    @test 68 == header.fNbytesName
-    @test 100 == header.fSeekDir
-    @test 0 == header.fSeekParent
-    @test 1619244 == header.fSeekKeys
+    # rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    # header = rootfile.directory.header
+    # @test 5 == header.fVersion
+    # @test 1658540644 == header.fDatimeC
+    # @test 1658540645 == header.fDatimeM
+    # @test 629 == header.fNbytesKeys
+    # @test 68 == header.fNbytesName
+    # @test 100 == header.fSeekDir
+    # @test 0 == header.fSeekParent
+    # @test 1619244 == header.fSeekKeys
 end
