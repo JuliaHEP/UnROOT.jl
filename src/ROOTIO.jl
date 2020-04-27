@@ -9,6 +9,7 @@ using Mixers
 using Parameters
 
 include("constants.jl")
+include("utils.jl")
 include("io.jl")
 include("types.jl")
 include("streamers.jl")
