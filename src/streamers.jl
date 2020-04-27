@@ -116,7 +116,7 @@ function readobjany!(io, tkey::TKey, refs)
     beg = position(io) - origin(tkey)
     bcnt = readtype(io, UInt32)
     if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
-        error("New class or 0 bytes")
+        # New class or 0 bytes
         version = 0
         start = 0
         tag = bcnt
@@ -489,6 +489,14 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{Undefined})
     endcheck(io, preamble)
 end
 
+const TArrayD = Vector{Float64}
+const TArrayI = Vector{Int32}
+
+function readtype(io, T::Type{Vector{U}}) where U <: Union{Integer, AbstractFloat}
+    size = readtype(io, eltype(T))
+    [readtype(io, eltype(T)) for _ in 1:size]
+end
+
 
 @with_kw struct TNamed <: ROOTStreamedObject
     fName
@@ -659,6 +667,39 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafF})
     T(;fields...)
 end
 
+# FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafC
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafC})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Int32)
+    fields[:fMaximum] = readtype(io, Int32)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafC})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
 # FIXME this should be generated
 @with_kw struct TBranch
     # from TNamed
@@ -783,11 +824,23 @@ function TTree(io, tkey::TKey, refs)
     fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
-    println(fields)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
 
+    fields[:fAliases] = readobjany!(io, tkey, refs)
+    fields[:fIndexValues] = readtype(io, TArrayD)
+    fields[:fIndex] = readtype(io, TArrayI)
+    fields[:fTreeIndex] = readobjany!(io, tkey, refs)
+    fields[:fFriends] = readobjany!(io, tkey, refs)
 
-    println(fields[:fBranches])
+    # uproot unpacks Undefined instances here, we cannot since
+    # the Base.GenericIOBuffer{Array{UInt8,1}} from the compression
+    # library throws an EOFError when we read more than available.
+    # FIXME this needs to be checked though!
+    while !eof(io)
+        read(io, 1)
+    end
+    # unpack(io, tkey, refs, Undefined)
+    # println(fields[:fBranches])
 
     endcheck(io, preamble)
 end
