@@ -781,6 +781,59 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
 end
 
 
+# FIXME preliminary TTree structure
+@with_kw struct TTree
+    # TNamed
+    fName
+    fTitle
+
+    # TAttLine
+    fLineColor
+    fLineStyle
+    fLineWidth
+
+    # TAttFill
+    fFillColor
+    fFillStyle
+
+    # TAttMarker
+    fMarkerColor
+    fMarkerStyle
+    fMarkerSize
+
+    fEntries
+    fTotBytes
+    fZipBytes
+    fSavedBytes
+    fFlushedBytes
+    fWeight
+    fTimerInterval
+    fScanField
+    fUpdate
+    fDefaultEntryOffsetLen
+    fNClusterRange
+    fMaxEntries
+    fMaxEntryLoop
+    fMaxVirtualSize
+    fAutoSave
+    fAutoFlush
+    fEstimate
+
+    fClusterRangeEnd
+    fClusterSize
+
+    fIOFeatures
+
+    fBranches
+    fLeaves
+
+    fAliases
+    fIndexValues
+    fIndex
+    fTreeIndex
+    fFriends
+end
+
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs)
     io = datastream(io, tkey)
@@ -843,4 +896,15 @@ function TTree(io, tkey::TKey, refs)
     # println(fields[:fBranches])
 
     endcheck(io, preamble)
+    TTree(;fields...)
+end
+
+Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
+
+function Base.getindex(t::TTree, s::AbstractString)
+    for branch in t.fBranches.elements
+        if branch.fName == s
+            return branch
+        end
+    end
 end
