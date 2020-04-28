@@ -19,9 +19,11 @@ Reads all the streamers from the ROOT source.
 function Streamers(io)
     refs = Dict{Int32, Any}()
 
+    start = position(io)
     tkey = unpack(io, TKey)
 
     if iscompressed(tkey)
+        println("Compressed stream at $(start)")
         seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
         if String(compression_header.algo) != "ZL"
@@ -30,6 +32,7 @@ function Streamers(io)
 
         stream = IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
     else
+        println("Unompressed stream at $(start)")
         stream = io
     end
     preamble = Preamble(stream, Streamers)
@@ -485,11 +488,18 @@ parsefields!(io, fields, ::Type{TObject}) = skiptobj(io)
 struct TString <: ROOTStreamedObject end
 unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TString}) = readtype(io, String)
 
-struct Undefined <: ROOTStreamedObject end
+struct Undefined <: ROOTStreamedObject
+    skipped_bytes
+end
+
+Base.show(io::IO, u::Undefined) = print(io, "$(typeof(u)) ($(u.skipped_bytes) bytes)")
+
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{Undefined})
     preamble = Preamble(io, T)
-    skip(io, preamble.cnt - 6)
+    bytes_to_skip = preamble.cnt - 6
+    skip(io, bytes_to_skip)
     endcheck(io, preamble)
+    Undefined(bytes_to_skip)
 end
 
 const TArrayD = Vector{Float64}
@@ -764,7 +774,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
-    fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
+    fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
+    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
     speedbump = true  # FIXME speedbump?
 
     speedbump && skip(io, 1)
@@ -773,6 +784,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
 
     speedbump && skip(io, 1)
 
+    # this is also called fBsketEvent, as far as I understood
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
 
     speedbump && skip(io, 1)
