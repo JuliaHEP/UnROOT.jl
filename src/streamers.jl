@@ -178,6 +178,9 @@ function readobjany!(io, tkey::TKey, refs)
     end
 end
 
+
+# Structures required to read streamers
+
 struct TStreamerInfo
     fName
     fTitle
@@ -702,6 +705,7 @@ end
 
 # FIXME this should be generated
 @with_kw struct TBranch
+    cursor::Cursor
     # from TNamed
     fName
     fTitle
@@ -736,6 +740,7 @@ end
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
+    cursor = Cursor(position(io), io, refs)
     @initparse
     preamble = Preamble(io, T)
     parsefields!(io, fields, TNamed)
@@ -777,7 +782,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
 
     endcheck(io, preamble)
 
-    T(;fields...)
+    T(;cursor=cursor, fields...)
 end
 
 
@@ -901,10 +906,15 @@ end
 
 Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
 
-function Base.getindex(t::TTree, s::AbstractString)
+function getbranch(t::TTree, s::AbstractString)
     for branch in t.fBranches.elements
         if branch.fName == s
             return branch
         end
     end
+    missing
+end
+
+function Base.getindex(t::TTree, s::AbstractString)
+    getbranch(t, s)
 end

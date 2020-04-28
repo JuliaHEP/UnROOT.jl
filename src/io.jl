@@ -1,3 +1,10 @@
+struct Cursor
+    start
+    io
+    refs
+end
+
+
 function unpack() end
 
 readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
