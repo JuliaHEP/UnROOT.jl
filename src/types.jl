@@ -46,10 +46,12 @@ seekstart(io, t::TKey) = seek(io, t.fSeekKey + t.fKeylen)
 function datastream(io, tkey::TKey)
     start = position(io)
     if !iscompressed(tkey)
-        println("Uncompressed datastream at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
+        println("Uncompressed datastream of $(tkey.fObjlen) bytes " *
+                "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
         return io
     end
-    println("Compressed datastream at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
+    println("Compressed datastream of $(tkey.fObjlen) bytes " *
+            "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
     seekstart(io, tkey)
     compression_header = unpack(io, CompressionHeader)
     if String(compression_header.algo) != "ZL"
