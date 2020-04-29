@@ -27,36 +27,94 @@ The project is in early alpha prototyping phase and contributions are very
 welcome.
 
 At least the reading of the top level dictionary is already working, but
-everything is in a very early alpha stage, as mentioned above:
+everything is in a very early alpha stage, as mentioned above. Here is a quick
+demo of reading a simple branch containing a vector of integers:
 
 ``` julia
 julia> using ROOTIO
 
-julia> f = ROOTFile("test/samples/km3net_online.root")
-ROOTFile("test/samples/km3net_online.root") with 10 entries and 56 streamers.
+julia> f = ROOTFile("test/samples/tree_with_histos.root")
+Compressed stream at 1509
+ROOTFile("test/samples/tree_with_histos.root") with 1 entry and 4 streamers.
 
 julia> keys(f)
-10-element Array{String,1}:
- "JTRIGGER::JTriggerParameters"
- "META"                        
- "E"                           
- "KM3NET_TIMESLICE"            
- "KM3NET_TIMESLICE_L0"         
- "KM3NET_TIMESLICE_L1"         
- "KM3NET_TIMESLICE_L2"         
- "KM3NET_TIMESLICE_SN"         
- "KM3NET_EVENT"                
- "KM3NET_SUMMARYSLICE"         
+1-element Array{String,1}:
+ "t1"
 
-julia> f.streamers.streamers.objects[1:4]
-4-element Array{Any,1}:
- ROOTIO.TStreamerInfo("TNamed", "", 0xdfb74a3c, 1, ROOTIO.TObjArray("", 0, Any[ROOTIO.TStreamerBase(0x0004, 0, "TObject", "Basic ROOT object", 66, 0, 0, 0, Int32[0, -1877229523, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 1), ROOTIO.TStreamerString(ROOTIO.TStreamerElement(0x0004, 0, "fName", "object identifier", 65, 24, 0, 0, Int32[0, 0, 0, 0, 0], "TString", 0.0, 0.0, 0.0)), ROOTIO.TStreamerString(ROOTIO.TStreamerElement(0x0004, 0, "fTitle", "object title", 65, 24, 0, 0, Int32[0, 0, 0, 0, 0], "TString", 0.0, 0.0, 0.0))]))
- ROOTIO.TStreamerInfo("TObject", "", 0x901bc02d, 1, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBasicType[ROOTIO.TStreamerBasicType(ROOTIO.TStreamerElement(0x0004, 0, "fUniqueID", "object unique identifier", 13, 4, 0, 0, Int32[0, 0, 0, 0, 0], "unsigned int", 0.0, 0.0, 0.0)), ROOTIO.TStreamerBasicType(ROOTIO.TStreamerElement(0x0004, 0, "fBits", "bit field status word", 15, 4, 0, 0, Int32[0, 0, 0, 0, 0], "unsigned int", 0.0, 0.0, 0.0))]))                                                                                
- ROOTIO.TStreamerInfo("TList", "", 0x69c5c3bb, 5, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBase[ROOTIO.TStreamerBase(0x0004, 0, "TSeqCollection", "Sequenceable collection ABC", 0, 0, 0, 0, Int32[0, -60015674, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 0)]))                                                                                                                                                                                                                                                                              
- ROOTIO.TStreamerInfo("TSeqCollection", "", 0xfc6c3bc6, 0, ROOTIO.TObjArray("", 0, ROOTIO.TStreamerBase[ROOTIO.TStreamerBase(0x0004, 0, "TCollection", "Collection abstract base class", 0, 0, 0, 0, Int32[0, 1474546588, 0, 0, 0], "BASE", 0.0, 0.0, 0.0, 3)]))                                                                                                                                                                                                                                                                    
+julia> keys(f["t1"])
+Compressed datastream of 1317 bytes at 1509 (TKey 't1' (TTree))
+2-element Array{String,1}:
+ "mynum"
+ "myval"
 
-julia> f["KM3NET_TIMESLICE_L2"]
-ROOTIO.TKey32(2475, 4, 18062, 0x62db5265, 53, 1, 1593451, 100, "TTree", "KM3NET_TIMESLICE_L2", "")
+julia> f["t1"]["mynum"]
+Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
+ROOTIO.TBranch
+  cursor: ROOTIO.Cursor
+  fName: String "mynum"
+  fTitle: String "mynum/I"
+  fFillColor: Int16 0
+  fFillStyle: Int16 1001
+  fCompress: Int32 101
+  fBasketSize: Int32 32000
+  fEntryOffsetLen: Int32 0
+  fWriteBasket: Int32 1
+  fEntryNumber: Int64 25
+  fIOFeatures: ROOTIO.ROOT_3a3a_TIOFeatures
+  fOffset: Int32 0
+  fMaxBaskets: UInt32 0x0000000a
+  fSplitLevel: Int32 0
+  fEntries: Int64 25
+  fFirstEntry: Int64 0
+  fTotBytes: Int64 170
+  fZipBytes: Int64 116
+  fBranches: ROOTIO.TObjArray
+  fLeaves: ROOTIO.TObjArray
+  fBaskets: ROOTIO.TObjArray
+  fBasketBytes: Array{Int32}((10,)) Int32[116, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  fBasketEntry: Array{Int64}((10,)) [0, 25, 0, 0, 0, 0, 0, 0, 0, 0]
+  fBasketSeek: Array{Int64}((10,)) [238, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  fFileName: String ""
+
+
+julia> seek(f.fobj, 238)
+IOStream(<file test/samples/tree_with_histos.root>)
+
+julia> basketkey = ROOTIO.unpack(f.fobj, ROOTIO.TKey)
+ROOTIO.TKey64(116, 1004, 100, 0x6526eafb, 70, 0, 238, 100, "TBasket", "mynum", "t1")
+
+julia> s = ROOTIO.datastream(f.fobj, basketkey)
+Compressed datastream of 100 bytes at 289 (TKey 'mynum' (TBasket))
+IOBuffer(data=UInt8[...], readable=true, writable=false, seekable=true, append=false, size=100, maxsize=Inf, ptr=1, mark=-1)
+
+julia> [ROOTIO.readtype(s, Int32) for _ in 1:f["t1"]["mynum"].fEntries]
+Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
+25-element Array{Int32,1}:
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
 ```
 
 ## Main challenges
