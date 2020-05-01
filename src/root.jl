@@ -95,8 +95,21 @@ Reads an array from a branch. Currently hardcoded to Int32
 """
 function array(f::ROOTFile, path)
     branch = f[path]
-    seek(f.fobj, branch.fBasketSeek[1])
-    basketkey = unpack(f.fobj, TKey)
-    s = datastream(f.fobj, basketkey)
-    [readtype(s, Int32) for _ in 1:branch.fEntries]
+    out = Vector{Int32}()
+    sizehint!(out, branch.fEntries)
+
+    for (idx, basket_seek) in enumerate(branch.fBasketSeek)
+        @debug "Reading basket" idx basket_seek
+        if basket_seek == 0
+            break
+        end
+        seek(f.fobj, basket_seek)
+        basketkey = unpack(f.fobj, TKey)
+        s = datastream(f.fobj, basketkey)
+
+        for _ in branch.fBasketEntry[idx]:(branch.fBasketEntry[idx + 1] - 1)
+            push!(out, readtype(s, Int32))
+        end
+    end
+    out
 end
