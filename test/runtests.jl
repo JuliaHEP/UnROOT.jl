@@ -130,3 +130,12 @@ end
     # @test 0 == header.fSeekParent
     # @test 1619244 == header.fSeekKeys
 end
+
+
+@testset "array()" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
+    arr = array(rootfile, "t1/mynum")
+    @test 25 == length(arr)
+    @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
+    @test [10, 10, 10, 10, 10, 10] ≈ arr[20:end] atol=0.1
+end
