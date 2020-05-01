@@ -602,7 +602,7 @@ end
     fLeafCount
 end
 
-function parsefields!(io, fields, T::Type{TLeaf})
+function parsefields!(io, fields, ::Type{T}) where {T<:TLeaf}
     preamble = Preamble(io, T)
     parsefields!(io, fields, TNamed)
     fields[:fLen] = readtype(io, Int32)
@@ -646,6 +646,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafI})
     parsefields!(io, fields, T)
     T(;fields...)
 end
+
+eltype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
 
 # FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafF
@@ -699,7 +701,7 @@ end
     fMaximum
 end
 
-function parsefields!(io, fields, T::Type{TLeafC})
+function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
     preamble = Preamble(io, T)
     parsefields!(io, fields, TLeaf)
     fields[:fMinimum] = readtype(io, Int32)
@@ -707,7 +709,7 @@ function parsefields!(io, fields, T::Type{TLeafC})
     endcheck(io, preamble)
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafC})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TLeafC}
     @initparse
     parsefields!(io, fields, T)
     T(;fields...)
@@ -743,13 +745,13 @@ end
     fBranches
     fLeaves
     fBaskets
-    fBasketBytes
-    fBasketEntry
-    fBasketSeek
+    fBasketBytes::Vector{Int64}
+    fBasketEntry::Vector{Int64}
+    fBasketSeek::Vector{Int64}
     fFileName
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TBranch})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TBranch}
     cursor = Cursor(position(io), io, refs)
     @initparse
     preamble = Preamble(io, T)

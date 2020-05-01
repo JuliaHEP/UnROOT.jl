@@ -12,6 +12,7 @@ struct ROOTFile
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
+    branch_cache::Dict{String, TBranch}
 end
 
 
@@ -52,7 +53,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory)
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, Dict())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -94,21 +95,42 @@ end
 Reads an array from a branch. Currently hardcoded to Int32
 """
 function array(f::ROOTFile, path)
-    branch = f[path]
-    out = Vector{Int32}()
+    if path ∈ keys(f.branch_cache)
+        branch = f.branch_cache[path]
+    else
+        branch = f[path]
+        f.branch_cache[path] = branch
+    end
+
+    if length(branch.fLeaves.elements) > 1
+        error("Branches with multiple leaves are not supported yet.")
+    end
+
+    leaf = first(branch.fLeaves.elements)
+
+    readbaskets(f.fobj, branch, eltype(leaf))
+end
+
+
+function readbaskets(io, branch, ::Type{T}) where {T}
+    seeks = branch.fBasketSeek
+    entries = branch.fBasketEntry
+
+    out = Vector{T}()
     sizehint!(out, branch.fEntries)
 
-    for (idx, basket_seek) in enumerate(branch.fBasketSeek)
+
+    for (idx, basket_seek) in enumerate(seeks)
         @debug "Reading basket" idx basket_seek
         if basket_seek == 0
             break
         end
-        seek(f.fobj, basket_seek)
-        basketkey = unpack(f.fobj, TKey)
-        s = datastream(f.fobj, basketkey)
+        seek(io, basket_seek)
+        basketkey = unpack(io, TKey)
+        s = datastream(io, basketkey)
 
-        for _ in branch.fBasketEntry[idx]:(branch.fBasketEntry[idx + 1] - 1)
-            push!(out, readtype(s, Int32))
+        for _ in entries[idx]:(entries[idx + 1] - 1)
+            push!(out, readtype(s, T))
         end
     end
     out

@@ -7,9 +7,9 @@ end
 
 function unpack() end
 
-readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
-readtype(io, ::Type{T}) where T<:Bool = read(io, T)
-readtype(io, ::Type{T}) where T<:AbstractVector{UInt8} = read(io, sizeof(T))
+@inline readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
+@inline readtype(io, ::Type{T}) where T<:Bool = read(io, T)
+@inline readtype(io, ::Type{T}) where T<:AbstractVector{UInt8} = read(io, sizeof(T))
 
 function readtype(io, ::Type{T}) where T<:AbstractString
     start = position(io)
@@ -27,7 +27,7 @@ struct CString
     value::String
 end
 
-function readtype(io, ::Type{CString})
+function readtype(io, ::Type{T}) where {T<:CString}
     out = Char[]
     char = read(io, Char)
     while char != '\0'
@@ -58,7 +58,7 @@ macro io(data)
         $(esc(data))  # executing the code to create the actual struct
         # Base.sizeof(::Type{$(esc(struct_name))}) = $struct_size
 
-        function $(@__MODULE__).unpack(io, ::Type{$(esc(struct_name))})
+        function $(@__MODULE__).unpack(io, ::Type{T}) where {T<:$(esc(struct_name))}
             $(esc(struct_name))($([:(readtype(io, $t)) for t in types]...))
         end
 
@@ -79,7 +79,7 @@ Reads the preamble of an object.
 
 The cursor will be put into the right place depending on the data.
 """
-function Preamble(io, T::Type)
+function Preamble(io, ::Type{T}) where {T}
     start = position(io)
     cnt = readtype(io, UInt32)
     version = readtype(io, UInt16)
@@ -117,7 +117,7 @@ end
 Checks if everything went well after parsing a TOBject. Used in conjuction
 with `Preamble`.
 """
-function endcheck(io, preamble::Preamble)
+function endcheck(io, preamble::T) where {T<:Preamble}
     if !ismissing(preamble.cnt)
         observed = position(io) - preamble.start
         if observed != preamble.cnt
