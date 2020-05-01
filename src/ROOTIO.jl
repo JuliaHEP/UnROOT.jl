@@ -1,6 +1,6 @@
 module ROOTIO
 
-export ROOTFile
+export ROOTFile, array
 
 import Base: keys, get, getindex, show, length, iterate
 using StaticArrays
