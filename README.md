@@ -28,7 +28,45 @@ welcome.
 
 At least the reading of the top level dictionary is already working, but
 everything is in a very early alpha stage, as mentioned above. Here is a quick
-demo of reading a simple branch containing a vector of integers:
+demo of reading a simple branch containing a vector of integers using the
+preliminary high-level API:
+
+```julia
+julia> using ROOTIO
+
+julia> f = ROOTFile("test/samples/tree_with_histos.root")
+ROOTFile("test/samples/tree_with_histos.root") with 1 entry and 4 streamers.
+
+julia> array(f, "t1/mynum")
+25-element Array{Int32,1}:
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+ 10
+```
+
+This is what happens behind the scenes with some debug output:
 
 ``` julia
 julia> using ROOTIO
