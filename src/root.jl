@@ -99,7 +99,9 @@ function array(f::ROOTFile, path)
         branch = f.branch_cache[path]
     else
         branch = f[path]
-        f.branch_cache[path] = branch
+        if branch === missing
+            error("No branch found at $path")
+        end
     end
 
     if length(branch.fLeaves.elements) > 1
