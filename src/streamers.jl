@@ -23,7 +23,7 @@ function Streamers(io)
     tkey = unpack(io, TKey)
 
     if iscompressed(tkey)
-        println("Compressed stream at $(start)")
+        @debug "Compressed stream at $(start)"
         seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
         if String(compression_header.algo) != "ZL"
@@ -32,7 +32,7 @@ function Streamers(io)
 
         stream = IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
     else
-        println("Unompressed stream at $(start)")
+        @debug "Unompressed stream at $(start)"
         stream = io
     end
     preamble = Preamble(stream, Streamers)
