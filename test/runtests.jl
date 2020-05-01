@@ -138,4 +138,12 @@ end
     @test 25 == length(arr)
     @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
     @test [10, 10, 10, 10, 10, 10] ≈ arr[20:end] atol=0.1
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
+    arr = array(rootfile, "t1/int32_array")
+    @test 100000 == length(arr)
+    @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
+    arr = array(rootfile, "t1/float_array")
+    @test 100000 == length(arr)
+    @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
 end

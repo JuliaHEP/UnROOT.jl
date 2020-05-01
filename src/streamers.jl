@@ -682,6 +682,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafF})
     T(;fields...)
 end
 
+primitivetype(l::TLeafF) = Float32
+
 # FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafC
     # from TNamed
