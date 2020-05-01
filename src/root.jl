@@ -66,6 +66,10 @@ function Base.show(io::IO, f::ROOTFile)
 end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
+    if '/' ∈ s
+        paths = split(s, '/')
+        return f[first(paths)][join(paths[2:end], "/")]
+    end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
     streamer(f.fobj, tkey, f.streamers.refs)
@@ -82,4 +86,17 @@ end
 
 
 function Base.get(f::ROOTFile, k::TKey)
+end
+
+"""
+    function array(f::ROOTFile, path)
+
+Reads an array from a branch. Currently hardcoded to Int32
+"""
+function array(f::ROOTFile, path)
+    branch = f[path]
+    seek(f.fobj, branch.fBasketSeek[1])
+    basketkey = unpack(f.fobj, TKey)
+    s = datastream(f.fobj, basketkey)
+    [readtype(s, Int32) for _ in 1:branch.fEntries]
 end
