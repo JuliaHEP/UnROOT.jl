@@ -647,7 +647,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafI})
     T(;fields...)
 end
 
-eltype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
+primitivetype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
 
 # FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafF

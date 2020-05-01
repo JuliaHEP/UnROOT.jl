@@ -108,7 +108,7 @@ function array(f::ROOTFile, path)
 
     leaf = first(branch.fLeaves.elements)
 
-    readbaskets(f.fobj, branch, eltype(leaf))
+    readbaskets(f.fobj, branch, primitivetype(leaf))
 end
 
 
