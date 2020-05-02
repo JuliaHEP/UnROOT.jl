@@ -1,6 +1,7 @@
 struct Cursor
     start
     io
+    tkey
     refs
 end
 
