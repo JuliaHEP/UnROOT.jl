@@ -1039,15 +1039,18 @@ end
 
 Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
 
-function getbranch(t::TTree, s::AbstractString)
+function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchElement}}
+    if '/' ∈ s
+        @debug "Splitting path '$s' and getting branches recursively"
+        paths = split(s, '/')
+        return t[first(paths)][join(paths[2:end], "/")]
+    end
+    @debug "Searching for branch '$s' in $(length(t.fBranches.elements)) branches."
     for branch in t.fBranches.elements
+        @debug branch.fName
         if branch.fName == s
             return branch
         end
     end
     missing
-end
-
-function Base.getindex(t::TTree, s::AbstractString)
-    getbranch(t, s)
 end

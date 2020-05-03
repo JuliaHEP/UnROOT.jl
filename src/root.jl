@@ -68,14 +68,15 @@ end
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
     if '/' ∈ s
+        @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
         return f[first(paths)][join(paths[2:end], "/")]
     end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
+    @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
     streamer(f.fobj, tkey, f.streamers.refs)
 end
-
 
 function Base.keys(f::ROOTFile)
     keys(f.directory)
@@ -85,6 +86,9 @@ function Base.keys(d::ROOTDirectory)
     [key.fName for key in d.keys]
 end
 
+function Base.keys(b::TBranchElement)
+    [branch.fName for branch in b.fBranches.elements]
+end
 
 function Base.get(f::ROOTFile, k::TKey)
 end
