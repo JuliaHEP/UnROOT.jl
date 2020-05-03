@@ -99,7 +99,7 @@ function array(f::ROOTFile, path)
         branch = f.branch_cache[path]
     else
         branch = f[path]
-        if branch === missing
+        if ismissing(branch)
             error("No branch found at $path")
         end
     end
