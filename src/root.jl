@@ -98,7 +98,7 @@ end
 
 Reads an array from a branch. Currently hardcoded to Int32
 """
-function array(f::ROOTFile, path)
+function array(f::ROOTFile, path; raw=false)
     if path ∈ keys(f.branch_cache)
         branch = f.branch_cache[path]
     else
@@ -106,6 +106,10 @@ function array(f::ROOTFile, path)
         if ismissing(branch)
             error("No branch found at $path")
         end
+    end
+
+    if raw
+        return readbaskets(f.fobj, branch, UInt8)
     end
 
     if length(branch.fLeaves.elements) > 1
