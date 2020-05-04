@@ -159,7 +159,7 @@ function readbasketsraw(io, branch)
         seek(io, basket_seek)
         basketkey = unpack(io, TKey)
         s = datastream(io, basketkey)
-        for _ in 1:n_bytes
+        for _ in 1:basketkey.fObjlen
             push!(out, readtype(s, UInt8))
         end
     end
