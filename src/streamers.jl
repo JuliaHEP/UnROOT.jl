@@ -611,6 +611,12 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TLeaf}
     fields[:fIsRange] = readtype(io, Bool)
     fields[:fIsUnsigned] = readtype(io, Bool)
     fields[:fLeafCount] = readtype(io, UInt32)
+
+    # FIXME this needs to be checked, sometimes the TLeaf is too short
+    observed = position(io) - preamble.start
+    for _ in 1:(preamble.cnt - observed)
+        read(io, 1)
+    end
     endcheck(io, preamble)
 end
 
