@@ -66,7 +66,33 @@ julia> array(f, "t1/mynum")
  10
 ```
 
-This is what happens behind the scenes with some debug output:
+There is also a `raw` keyword which you can pass to `array()`, so it will skip
+the interpretation and return the raw bytes. This is similar to `uproot.asdebug`
+and can be used to read data where the streamers are not available (yet).
+Here is it in action, using some data from the KM3NeT experiment:
+
+``` julia
+julia> using ROOTIO
+
+julia> f = ROOTFile("test/samples/km3net_online.root")
+ROOTFile("test/samples/km3net_online.root") with 10 entries and 41 streamers.
+
+julia> array(f, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits"; raw=true)
+2058-element Array{UInt8,1}:
+ 0x00
+ 0x03
+ 0x00
+ 0x01
+ 0x00
+   ⋮
+ 0x56
+ 0x45
+ 0x4e
+ 0x54
+ 0x00
+```
+
+This is what happens behind the scenes with some additional debug output:
 
 ``` julia
 julia> using ROOTIO
@@ -171,9 +197,11 @@ Pick one ;)
 
 - [x] Parsing the file header
 - [x] Read the `TKey`s of the top level dictionary
-- [ ] Reading the available trees
+- [x] Reading the available trees
 - [ ] Reading the available streamers
-- [ ] Reading a simple dataset with primitive streamers
+- [x] Reading a simple dataset with primitive streamers
+- [x] Reading of raw basket bytes for debugging
+- [ ] Automatically generate streamer logic
 
 ## Acknowledgements
 
