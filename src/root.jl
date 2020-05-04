@@ -136,7 +136,7 @@ function readbaskets(io, branch, ::Type{T}) where {T}
             break
         end
         seek(io, basket_seek)
-        basketkey = unpack(io, TKey)
+        basketkey = unpack(io, TBasketKey)
         s = datastream(io, basketkey)
 
         for _ in entries[idx]:(entries[idx + 1] - 1)
@@ -151,17 +151,27 @@ function readbasketsraw(io, branch)
     bytes = branch.fBasketBytes
 
     out = Vector{UInt8}()
+    offsets = Vector{Int32}()
     sizehint!(out, sum(bytes))
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         if basket_seek == 0
             break
         end
         seek(io, basket_seek)
-        basketkey = unpack(io, TKey)
+        basketkey = unpack(io, TBasketKey)
         s = datastream(io, basketkey)
-        for _ in 1:basketkey.fObjlen
+        contentsize = basketkey.fLast - basketkey.fKeylen
+        for _ in 1:contentsize
             push!(out, readtype(s, UInt8))
         end
+        offsetlength = basketkey.fObjlen - contentsize
+        if offsetlength > 8  # 4 bytes before 4 bytes after, data in-betwee https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/polyglot-root-io/yeC0mAizQcA/0ghi_NCsBgAJ
+            skip(s, 4)
+            for _ in 1:((offsetlength - 8)/4)
+                push!(offsets, readtype(s, Int32))
+            end
+            skip(s, 4)
+        end
     end
-    out
+    out, offsets
 end

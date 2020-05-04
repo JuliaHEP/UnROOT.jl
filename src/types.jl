@@ -39,11 +39,58 @@ function unpack(io, ::Type{TKey})
     unpack(io, TKey64)
 end
 
-iscompressed(t::TKey) = t.fObjlen != t.fNbytes - t.fKeylen
-origin(t::TKey) = iscompressed(t) ? -t.fKeylen : t.fSeekKey
-seekstart(io, t::TKey) = seek(io, t.fSeekKey + t.fKeylen)
+@with_kw struct TBasketKey
+    fNbytes::Int32
+    fVersion
+    fObjlen::Int32
+    fDatime::UInt32
+    fKeylen::Int16
+    fCycle::Int16
+    fSeekKey
+    fSeekPdir
+    fClassName::String
+    fName::String
+    fTitle::String
+    fBufferSize::Int32
+    fNevBufSize::Int32
+    fNevBuf::Int32
+    fLast::Int32
+end
 
-function datastream(io, tkey::TKey)
+function unpack(io, T::Type{TBasketKey})
+    start = position(io)
+    fields = Dict{Symbol, Any}()
+    fields[:fNbytes] = readtype(io, Int32)
+    fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
+
+    inttype = fields[:fVersion] <= 1000 ? Int32 : Int64
+
+    fields[:fObjlen] = readtype(io, Int32)
+    fields[:fDatime] = readtype(io, UInt32)
+    fields[:fKeylen] = readtype(io, Int16)
+    fields[:fCycle] = readtype(io, Int16)
+    fields[:fSeekKey] = readtype(io, inttype)
+    fields[:fSeekPdir] = readtype(io, inttype)
+    fields[:fClassName] = readtype(io, String)
+    fields[:fName] = readtype(io, String)
+    fields[:fTitle] = readtype(io, String)
+
+    # if complete (which is true for compressed, it seems?)
+    seek(io, start + fields[:fKeylen] - 18 - 1)
+    fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
+    fields[:fBufferSize] = readtype(io, Int32)
+    fields[:fNevBufSize] = readtype(io, Int32)
+    fields[:fNevBuf] = readtype(io, Int32)
+    fields[:fLast] = readtype(io, Int32)
+
+    T(; fields...)
+end
+
+iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t.fKeylen
+origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
+seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
+
+function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
     start = position(io)
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
