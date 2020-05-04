@@ -109,7 +109,7 @@ function array(f::ROOTFile, path; raw=false)
     end
 
     if raw
-        return readbaskets(f.fobj, branch, UInt8)
+        return readbasketsraw(f.fobj, branch)
     end
 
     if length(branch.fLeaves.elements) > 1
@@ -141,6 +141,26 @@ function readbaskets(io, branch, ::Type{T}) where {T}
 
         for _ in entries[idx]:(entries[idx + 1] - 1)
             push!(out, readtype(s, T))
+        end
+    end
+    out
+end
+
+function readbasketsraw(io, branch)
+    seeks = branch.fBasketSeek
+    bytes = branch.fBasketBytes
+
+    out = Vector{UInt8}()
+    sizehint!(out, sum(bytes))
+    for (basket_seek, n_bytes) in zip(seeks, bytes)
+        if basket_seek == 0
+            break
+        end
+        seek(io, basket_seek)
+        basketkey = unpack(io, TKey)
+        s = datastream(io, basketkey)
+        for _ in 1:n_bytes
+            push!(out, readtype(s, UInt8))
         end
     end
     out
