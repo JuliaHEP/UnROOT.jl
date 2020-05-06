@@ -95,6 +95,7 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
                 "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
+        skip(io, 1)   # ???
         return io
     end
     @debug ("Compressed datastream of $(tkey.fObjlen) bytes " *
