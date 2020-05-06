@@ -150,8 +150,12 @@ function readbasketsraw(io, branch)
     seeks = branch.fBasketSeek
     bytes = branch.fBasketBytes
 
+    total_entries = branch.fEntries
+    @show branch
+    @show total_entries
+    @show seeks bytes
+
     out = Vector{UInt8}()
-    offsets = Vector{Int32}()
     sizehint!(out, sum(bytes))
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
@@ -160,20 +164,29 @@ function readbasketsraw(io, branch)
         end
         seek(io, basket_seek)
         basketkey = unpack(io, TBasketKey)
-        s = datastream(io, basketkey)
+        @show basketkey
+        s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
+        start = position(s)
+        @show start
         contentsize = basketkey.fLast - basketkey.fKeylen
-        for _ in 1:contentsize
-            push!(out, readtype(s, UInt8))
-        end
         offsetlength = basketkey.fObjlen - contentsize
-        if offsetlength > 8  # 4 bytes before 4 bytes after, data in-betwee https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/polyglot-root-io/yeC0mAizQcA/0ghi_NCsBgAJ
+
+        if offsetlength > 0
             @debug "Offset data present" offsetlength
+            skip(s, contentsize)
+            offsets = Vector{Int32}()
             skip(s, 4)
             for _ in 1:((offsetlength - 8)/4)
                 push!(offsets, readtype(s, Int32))
             end
-            skip(s, 4)
+            # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
+            skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
+            seek(s, start)
+        end
+
+        for _ in 1:contentsize
+            push!(out, readtype(s, UInt8))
         end
     end
-    out, offsets
+    out
 end

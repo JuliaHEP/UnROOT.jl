@@ -11,6 +11,15 @@ end
 
 Base.length(s::Streamers) = length(s.elements)
 
+function Base.show(io::IO, s::Streamers)
+    for streamer_info in s.elements
+        println(io, "$(streamer_info.streamer.fName)")
+        # streamer = streamer_info.streamer
+        # print(io, "$(streamer.fName): fType = $(streamer.fType), ")
+        # print(io, "fTypeName: $(streamer.fTypeName)")
+    end
+end
+
 """
     function read_streamers(io, tkey::TKey)
 
