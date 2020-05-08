@@ -73,6 +73,15 @@ const kSTLstring            = 365
 const kStreamer             = 500
 const kStreamLoop           = 501
 
+
+# TBranchElement fTypes
+# https://groups.google.com/d/msg/polyglot-root-io/yeC0mAizQcA/zuUHOFBABwAJ
+
+const kTopLevelTClonesArray   = 3
+const kSubbranchTClonesArray  = 31
+const kTopLevelSTLCollection  = 4
+const kSubbranchSTLCollection = 41
+
 # constants from core/foundation/inc/ESTLType.h
 
 const kNotSTL               = 0
