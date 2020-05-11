@@ -155,7 +155,10 @@ function readbasketsraw(io, branch)
     @show total_entries
     @show seeks bytes
 
+    @show branch.fType
+
     out = Vector{UInt8}()
+    offsets = Vector{Int32}()
     sizehint!(out, sum(bytes))
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
@@ -174,7 +177,6 @@ function readbasketsraw(io, branch)
         if offsetlength > 0
             @debug "Offset data present" offsetlength
             skip(s, contentsize)
-            offsets = Vector{Int32}()
             skip(s, 4)
             for _ in 1:((offsetlength - 8)/4)
                 push!(offsets, readtype(s, Int32))
@@ -188,5 +190,5 @@ function readbasketsraw(io, branch)
             push!(out, readtype(s, UInt8))
         end
     end
-    out
+    out, offsets
 end
