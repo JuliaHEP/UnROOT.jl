@@ -66,6 +66,17 @@ function Base.show(io::IO, f::ROOTFile)
     print(io, "and $n_streamers $streamers_suffix.")
 end
 
+
+function streamerfor(f::ROOTFile, name::AbstractString)
+    for e in f.streamers.elements
+        if e.streamer.fName == name
+            return e
+        end
+    end
+    error("No streamer found for $name.")
+end
+
+
 function Base.getindex(f::ROOTFile, s::AbstractString)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
