@@ -23,16 +23,21 @@ function ROOTFile(filename::AbstractString)
     format_version = preamble.fVersion
 
     if format_version < 1000000
+        @debug "32bit ROOT file"
         header = unpack(fobj, FileHeader32)
     else
+        @debug "64bit ROOT file"
         header = unpack(fobj, FileHeader64)
     end
 
     # Streamers
     if header.fSeekInfo != 0
+        @debug "Reading streamer info."
         seek(fobj, header.fSeekInfo)
         streamers = Streamers(fobj)
         define_streamers(streamers)
+    else
+        @debug "No streamer info present, skipping."
     end
 
     seek(fobj, header.fBEGIN)

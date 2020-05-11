@@ -50,17 +50,26 @@ function Streamers(io)
     name = readtype(stream, String)
     size = readtype(stream, Int32)
     streamer_infos = Vector{StreamerInfo}()
+    @debug "Found $size streamers, continue with parsing."
     for i ∈ 1:size
         obj = readobjany!(stream, tkey, refs)
         if typeof(obj) == TStreamerInfo
+            @debug "  processing streamer info for '$(obj.fName)' (v$(obj.fClassVersion))"
+            @debug "    number of dependencies: $(length(obj.fElements.elements))"
             dependencies = Set()
             for element in obj.fElements.elements
                 if typeof(element) == TStreamerBase
+                    @debug "      + adding dependency '$(element.fName)'"
                     push!(dependencies, element.fName)
+                else
+                    @debug "      - skipping dependency '$(element.fName)' with type '$(typeof(element))'"
                 end
             end
             push!(streamer_infos, StreamerInfo(obj, dependencies))
+        else
+            @debug "  not a TStreamerInfo but '$(typeof(obj))', skipping."
         end
+        # FIXME why not just skip a byte?
         skip(stream, readtype(stream, UInt8))
     end
 
