@@ -35,7 +35,6 @@ function ROOTFile(filename::AbstractString)
         @debug "Reading streamer info."
         seek(fobj, header.fSeekInfo)
         streamers = Streamers(fobj)
-        define_streamers(streamers)
     else
         @debug "No streamer info present, skipping."
     end

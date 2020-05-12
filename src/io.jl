@@ -71,7 +71,7 @@ end
 struct Preamble
     start
     cnt
-    version
+    version::Int64
     type::Type
 end
 
