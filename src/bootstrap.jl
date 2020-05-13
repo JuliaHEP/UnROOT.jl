@@ -493,6 +493,7 @@ function TTree(io, tkey::TKey, refs)
     fields[:fTimerInterval] = readtype(io, Int32)
     fields[:fScanField] = readtype(io, Int32)
     fields[:fUpdate] = readtype(io, Int32)
+    # See https://github.com/cbourjau/alice-rs/blob/6af19a78fe5521f5b27466d7d20f7dfacd38a38f/root-io/src/tree_reader/tree.rs#L148
     if preamble.version >= 18
         fields[:fDefaultEntryOffsetLen] = readtype(io, Int32)
     end
@@ -509,6 +510,7 @@ function TTree(io, tkey::TKey, refs)
     # FIXME what about speedbumps??
     speedbump = true
 
+    # See https://github.com/cbourjau/alice-rs/blob/6af19a78fe5521f5b27466d7d20f7dfacd38a38f/root-io/src/tree_reader/tree.rs#L148
     if haskey(fields, :fNClusterRange)
         speedbump && skip(io, 1)
         fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
