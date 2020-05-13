@@ -493,8 +493,12 @@ function TTree(io, tkey::TKey, refs)
     fields[:fTimerInterval] = readtype(io, Int32)
     fields[:fScanField] = readtype(io, Int32)
     fields[:fUpdate] = readtype(io, Int32)
-    fields[:fDefaultEntryOffsetLen] = readtype(io, Int32)
-    fields[:fNClusterRange] = readtype(io, UInt32)
+    if preamble.version >= 18
+        fields[:fDefaultEntryOffsetLen] = readtype(io, Int32)
+    end
+    if preamble.version >= 19
+        fields[:fNClusterRange] = readtype(io, UInt32)
+    end
     fields[:fMaxEntries] = readtype(io, Int64)
     fields[:fMaxEntryLoop] = readtype(io, Int64)
     fields[:fMaxVirtualSize] = readtype(io, Int64)
@@ -505,10 +509,12 @@ function TTree(io, tkey::TKey, refs)
     # FIXME what about speedbumps??
     speedbump = true
 
-    speedbump && skip(io, 1)
-    fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
-    speedbump && skip(io, 1)
-    fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
+    if haskey(fields, :fNClusterRange)
+        speedbump && skip(io, 1)
+        fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
+        speedbump && skip(io, 1)
+        fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
+    end
 
     for key in keys(fields)
         @show key, fields[key]
