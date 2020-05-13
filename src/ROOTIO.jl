@@ -15,6 +15,7 @@ include("utils.jl")
 include("io.jl")
 include("types.jl")
 include("streamers.jl")
+include("bootstrap.jl")
 include("root.jl")
 include("custom.jl")
 

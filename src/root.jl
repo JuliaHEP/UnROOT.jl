@@ -108,6 +108,23 @@ end
 function Base.get(f::ROOTFile, k::TKey)
 end
 
+Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
+
+function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchElement}}
+    if '/' ∈ s
+        @debug "Splitting path '$s' and getting branches recursively"
+        paths = split(s, '/')
+        return t[first(paths)][join(paths[2:end], "/")]
+    end
+    @debug "Searching for branch '$s' in $(length(t.fBranches.elements)) branches."
+    for branch in t.fBranches.elements
+        @debug branch.fName
+        if branch.fName == s
+            return branch
+        end
+    end
+    missing
+end
 """
     function array(f::ROOTFile, path)
 
@@ -171,6 +188,8 @@ function readbasketsraw(io, branch)
     @show seeks bytes
 
     @show branch.fType
+    # Just to check if we have a jagged structure
+    # streamer = streamerfor()
 
     out = Vector{UInt8}()
     offsets = Vector{Int32}()
