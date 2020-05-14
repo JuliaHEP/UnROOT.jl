@@ -192,8 +192,9 @@ function readbasketsraw(io, branch)
     # streamer = streamerfor()
 
     out = Vector{UInt8}()
-    offsets = Vector{Int32}()
     sizehint!(out, sum(bytes))
+    offsets = Vector{Int32}()
+    sizehint!(offsets, total_entries)
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
         if basket_seek == 0
