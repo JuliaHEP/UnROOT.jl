@@ -200,29 +200,46 @@ function readbasketsraw(io, branch)
             break
         end
         seek(io, basket_seek)
-        basketkey = unpack(io, TBasketKey)
-        # @show basketkey
-        s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
-        start = position(s)
-        # @show start
-        contentsize = basketkey.fLast - basketkey.fKeylen
-        offsetlength = basketkey.fObjlen - contentsize
-
-        if offsetlength > 0
-            @debug "Offset data present" offsetlength
-            skip(s, contentsize)
-            skip(s, 4)
-            for _ in 1:((offsetlength - 8)/4)
-                push!(offsets, readtype(s, Int32))
-            end
-            # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
-            skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
-            seek(s, start)
-        end
-
-        for _ in 1:contentsize
-            push!(out, readtype(s, UInt8))
-        end
+        readbasketbytes!(out, offsets, io)
     end
     out, offsets
+end
+
+
+function readbytes!(out, s, contentsize)
+    for _ in 1:contentsize
+        push!(out, readtype(s, UInt8))
+    end
+end
+
+function readoffsets!(out, s, contentsize)
+    for _ in 1:contentsize
+        push!(out, readtype(s, Int32))
+    end
+end
+
+function readbasketbytes!(out, offsets, io)
+    basketkey = unpack(io, TBasketKey)
+    # @show basketkey
+    s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
+    start = position(s)
+    # @show start
+    contentsize = basketkey.fLast - basketkey.fKeylen
+    offsetlength = basketkey.fObjlen - contentsize
+
+    if offsetlength > 0
+        @debug "Offset data present" offsetlength
+        skip(s, contentsize)
+        skip(s, 4)
+        readoffsets!(offsets, s, (offsetlength - 8) / 4)
+        # for _ in 1:((offsetlength - 8)/4)
+        #     push!(offsets, readtype(s, Int32))
+        # end
+        # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
+        skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
+        seek(s, start)
+    end
+
+    @debug "Reading $(contentsize) bytes"
+    readbytes!(out, s, contentsize)
 end
