@@ -389,8 +389,6 @@ abstract type TBranchElement <: ROOTStreamedObject end
     fWriteBasket
     fEntryNumber
 
-    fIOFeatures
-
     fOffset
     fMaxBaskets
     fSplitLevel
@@ -569,7 +567,7 @@ function TTree(io, tkey::TKey, refs)
     @initparse
 
     preamble = Preamble(io, Missing)
-    @show preamble
+    # @show preamble
 
     stream!(io, fields, TNamed)
 
@@ -611,12 +609,14 @@ function TTree(io, tkey::TKey, refs)
         fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
     end
 
-    for key in keys(fields)
-        @show key, fields[key]
-    end
+    # for key in keys(fields)
+    #     @show key, fields[key]
+    # end
 
     if preamble.version >= 20
         fields[:fIOFeatures] = readtype(io, ROOT_3a3a_TIOFeatures)
+    else
+        fields[:fIOFeatures] = missing
     end
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)

@@ -183,11 +183,11 @@ function readbasketsraw(io, branch)
     bytes = branch.fBasketBytes
 
     total_entries = branch.fEntries
-    @show branch
-    @show total_entries
-    @show seeks bytes
+    # @show branch
+    # @show total_entries
+    # @show seeks bytes
 
-    @show branch.fType
+    # @show branch.fType
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
@@ -201,10 +201,10 @@ function readbasketsraw(io, branch)
         end
         seek(io, basket_seek)
         basketkey = unpack(io, TBasketKey)
-        @show basketkey
+        # @show basketkey
         s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
         start = position(s)
-        @show start
+        # @show start
         contentsize = basketkey.fLast - basketkey.fKeylen
         offsetlength = basketkey.fObjlen - contentsize
 
