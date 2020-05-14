@@ -373,6 +373,54 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
 end
 
 abstract type TBranchElement <: ROOTStreamedObject end
+@with_kw struct TBranchElement_9 <: TBranchElement
+    cursor::Cursor
+    # from TNamed
+    fName
+    fTitle
+
+    # from TAttFill
+    fFillColor
+    fFillStyle
+
+    fCompress
+    fBasketSize
+    fEntryOffsetLen
+    fWriteBasket
+    fEntryNumber
+
+    fIOFeatures
+
+    fOffset
+    fMaxBaskets
+    fSplitLevel
+    fEntries
+    fFirstEntry
+    fTotBytes
+    fZipBytes
+
+    fBranches
+    fLeaves
+    fBaskets
+    fBasketBytes::Vector{Int64}
+    fBasketEntry::Vector{Int64}
+    fBasketSeek::Vector{Int64}
+    fFileName
+
+    # own fields
+    fClassName
+    fParentName
+    fClonesName
+    fCheckSum
+    fClassVersion
+    fID
+    fType
+    fStreamerType
+    fMaximum
+    fBranchCount
+    fBranchCount2
+end
+
 @with_kw struct TBranchElement_10 <: TBranchElement
     cursor::Cursor
     # from TNamed
@@ -421,6 +469,26 @@ abstract type TBranchElement <: ROOTStreamedObject end
     fBranchCount2
 end
 
+function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement_9}
+    io = cursor.io
+    tkey = cursor.tkey
+    refs = cursor.refs
+
+    stream!(cursor, fields, TBranch)
+
+    fields[:fClassName] = readtype(io, String)
+    fields[:fParentName] = readtype(io, String)
+    fields[:fClonesName] = readtype(io, String)
+    fields[:fCheckSum] = readtype(io, UInt32)
+    fields[:fClassVersion] = readtype(io, Int32)
+    fields[:fID] = readtype(io, Int32)
+    fields[:fType] = readtype(io, Int32)
+    fields[:fStreamerType] = readtype(io, Int32)
+    fields[:fMaximum] =readtype(io, Int32)
+    fields[:fBranchCount] = readobjany!(io, tkey, refs)
+    fields[:fBranchCount2] = readobjany!(io, tkey, refs)
+end
+
 function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement_10}
     io = cursor.io
     tkey = cursor.tkey
@@ -440,7 +508,6 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement
     fields[:fBranchCount] = readobjany!(io, tkey, refs)
     fields[:fBranchCount2] = readobjany!(io, tkey, refs)
 end
-
 
 # FIXME preliminary TTree structure
 @with_kw struct TTree
