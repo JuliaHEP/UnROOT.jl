@@ -526,13 +526,13 @@ end
 
 abstract type ROOTStreamedObject end
 
-function stream(io, ::Type{T}) where {T<:ROOTStreamedObject}
-    fields = Dict{Symbol, Any}()
-    preamble = Preamble(io, T)
-    stream!(io, fields, T{preamble.version})
-    endcheck(io, preamble)
-    T(fields)
-end
+# function stream(io, ::Type{T}) where {T<:ROOTStreamedObject}
+#     fields = Dict{Symbol, Any}()
+#     preamble = Preamble(io, T)
+#     stream!(io, fields, T{preamble.version})
+#     endcheck(io, preamble)
+#     T(fields)
+# end
 
 function stream!(io, fields, ::Type{T}) where {T<:ROOTStreamedObject}
     preamble = Preamble(io, T)
@@ -542,7 +542,7 @@ function stream!(io, fields, ::Type{T}) where {T<:ROOTStreamedObject}
     @show mod typename
     streamer = getfield(@__MODULE__, Symbol(typename))
     @show streamer
-    stream!(io, fields, streamer)
+    readfields!(io, fields, streamer)
     endcheck(io, preamble)
 end
 

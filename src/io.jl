@@ -5,6 +5,8 @@ struct Cursor
     refs
 end
 
+Base.position(c::Cursor) = position(c.io)
+
 
 function unpack() end
 
@@ -81,6 +83,10 @@ Reads the preamble of an object.
 The cursor will be put into the right place depending on the data.
 """
 function Preamble(io, ::Type{T}) where {T}
+    # FIXME dirty hack
+    if typeof(io) <: Cursor
+        io = io.io
+    end
     start = position(io)
     cnt = readtype(io, UInt32)
     version = readtype(io, UInt16)

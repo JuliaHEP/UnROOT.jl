@@ -146,4 +146,7 @@ end
     arr = array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    arr = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
 end
