@@ -546,6 +546,20 @@ function stream!(io, fields, ::Type{T}) where {T<:ROOTStreamedObject}
     endcheck(io, preamble)
 end
 
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:ROOTStreamedObject}
+    cursor = Cursor(position(io), io, tkey, refs)
+    @initparse
+    preamble = Preamble(io, T)
+    streamer_name = Symbol(T, "_$(preamble.version)")
+    mod, typename = split(String(streamer_name), ".")
+    streamer = getfield(@__MODULE__, Symbol(typename))
+    readfields!(cursor, fields, streamer)
+    streamer(;cursor=cursor, fields...)
+end
+
+
+
 # function stream!(io, fields, ::Type{T{V}}) where {V, T<:ROOTStreamedObject}
 #     println("Don't know how to stream $T")
 # end

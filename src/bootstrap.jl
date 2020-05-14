@@ -219,7 +219,81 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TLe
 end
 
 abstract type TBranch <: ROOTStreamedObject end
-@with_kw struct TBranch_13 <: ROOTStreamedObject
+@with_kw struct TBranch_12 <: TBranch
+    cursor::Cursor
+    # from TNamed
+    fName
+    fTitle
+
+    # from TAttFill
+    fFillColor
+    fFillStyle
+
+    fCompress
+    fBasketSize
+    fEntryOffsetLen
+    fWriteBasket
+    fEntryNumber
+
+    fOffset
+    fMaxBaskets
+    fSplitLevel
+    fEntries
+    fFirstEntry
+    fTotBytes
+    fZipBytes
+
+    fBranches
+    fLeaves
+    fBaskets
+    fBasketBytes::Vector{Int64}
+    fBasketEntry::Vector{Int64}
+    fBasketSeek::Vector{Int64}
+    fFileName
+end
+function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_12}
+    io = cursor.io
+    tkey = cursor.tkey
+    refs = cursor.refs
+
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttFill)
+
+    fields[:fCompress] = readtype(io, Int32)
+    fields[:fBasketSize] = readtype(io, Int32)
+    fields[:fEntryOffsetLen] = readtype(io, Int32)
+    fields[:fWriteBasket] = readtype(io, Int32)
+    fields[:fEntryNumber] = readtype(io, Int64)
+
+    fields[:fOffset] = readtype(io, Int32)
+    fields[:fMaxBaskets] = readtype(io, UInt32)
+    fields[:fSplitLevel] = readtype(io, Int32)
+    fields[:fEntries] = readtype(io, Int64)
+    fields[:fFirstEntry] = readtype(io, Int64)
+    fields[:fTotBytes] = readtype(io, Int64)
+    fields[:fZipBytes] = readtype(io, Int64)
+
+    fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
+    fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+    fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
+    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
+    speedbump = true  # FIXME speedbump?
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    # this is also called fBsketEvent, as far as I understood
+    fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    fields[:fFileName] = readtype(io, String)
+end
+@with_kw struct TBranch_13 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -298,24 +372,8 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
     fields[:fFileName] = readtype(io, String)
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TBranch}
-    cursor = Cursor(position(io), io, tkey, refs)
-    @initparse
-    preamble = Preamble(io, T)
-    streamer_name = Symbol(T, "_$(preamble.version)")
-    @show streamer_name
-    mod, typename = split(String(streamer_name), ".")
-    @show mod typename
-    streamer = getfield(@__MODULE__, Symbol(typename))
-    @show streamer
-
-    readfields!(cursor, fields, streamer)
-    streamer(;cursor=cursor, fields...)
-end
-
-
-# FIXME this should be generated
-@with_kw struct TBranchElement
+abstract type TBranchElement <: ROOTStreamedObject end
+@with_kw struct TBranchElement_10 <: TBranchElement
     cursor::Cursor
     # from TNamed
     fName
@@ -363,7 +421,13 @@ end
     fBranchCount2
 end
 
-function parsefields!(io, fields, ::Type{T}) where {T<:TBranchElement}
+function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement_10}
+    io = cursor.io
+    tkey = cursor.tkey
+    refs = cursor.refs
+
+    stream!(cursor, fields, TBranch)
+
     fields[:fClassName] = readtype(io, String)
     fields[:fParentName] = readtype(io, String)
     fields[:fClonesName] = readtype(io, String)
@@ -373,27 +437,9 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TBranchElement}
     fields[:fType] = readtype(io, Int32)
     fields[:fStreamerType] = readtype(io, Int32)
     fields[:fMaximum] =readtype(io, Int32)
-end
-
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TBranchElement}
-    cursor = Cursor(position(io), io, tkey, refs)
-    @initparse
-
-    preamble = Preamble(io, T)
-
-    stream!(cursor, fields, TBranch)
-
-    parsefields!(io, fields, T)
-
-    # FIXME this needs to go into parsefields!() and tkey/refs have to be propagated via the cursor
     fields[:fBranchCount] = readobjany!(io, tkey, refs)
     fields[:fBranchCount2] = readobjany!(io, tkey, refs)
-
-    endcheck(io, preamble)
-
-    T(;cursor=cursor, fields...)
 end
-
 
 
 # FIXME preliminary TTree structure
