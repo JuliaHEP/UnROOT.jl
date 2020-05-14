@@ -232,9 +232,6 @@ function readbasketbytes!(out, offsets, io)
         skip(s, contentsize)
         skip(s, 4)
         readoffsets!(offsets, s, (offsetlength - 8) / 4)
-        # for _ in 1:((offsetlength - 8)/4)
-        #     push!(offsets, readtype(s, Int32))
-        # end
         # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
         skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
         seek(s, start)
