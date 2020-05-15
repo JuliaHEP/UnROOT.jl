@@ -8,16 +8,28 @@ struct KM3NETDAQHit
     tdc::Int32
     tot::UInt8
 end
-
-# FIXME write a generic function to determine sizeof structs
-# Julia 1.0 not supported (fieldtypes?)
-# Base.sizeof(T::{KM3NETDAQHit}) = sum(sizeof.(fieldtypes(T)))
-Base.sizeof(T::Type{KM3NETDAQHit}) = 10# Julia 1.0 not supported (fieldtypes?)
-
+Base.sizeof(T::Type{KM3NETDAQHit}) = 10
 function readtype(io::IO, T::Type{KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
 
+struct KM3NETDAQTriggeredHit
+    dom_id::Int32
+    channel_id::UInt8
+    tdc::Int32
+    tot::UInt8
+    trigger_mask::UInt64
+end
+Base.sizeof(T::Type{KM3NETDAQTriggeredHit}) = 24
+function readtype(io::IO, T::Type{KM3NETDAQTriggeredHit})
+    dom_id = readtype(io, Int32)
+    channel_id = read(io, UInt8)
+    tdc = read(io, Int32)
+    tot = read(io, UInt8)
+    skip(io, 6)
+    trigger_mask = readtype(io, UInt64)
+    T(dom_id, channel_id, tdc, tot, trigger_mask)
+end
 
 struct KM3NETDAQEventHeader
     detector_id::Int32
