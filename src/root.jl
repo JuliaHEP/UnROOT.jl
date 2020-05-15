@@ -153,16 +153,20 @@ function array(f::ROOTFile, path; raw=false)
     readbaskets(f.fobj, branch, primitivetype(leaf))
 end
 
-function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
-    io = IOBuffer(data)
+function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
     elsize = sizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
     # push!(lengths, length(data) - lengths[end])
     for (idx, l) in enumerate(lengths)
         # println("$idx / $(length(lengths))")
-        skip(io, skipbytes)
-        push!(out, [readtype(io, T) for _ in 1:((l - skipbytes)/elsize)])
+        if primitive
+            push!(out, reinterpret(T, data[skipbytes+1:skipbytes+Int32((l - skipbytes))]))
+        else
+            io = IOBuffer(data)
+            skip(io, skipbytes)
+            push!(out, [readtype(io, T) for _ in 1:((l - skipbytes)/elsize)])
+        end
     end
     out
 end

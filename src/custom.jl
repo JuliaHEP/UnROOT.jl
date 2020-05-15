@@ -12,6 +12,25 @@ Base.sizeof(T::Type{KM3NETDAQHit}) = 10
 function readtype(io::IO, T::Type{KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
+# Experimental implementation for maximum performance (using reinterpret)
+primitive type DAQHit 80 end
+function Base.getproperty(hit::DAQHit, s::Symbol)
+    r = Ref(hit)
+    GC.@preserve r begin
+        if s === :dom_id
+            return bswap(unsafe_load(Ptr{Int32}(Base.unsafe_convert(Ptr{Cvoid}, r))))
+        elseif s === :channel_id
+            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+4))
+        elseif s === :tdc
+            return unsafe_load(Ptr{UInt32}(Base.unsafe_convert(Ptr{Cvoid}, r)+5))
+        elseif s === :tot
+            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+9))
+        end
+    end
+    error("unknown field $s of type $(typeof(hit))")
+end
+Base.show(io::IO, h::DAQHit) = print(io, "DAQHit(", h.dom_id, ',', h.channel_id, ',', h.tdc, ',', h.tot, ')')
+
 
 struct KM3NETDAQTriggeredHit
     dom_id::Int32
