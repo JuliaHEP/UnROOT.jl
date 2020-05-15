@@ -158,7 +158,7 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
     @show length(data) sum(lengths) offsets[end]
-    # push!(lengths, length(data) - sum(lengths))
+    push!(lengths, length(data) - offsets[end])
     io = IOBuffer(data)
     for (idx, l) in enumerate(lengths)
         # println("$idx / $(length(lengths))")
@@ -224,14 +224,16 @@ function readbasketsraw(io, branch)
 end
 
 
-function readoffsets!(out, s, contentsize)
+function readoffsets!(out, s, contentsize, global_offset, local_offset)
     for _ in 1:contentsize
-        push!(out, readtype(s, Int32))
+        offset = readtype(s, Int32) + global_offset
+        push!(out, offset)
     end
 end
 
 function readbasketbytes!(data, offsets, io, idx)
     basketkey = unpack(io, TBasketKey)
+
     # @show basketkey
     s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
     start = position(s)
@@ -243,7 +245,7 @@ function readbasketbytes!(data, offsets, io, idx)
         @debug "Offset data present" offsetlength
         skip(s, contentsize)
         skip(s, 4)
-        readoffsets!(offsets, s, (offsetlength - 8) / 4)
+        readoffsets!(offsets, s, (offsetlength - 8) / 4, length(data), length(data))
         # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
         skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
         seek(s, start)
