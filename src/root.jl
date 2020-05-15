@@ -207,12 +207,6 @@ function readbasketsraw(io, branch)
 end
 
 
-function readbytes!(out, s, contentsize)
-    for _ in 1:contentsize
-        push!(out, readtype(s, UInt8))
-    end
-end
-
 function readoffsets!(out, s, contentsize)
     for _ in 1:contentsize
         push!(out, readtype(s, Int32))
@@ -239,5 +233,5 @@ function readbasketbytes!(out, offsets, io)
     end
 
     @debug "Reading $(contentsize) bytes"
-    readbytes!(out, s, contentsize)
+    readbytes!(s, out, contentsize)
 end
