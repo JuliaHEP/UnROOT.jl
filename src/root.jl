@@ -160,7 +160,7 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
     lengths = diff(offsets)
     # push!(lengths, length(data) - lengths[end])
     for (idx, l) in enumerate(lengths)
-        println("$idx / $(length(lengths))")
+        # println("$idx / $(length(lengths))")
         skip(io, skipbytes)
         push!(out, [readtype(io, T) for _ in 1:((l - skipbytes)/elsize)])
     end
@@ -203,17 +203,18 @@ function readbasketsraw(io, branch)
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
-    out = sizehint!(Vector{UInt8}(), sum(bytes))
+    data = sizehint!(Vector{UInt8}(), sum(bytes))
     offsets = sizehint!(Vector{Int32}(), total_entries)
+    idx = 1
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
         if basket_seek == 0
             break
         end
         seek(io, basket_seek)
-        readbasketbytes!(out, offsets, io)
+        idx += readbasketbytes!(data, offsets, io, idx)
     end
-    out, offsets
+    data, offsets
 end
 
 
@@ -223,7 +224,7 @@ function readoffsets!(out, s, contentsize)
     end
 end
 
-function readbasketbytes!(out, offsets, io)
+function readbasketbytes!(data, offsets, io, idx)
     basketkey = unpack(io, TBasketKey)
     # @show basketkey
     s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
@@ -243,5 +244,20 @@ function readbasketbytes!(out, offsets, io)
     end
 
     @debug "Reading $(contentsize) bytes"
-    readbytes!(s, out, contentsize)
+    readbytes!(s, data, idx, contentsize)
+    # for _ in 1:contentsize
+    #     push!(data, readtype(s, UInt8))
+    # end
+    contentsize
+end
+
+"""
+    function readbytes!(io, b, offset, nr)
+
+Efficient read of bytes into an existing array at a given offset
+"""
+function readbytes!(io, b, offset, nr)
+    resize!(b, offset + nr - 1)
+    nb = UInt(nr)
+    GC.@preserve b unsafe_read(io, pointer(b, offset), nr)
 end
