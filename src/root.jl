@@ -157,10 +157,12 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
     elsize = sizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
-    # push!(lengths, length(data) - lengths[end])
+    # @show length(data) sum(lengths)
+    push!(lengths, length(data) - sum(lengths))
     for (idx, l) in enumerate(lengths)
         # println("$idx / $(length(lengths))")
         if primitive
+            error("primitive interpretation is buggy")
             push!(out, reinterpret(T, data[skipbytes+1:skipbytes+Int32((l - skipbytes))]))
         else
             io = IOBuffer(data)
