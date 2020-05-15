@@ -158,8 +158,7 @@ function readbaskets(io, branch, ::Type{T}) where {T}
     seeks = branch.fBasketSeek
     entries = branch.fBasketEntry
 
-    out = Vector{T}()
-    sizehint!(out, branch.fEntries)
+    out = sizehint!(Vector{T}(), branch.fEntries)
 
 
     for (idx, basket_seek) in enumerate(seeks)
@@ -191,10 +190,8 @@ function readbasketsraw(io, branch)
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
-    out = Vector{UInt8}()
-    sizehint!(out, sum(bytes))
-    offsets = Vector{Int32}()
-    sizehint!(offsets, total_entries)
+    out = sizehint!(Vector{UInt8}(), sum(bytes))
+    offsets = sizehint!(Vector{Int32}(), total_entries)
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
         if basket_seek == 0
