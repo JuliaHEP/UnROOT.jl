@@ -2,7 +2,7 @@ module ROOTIO
 
 export ROOTFile, array
 
-import Base: keys, get, getindex, show, length, iterate, sizeof
+import Base: keys, get, getindex, show, length, iterate, sizeof, position
 
 using CodecZlib
 using Mixers
