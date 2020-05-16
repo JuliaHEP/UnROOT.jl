@@ -8,7 +8,6 @@ using CodecZlib
 using Mixers
 using Parameters
 using StaticArrays
-using ArraysOfArrays
 
 include("constants.jl")
 include("utils.jl")
