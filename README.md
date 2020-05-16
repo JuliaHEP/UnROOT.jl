@@ -1,11 +1,11 @@
-# ROOTIO.jl
+# UnROOT.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://tamasgal.github.io/ROOTIO.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tamasgal.github.io/ROOTIO.jl/dev)
-[![Build Status](https://travis-ci.com/tamasgal/ROOTIO.jl.svg?branch=master)](https://travis-ci.com/tamasgal/ROOTIO.jl)
-[![Codecov](https://codecov.io/gh/tamasgal/ROOTIO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/ROOTIO.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://tamasgal.github.io/UnROOT.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tamasgal.github.io/UnROOT.jl/dev)
+[![Build Status](https://travis-ci.com/tamasgal/UnROOT.jl.svg?branch=master)](https://travis-ci.com/tamasgal/UnROOT.jl)
+[![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
-ROOTIO.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
+UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without depending on any official ROOT libraries.
 In contrast to the C++ ROOT framework, this packages focuses only on parsing of
 the files.
@@ -32,7 +32,7 @@ demo of reading a simple branch containing a vector of integers using the
 preliminary high-level API:
 
 ```julia
-julia> using ROOTIO
+julia> using UnROOT
 
 julia> f = ROOTFile("test/samples/tree_with_histos.root")
 ROOTFile("test/samples/tree_with_histos.root") with 1 entry and 4 streamers.
@@ -72,7 +72,7 @@ and can be used to read data where the streamers are not available (yet).
 Here is it in action, using some data from the KM3NeT experiment:
 
 ``` julia
-julia> using ROOTIO
+julia> using UnROOT
 
 julia> f = ROOTFile("test/samples/km3net_online.root")
 ROOTFile("test/samples/km3net_online.root") with 10 entries and 41 streamers.
@@ -95,7 +95,7 @@ julia> array(f, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits"; raw=true)
 This is what happens behind the scenes with some additional debug output:
 
 ``` julia
-julia> using ROOTIO
+julia> using UnROOT
 
 julia> f = ROOTFile("test/samples/tree_with_histos.root")
 Compressed stream at 1509
@@ -113,8 +113,8 @@ Compressed datastream of 1317 bytes at 1509 (TKey 't1' (TTree))
 
 julia> f["t1"]["mynum"]
 Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
-ROOTIO.TBranch
-  cursor: ROOTIO.Cursor
+UnROOT.TBranch
+  cursor: UnROOT.Cursor
   fName: String "mynum"
   fTitle: String "mynum/I"
   fFillColor: Int16 0
@@ -124,7 +124,7 @@ ROOTIO.TBranch
   fEntryOffsetLen: Int32 0
   fWriteBasket: Int32 1
   fEntryNumber: Int64 25
-  fIOFeatures: ROOTIO.ROOT_3a3a_TIOFeatures
+  fIOFeatures: UnROOT.ROOT_3a3a_TIOFeatures
   fOffset: Int32 0
   fMaxBaskets: UInt32 0x0000000a
   fSplitLevel: Int32 0
@@ -132,9 +132,9 @@ ROOTIO.TBranch
   fFirstEntry: Int64 0
   fTotBytes: Int64 170
   fZipBytes: Int64 116
-  fBranches: ROOTIO.TObjArray
-  fLeaves: ROOTIO.TObjArray
-  fBaskets: ROOTIO.TObjArray
+  fBranches: UnROOT.TObjArray
+  fLeaves: UnROOT.TObjArray
+  fBaskets: UnROOT.TObjArray
   fBasketBytes: Array{Int32}((10,)) Int32[116, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   fBasketEntry: Array{Int64}((10,)) [0, 25, 0, 0, 0, 0, 0, 0, 0, 0]
   fBasketSeek: Array{Int64}((10,)) [238, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -144,14 +144,14 @@ ROOTIO.TBranch
 julia> seek(f.fobj, 238)
 IOStream(<file test/samples/tree_with_histos.root>)
 
-julia> basketkey = ROOTIO.unpack(f.fobj, ROOTIO.TKey)
-ROOTIO.TKey64(116, 1004, 100, 0x6526eafb, 70, 0, 238, 100, "TBasket", "mynum", "t1")
+julia> basketkey = UnROOT.unpack(f.fobj, UnROOT.TKey)
+UnROOT.TKey64(116, 1004, 100, 0x6526eafb, 70, 0, 238, 100, "TBasket", "mynum", "t1")
 
-julia> s = ROOTIO.datastream(f.fobj, basketkey)
+julia> s = UnROOT.datastream(f.fobj, basketkey)
 Compressed datastream of 100 bytes at 289 (TKey 'mynum' (TBasket))
 IOBuffer(data=UInt8[...], readable=true, writable=false, seekable=true, append=false, size=100, maxsize=Inf, ptr=1, mark=-1)
 
-julia> [ROOTIO.readtype(s, Int32) for _ in 1:f["t1"]["mynum"].fEntries]
+julia> [UnROOT.readtype(s, Int32) for _ in 1:f["t1"]["mynum"].fEntries]
 Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
 25-element Array{Int32,1}:
   0

@@ -1,4 +1,4 @@
-module ROOTIO
+module UnROOT
 
 export ROOTFile, array
 

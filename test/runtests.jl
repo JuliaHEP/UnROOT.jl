@@ -1,5 +1,5 @@
 using Test
-using ROOTIO
+using UnROOT
 using StaticArrays
 using MD5
 
@@ -22,7 +22,7 @@ struct C
     t
     u
 end
-@ROOTIO.stack D A B C
+@UnROOT.stack D A B C
 expected_fieldnames = (:n, :m, :o, :p, :q, :r, :s, :t, :u)
 expected_fieldtypes = [Int32, Int64, Float16, Any, Bool, Any, Any, Any, Any]
 
@@ -32,7 +32,7 @@ expected_fieldtypes = [Int32, Int64, Float16, Any, Bool, Any, Any, Any, Any]
 end
 
 # io.jl
-ROOTIO.@io struct Foo
+UnROOT.@io struct Foo
     a::Int32
     b::Int64
     c::Float32
@@ -53,7 +53,7 @@ end
     @test_skip 21 == sizeof(Foo)
 
     buf = IOBuffer(Vector{UInt8}(1:sizeof(Foo)))
-    foo = ROOTIO.unpack(buf, Foo)
+    foo = UnROOT.unpack(buf, Foo)
 
     @test foo.a == 16909060
     @test foo.b == 361984551142689548
@@ -64,10 +64,10 @@ end
 
 @testset "Header and Preamble" begin
     fobj = open(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    file_preamble = ROOTIO.unpack(fobj, ROOTIO.FilePreamble)
+    file_preamble = UnROOT.unpack(fobj, UnROOT.FilePreamble)
     @test "root" == String(file_preamble.identifier)
 
-    file_header = ROOTIO.unpack(fobj, ROOTIO.FileHeader32)
+    file_header = UnROOT.unpack(fobj, UnROOT.FileHeader32)
     @test 100 == file_header.fBEGIN
 end
 

@@ -1,8 +1,8 @@
-# ROOTIO.jl
+# UnROOT.jl
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [ROOTIO]
+Modules = [UnROOT]
 ```
