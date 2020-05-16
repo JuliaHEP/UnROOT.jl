@@ -1,6 +1,7 @@
+using Test
 using ROOTIO
 using StaticArrays
-using Test
+using MD5
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -149,4 +150,12 @@ end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     arr = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+end
+
+
+@testset "readbasketsraw()" begin
+    array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    @test array_md5 == md5(data)
 end
