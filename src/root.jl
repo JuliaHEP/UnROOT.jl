@@ -157,8 +157,7 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
     elsize = sizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
-    @show length(data) sum(lengths) offsets[end]
-    push!(lengths, length(data) - offsets[end])
+    push!(lengths, length(data) - offsets[end] + offsets[1])  # yay ;)
     io = IOBuffer(data)
     for (idx, l) in enumerate(lengths)
         # println("$idx / $(length(lengths))")
