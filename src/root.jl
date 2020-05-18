@@ -153,6 +153,7 @@ function array(f::ROOTFile, path; raw=false)
     readbaskets(f.fobj, branch, primitivetype(leaf))
 end
 
+
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
     elsize = sizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
@@ -171,6 +172,7 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
     end
     out
 end
+
 
 function readbaskets(io, branch, ::Type{T}) where {T}
     seeks = branch.fBasketSeek
@@ -195,16 +197,12 @@ function readbaskets(io, branch, ::Type{T}) where {T}
     out
 end
 
+
 function readbasketsraw(io, branch)
     seeks = branch.fBasketSeek
     bytes = branch.fBasketBytes
 
     total_entries = branch.fEntries
-    # @show branch
-    # @show total_entries
-    # @show seeks bytes
-
-    # @show branch.fType
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
