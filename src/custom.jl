@@ -1,5 +1,8 @@
 # Custom, hardcoded streamers
 
+abstract type CustomROOTStruct end
+Base.sizeof(T::Type{CustomROOTStruct}) = sum(sizeof.(fieldtypes(T)))
+
 # KM3NeT
 
 struct KM3NETDAQHit
@@ -8,7 +11,6 @@ struct KM3NETDAQHit
     tdc::Int32
     tot::UInt8
 end
-Base.sizeof(T::Type{KM3NETDAQHit}) = 10
 function readtype(io::IO, T::Type{KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
