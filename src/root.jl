@@ -71,6 +71,9 @@ function Base.show(io::IO, f::ROOTFile)
 end
 
 
+UUID(f::ROOTFile) = f.header.fUUID
+
+
 function streamerfor(f::ROOTFile, name::AbstractString)
     for e in f.streamers.elements
         if e.streamer.fName == name
