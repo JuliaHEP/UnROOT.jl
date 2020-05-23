@@ -5,7 +5,7 @@ Base.sizeof(T::Type{CustomROOTStruct}) = sum(sizeof.(fieldtypes(T)))
 
 # KM3NeT
 
-struct KM3NETDAQHit
+struct KM3NETDAQHit <: CustomROOTStruct
     dom_id::Int32
     channel_id::UInt8
     tdc::Int32
