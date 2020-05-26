@@ -10,7 +10,13 @@ function readfields!(io, fields, ::Type{TNamed_1})
 end
 
 abstract type TAttLine <: ROOTStreamedObject end
-struct TAttLine_2 <: ROOTStreamedObject end
+struct TAttLine_1 <: TAttLine end
+function readfields!(io, fields, T::Type{TAttLine_1})
+    fields[:fLineColor] = readtype(io, Int16)
+    fields[:fLineStyle] = readtype(io, Int16)
+    fields[:fLineWidth] = readtype(io, Int16)
+end
+struct TAttLine_2 <: TAttLine end
 function readfields!(io, fields, T::Type{TAttLine_2})
     fields[:fLineColor] = readtype(io, Int16)
     fields[:fLineStyle] = readtype(io, Int16)
@@ -18,14 +24,19 @@ function readfields!(io, fields, T::Type{TAttLine_2})
 end
 
 abstract type TAttFill <: ROOTStreamedObject end
-struct TAttFill_2 <: ROOTStreamedObject end
+struct TAttFill_1 <: TAttFill end
+function readfields!(io, fields, T::Type{TAttFill_1})
+    fields[:fFillColor] = readtype(io, Int16)
+    fields[:fFillStyle] = readtype(io, Int16)
+end
+struct TAttFill_2 <: TAttFill end
 function readfields!(io, fields, T::Type{TAttFill_2})
     fields[:fFillColor] = readtype(io, Int16)
     fields[:fFillStyle] = readtype(io, Int16)
 end
 
 abstract type TAttMarker <: ROOTStreamedObject end
-struct TAttMarker_2 <: ROOTStreamedObject end
+struct TAttMarker_2 <: TAttFill end
 function readfields!(io, fields, T::Type{TAttMarker_2})
     fields[:fMarkerColor] = readtype(io, Int16)
     fields[:fMarkerStyle] = readtype(io, Int16)
@@ -149,6 +160,74 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafI})
 end
 
 primitivetype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
+
+# FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafL
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafL})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Int64)
+    fields[:fMaximum] = readtype(io, Int64)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafL})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafL) = l.fIsUnsigned ? UInt64 : Int64
+
+# FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafO
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafO})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Bool)
+    fields[:fMaximum] = readtype(io, Bool)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafO})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
 
 # FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafF
