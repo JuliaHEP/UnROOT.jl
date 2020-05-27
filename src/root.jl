@@ -158,7 +158,7 @@ end
 
 
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
-    elsize = sizeof(T)
+    elsize = packedsizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
     push!(lengths, length(data) - offsets[end] + offsets[1])  # yay ;)
@@ -170,7 +170,8 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
             push!(out, reinterpret(T, data[skipbytes+1:skipbytes+Int32((l - skipbytes))]))
         else
             skip(io, skipbytes)
-            push!(out, [readtype(io, T) for _ in 1:((l - skipbytes)/elsize)])
+            n = (l - skipbytes) / elsize
+            push!(out, [readtype(io, T) for _ in 1:n])
         end
     end
     out
