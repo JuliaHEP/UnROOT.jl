@@ -39,7 +39,7 @@ UnROOT.@io struct Foo
     d::SVector{5, UInt8}
 end
 
-@testset "io" begin
+@testset "@io" begin
 
     d = SA{UInt8}[1, 2, 3, 4, 5]
 
@@ -59,6 +59,16 @@ end
     @test foo.b == 361984551142689548
     @test foo.c ≈ 4.377526f-31
     @test foo.d == UInt8[0x11, 0x12, 0x13, 0x14, 0x15]
+end
+
+struct Bar
+    x::Int8
+    y::UInt16
+end
+
+@testset "io functions" begin
+    @test 21 == UnROOT.packedsizeof(Foo)
+    @test 3 == UnROOT.packedsizeof(Bar)
 end
 
 

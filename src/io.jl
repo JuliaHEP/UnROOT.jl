@@ -10,9 +10,14 @@ Base.position(c::Cursor) = position(c.io)
 
 function unpack() end
 
+"""The packed size of a type, e.g. when stored on disk."""
+function packedsizeof(::Type{T}) where T
+    sum(sizeof(fieldtype(T, field)) for field in fieldnames(T))
+end
+
 @inline readtype(io, ::Type{T}) where T<:Union{Integer, AbstractFloat} = ntoh(read(io, T))
 @inline readtype(io, ::Type{T}) where T<:Bool = read(io, T)
-@inline readtype(io, ::Type{T}) where T<:AbstractVector{UInt8} = read(io, sizeof(T))
+@inline readtype(io, v::Type{T}) where T<:AbstractVector{UInt8} = read(io, length(v))
 
 function readtype(io, ::Type{T}) where T<:AbstractString
     start = position(io)

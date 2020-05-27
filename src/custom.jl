@@ -1,7 +1,6 @@
 # Custom, hardcoded streamers
 
 abstract type CustomROOTStruct end
-Base.sizeof(T::Type{CustomROOTStruct}) = sum(sizeof.(fieldtypes(T)))
 
 # KM3NeT
 
@@ -41,7 +40,6 @@ struct KM3NETDAQTriggeredHit
     tot::UInt8
     trigger_mask::UInt64
 end
-Base.sizeof(T::Type{KM3NETDAQTriggeredHit}) = 24
 function readtype(io::IO, T::Type{KM3NETDAQTriggeredHit})
     dom_id = readtype(io, Int32)
     channel_id = read(io, UInt8)
@@ -62,8 +60,6 @@ struct KM3NETDAQEventHeader
     trigger_mask::UInt64
     overlays::UInt32
 end
-
-Base.sizeof(T::Type{KM3NETDAQEventHeader}) = 40
 
 function readtype(io::IO, T::Type{KM3NETDAQEventHeader})
     skip(io, 18)

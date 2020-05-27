@@ -2,7 +2,7 @@ module UnROOT
 
 export ROOTFile, array
 
-import Base: keys, get, getindex, show, length, iterate, sizeof, position
+import Base: keys, get, getindex, show, length, iterate, position
 
 using CodecZlib
 using Mixers
