@@ -167,6 +167,9 @@ Reads a tree into a dataframe
 function DataFrame(f::ROOTFile, path)
     names = keys(f[path])
     cols = [array(f, path * "/" * n) for n in names]
+    for each in cols
+        eltype(each) <: Number || error("Jagged array cannot be put into a dataframe")
+    end
     DataFrame(cols, names, copycols=false) #avoid double allocation
 end
 
