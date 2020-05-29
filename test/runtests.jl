@@ -101,6 +101,11 @@ end
         rootfile[key]
     end
 
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "histograms.root"))
+    for branch in ["one", "two", "three"]
+        @test branch in keys(rootfile)
+    end
+
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     @test 100 == rootfile.header.fBEGIN
     @test 10 == length(rootfile.directory.keys)

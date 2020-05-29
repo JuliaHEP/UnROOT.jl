@@ -111,6 +111,7 @@ function Streamers(io)
                     @debug "      - skipping dependency '$(element.fName)' with type '$(typeof(element))'"
                 end
             end
+            @debug "      => finishing dependency readout for: $(obj.fName)"
             push!(streamer_infos, StreamerInfo(obj, dependencies))
         else
             @debug "  not a TStreamerInfo but '$(typeof(obj))', skipping."
@@ -139,16 +140,19 @@ which are not defined already.
 The implementation is based on https://stackoverflow.com/a/11564769/1623645
 """
 function topological_sort(streamer_infos)
+    @debug "Starting topological sort of streamers"
     provided = Set{String}()
     sorted_streamer_infos = []
     while length(streamer_infos) > 0
         remaining_items = []
         emitted = false
+        @debug "  number of remaining streamers to sort: $(length(streamer_infos))"
 
         for streamer_info in streamer_infos
             # if all(d -> isdefined(@__MODULE__, Symbol(d)) || d ∈ provided, streamer_info.dependencies)
             #     if !isdefined(@__MODULE__, Symbol(streamer_info.streamer.fName)) && aliasfor(streamer_info.streamer.fName) === nothing
-            if all(d -> d ∈ provided, streamer_info.dependencies)
+            @debug "    processing '$(streamer_info.streamer.fName)' with $(length(streamer_info.dependencies))' dependencies"
+            if length(streamer_infos) ==  1 || all(d -> d ∈ provided, streamer_info.dependencies)
                 if aliasfor(streamer_info.streamer.fName) === nothing
                     push!(sorted_streamer_infos, streamer_info)
                 end
@@ -167,6 +171,7 @@ function topological_sort(streamer_infos)
 
         streamer_infos = remaining_items
     end
+    @debug "Finished the topological sort of streamers"
     sorted_streamer_infos
 end
 
