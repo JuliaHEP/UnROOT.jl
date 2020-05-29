@@ -165,7 +165,7 @@ end
 
 @testset "DataFrame()" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
-    df = DataFrame(rootfile, "t1/int32_array")
+    df = DataFrame(rootfile, "t1")
     @test 100000 == length(df.int32_array)
     @test [0, 1, 2, 3, 4] ≈ df.int32_array[1:5] atol=0.1
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ df.float_array[1:5] atol=1e-7
