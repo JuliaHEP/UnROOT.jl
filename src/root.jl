@@ -1,3 +1,5 @@
+using DataFrames: DataFrame
+
 struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
@@ -156,6 +158,20 @@ function array(f::ROOTFile, path; raw=false)
     readbaskets(f.fobj, branch, primitivetype(leaf))
 end
 
+
+"""
+    function DataFrame(f::ROOTFile, path)
+
+Reads a tree into a dataframe
+"""
+function DataFrame(f::ROOTFile, path)
+    names = keys(f[path])
+    cols = [array(f, path * "/" * n) for n in names]
+    for each in cols
+        eltype(each) <: Number || error("Jagged array cannot be put into a dataframe")
+    end
+    DataFrame(cols, names, copycols=false) #avoid double allocation
+end
 
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
     elsize = packedsizeof(T)
