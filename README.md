@@ -26,10 +26,15 @@ documentation](https://github.com/scikit-hep/uproot/issues/401)
 The project is in early alpha prototyping phase and contributions are very
 welcome.
 
-At least the reading of the top level dictionary is already working, but
-everything is in a very early alpha stage, as mentioned above. Here is a quick
-demo of reading a simple branch containing a vector of integers using the
-preliminary high-level API:
+Reading of raw basket data is already working for uncompressed and
+Zlib-compressed files. The raw data consists of two vectors: the bytes
+and the offsets, which can be reinterpreted using a custom type.
+
+Everything is in a very early alpha stage, as mentioned above.
+
+Here is a quick demo of reading a simple branch containing a vector of integers
+using the preliminary high-level API, which works for non-jagged branches
+(simple vectors of primitive types):
 
 ```julia
 julia> using UnROOT
