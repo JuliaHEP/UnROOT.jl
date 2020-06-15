@@ -7,8 +7,7 @@
 
 UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without depending on any official ROOT libraries.
-In contrast to the C++ ROOT framework, this packages focuses only on parsing of
-the files.
+In contrast to the C++ ROOT framework, this package focuses only on I/O.
 
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
