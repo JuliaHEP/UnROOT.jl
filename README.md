@@ -27,7 +27,10 @@ welcome.
 
 Reading of raw basket data is already working for uncompressed and
 Zlib-compressed files. The raw data consists of two vectors: the bytes
-and the offsets, which can be reinterpreted using a custom type.
+and the offsets and are available using the
+`UnROOT.array(f::ROOTFile, path; raw=true)` method. This data can
+be reinterpreted using a custom type with the method
+`UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`.
 
 Everything is in a very early alpha stage, as mentioned above.
 
