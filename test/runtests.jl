@@ -187,7 +187,7 @@ end
 # Issues
 
 @testset "issues" begin
-    rootfile = ROOTFile("test/samples/issue7.root")
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue7.root"))
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == array(rootfile, "TreeF/nums")
