@@ -209,6 +209,7 @@ Pick one ;)
 - [x] Reading a simple dataset with primitive streamers
 - [x] Reading of raw basket bytes for debugging
 - [ ] Automatically generate streamer logic
+- [ ] Parsing `TNtuple`
 
 ## Acknowledgements
 
