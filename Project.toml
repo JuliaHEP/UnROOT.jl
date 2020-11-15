@@ -13,7 +13,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 CodecZlib = "^0.6.0, ^0.7.0"
-DataFrames = "^0.21"
+DataFrames = "^0.22"
 MD5 = "^0.2.1"
 Mixers = "^0.1.0"
 Parameters = "^0.12.0"
