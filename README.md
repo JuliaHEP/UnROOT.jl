@@ -2,7 +2,7 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://tamasgal.github.io/UnROOT.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tamasgal.github.io/UnROOT.jl/dev)
-[![Build Status](https://travis-ci.com/tamasgal/UnROOT.jl.svg?branch=master)](https://travis-ci.com/tamasgal/UnROOT.jl)
+[![Build Status](https://github.com/tamasgal/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/tamasgal/UnROOT.jl/actions)
 [![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
 UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
