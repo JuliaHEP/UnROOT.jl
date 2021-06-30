@@ -88,10 +88,6 @@ Reads the preamble of an object.
 The cursor will be put into the right place depending on the data.
 """
 function Preamble(io, ::Type{T}) where {T}
-    # FIXME dirty hack
-    if typeof(io) <: Cursor
-        io = io.io
-    end
     start = position(io)
     cnt = readtype(io, UInt32)
     version = readtype(io, UInt16)
@@ -105,6 +101,9 @@ function Preamble(io, ::Type{T}) where {T}
     end
 end
 
+function Preamble(io::Cursor, ::Type{T}) where {T}
+    Preamble(io.io, T)
+end
 
 """
     function skiptobj(io)

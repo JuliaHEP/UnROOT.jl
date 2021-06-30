@@ -114,6 +114,7 @@ end
     fVersion::Int32                # File format version
 end
 
+# https://root.cern/doc/v624/RMiniFile_8cxx_source.html#l00239
 @io struct FileHeader32
     fBEGIN::Int32                  # Pointer to first data record
     fEND::UInt32                   # Pointer to first free word at the EOF
