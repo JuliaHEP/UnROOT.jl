@@ -1,13 +1,20 @@
 # A collection of bootstrapped code which should be generated
 # dynamically in future.
 
-abstract type TNamed <: ROOTStreamedObject end
-struct TNamed_1 <: TNamed end
-function readfields!(io, fields, ::Type{TNamed_1})
-    parsefields!(io, fields, TObject)
-    fields[:fName] = readtype(io, String)
-    fields[:fTitle] = readtype(io, String)
+# TODO: furthuer factoring this out, maybe parsing some ROOT headers
+function _generate_T_Types(name)
+    if startswith(string(name), "TName")
+        @eval function readfields!(io, fields, ::Type{$name})
+            parsefields!(io, fields, TObject)
+            fields[:fName] = readtype(io, String)
+            fields[:fTitle] = readtype(io, String)
+        end
+    end
 end
+
+
+# https://root.cern.ch/doc/master/TNamed_8h_source.html
+abstract type TNamed <: ROOTStreamedObject end
 
 abstract type TAttLine <: ROOTStreamedObject end
 struct TAttLine_1 <: TAttLine end

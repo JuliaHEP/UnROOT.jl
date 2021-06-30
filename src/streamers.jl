@@ -55,7 +55,7 @@ function initialise_streamer(s::StreamerInfo)
     if !isdefined(@__MODULE__, name)
         @debug "  creating versioned struct '$name <: $supername'"
         @eval struct $(name) <: $(supername) end
-        # FIXME create the stream!() functions somewhere here...
+        _generate_T_Types(name)
         # println(name)
         # @eval struct $name <: ROOTStreamedObject
         #     data::Dict{Symbol, Any}
