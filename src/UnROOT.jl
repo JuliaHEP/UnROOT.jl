@@ -4,7 +4,7 @@ export ROOTFile, array
 
 import Base: keys, get, getindex, show, length, iterate, position
 
-using CodecZlib
+using CodecZlib, CodecLz4, CodecXz
 using Mixers
 using Parameters
 using StaticArrays

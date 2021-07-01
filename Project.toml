@@ -4,6 +4,8 @@ authors = ["Tamas Gal"]
 version = "0.1.6"
 
 [deps]
+CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
+CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 MD5 = "6ac74813-4b46-53a4-afec-0b5dc9d7885c"
