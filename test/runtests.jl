@@ -124,6 +124,14 @@ end
     # end
 end
 
+@testset "Compressions" begin
+    @test ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root")) isa ROOTFile
+    # arr = array(rootfile, "t1/float_array")
+    # @test 100000 == length(arr)
+    # @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
+    @test ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lz4.root")) isa ROOTFile
+end
+
 @testset "ROOTDirectoryHeader" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
     header = rootfile.directory.header

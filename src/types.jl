@@ -98,14 +98,24 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
         skip(io, 1)   # ???
         return io
     end
-    @debug ("Compressed datastream of $(tkey.fObjlen) bytes " *
-            "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
+    @debug "Compressed stream at $(start)"
     seekstart(io, tkey)
     compression_header = unpack(io, CompressionHeader)
-    if String(compression_header.algo) != "ZL"
+    skipped = 0 #FIXME How to compute this here?
+    io_buf = IOBuffer(read(io, tkey.fNbytes - skipped))
+    if String(compression_header.algo) == "ZL"
+        return IOBuffer(read(ZlibDecompressorStream(io_buf), tkey.fObjlen))
+    elseif String(compression_header.algo) == "XZ"
+        #FIXME doesn't work, why
+        return IOBuffer(read(XzDecompressorStream(io_buf), tkey.fObjlen))
+    elseif String(compression_header.algo) == "L4"
+        #FIXME doesn't work
+        skip(io_buf, 8) #skip checksum
+        stream = IOBuffer(lz4_decompress(read(io_buf), tkey.fObjlen))
+    else
         error("Unsupported compression type '$(String(compression_header.algo))'")
     end
-    IOBuffer(read(ZlibDecompressorStream(io), tkey.fObjlen))
+
 end
 
 
