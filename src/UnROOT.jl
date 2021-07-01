@@ -10,9 +10,9 @@ using Parameters
 using StaticArrays
 
 include("constants.jl")
-include("utils.jl")
 include("io.jl")
 include("types.jl")
+include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
 include("root.jl")
