@@ -79,12 +79,15 @@ function Streamers(io)
 
     if iscompressed(tkey)
         @debug "Compressed stream at $(start)"
+        _start = tkey.fSeekKey
         seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
+        skipped = position(io) - _start
         #FIXME for some reason we need to re-pack such that it ends at exact bytes.
         skipped = position(io) - start
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
         io_buf = IOBuffer(read(io, tkey.fNbytes - skipped))
+
         if String(compression_header.algo) == "ZL"
             stream = IOBuffer(read(ZlibDecompressorStream(io_buf), tkey.fObjlen))
         elseif String(compression_header.algo) == "XZ"

@@ -99,9 +99,10 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
         return io
     end
     @debug "Compressed stream at $(start)"
+    _start = tkey.fSeekKey
     seekstart(io, tkey)
     compression_header = unpack(io, CompressionHeader)
-    skipped = 0 #FIXME How to compute this here?
+    skipped = position(io) - _start
     io_buf = IOBuffer(read(io, tkey.fNbytes - skipped))
     if String(compression_header.algo) == "ZL"
         return IOBuffer(read(ZlibDecompressorStream(io_buf), tkey.fObjlen))
