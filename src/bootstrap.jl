@@ -265,6 +265,41 @@ end
 primitivetype(l::TLeafF) = Float32
 
 # FIXME this should be generated and inherited from TLeaf
+# https://root.cern/doc/master/TLeafB_8h_source.html#l00026
+@with_kw struct TLeafB
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafB})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, UInt8)
+    fields[:fMaximum] = readtype(io, UInt8)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafB})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafB) = UInt8
+# FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafD
     # from TNamed
     fName
