@@ -25,8 +25,8 @@ documentation](https://github.com/scikit-hep/uproot/issues/401)
 The project is in early alpha prototyping phase and contributions are very
 welcome.
 
-Reading of raw basket data is already working for uncompressed and
-Zlib-compressed files. The raw data consists of two vectors: the bytes
+Reading of raw basket data is already working for files of all different compression algorithms.
+The raw data consists of two vectors: the bytes
 and the offsets and are available using the
 `UnROOT.array(f::ROOTFile, path; raw=true)` method. This data can
 be reinterpreted using a custom type with the method

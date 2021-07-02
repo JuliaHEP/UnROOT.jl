@@ -103,7 +103,7 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
     seekstart(io, tkey)
     fufilled = 0
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
-    while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
+    while fufilled < length(uncomp_data) # careful with 0/1-based index when thinking about offsets
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         io_buf = IOBuffer(read(io, compbytes))
@@ -122,7 +122,7 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
 
         fufilled += uncompbytes
     end
-
+    @assert fufilled == length(uncomp_data) # fail means something bad happens we over shoot
     return IOBuffer(uncomp_data)
 end
 

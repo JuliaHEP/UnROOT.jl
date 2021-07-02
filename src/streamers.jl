@@ -301,7 +301,12 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjArray})
     name = readtype(io, String)
     size = readtype(io, Int32)
     low = readtype(io, Int32)
-    elements = [readobjany!(io, tkey, refs) for i in 1:size]
+    elements = Vector{Any}(undef, size)
+    for i in 1:size
+        ele = readobjany!(io, tkey, refs)
+        !ismissing(ele) && @show ele.fName
+        elements[i] = ele
+     end
     endcheck(io, preamble)
     return TObjArray(name, low, elements)
 end

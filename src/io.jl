@@ -135,7 +135,7 @@ function endcheck(io, preamble::T) where {T<:Preamble}
             error("Object '$(preamble.type)' has $(observed) bytes; expected $(preamble.cnt)")
         end
     end
-    return true
+    nothing
 end
 
 

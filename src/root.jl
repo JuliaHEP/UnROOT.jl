@@ -231,9 +231,7 @@ function readbasketsraw(io, branch)
     idx = 1
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
-        if basket_seek == 0
-            break
-        end
+        basket_seek == 0 && break
         seek(io, basket_seek)
         idx += readbasketbytes!(data, offsets, io, idx)
     end
@@ -284,5 +282,5 @@ Efficient read of bytes into an existing array at a given offset
 function readbytes!(io, b, offset, nr)
     resize!(b, offset + nr - 1)
     nb = UInt(nr)
-    GC.@preserve b unsafe_read(io, pointer(b, offset), nr)
+    GC.@preserve b unsafe_read(io, pointer(b, offset), nb)
 end
