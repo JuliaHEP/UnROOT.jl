@@ -226,27 +226,34 @@ function readbasketsraw(io, branch)
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
-    data = sizehint!(Vector{UInt8}(), sum(bytes))
-    offsets = sizehint!(Vector{Int32}(), total_entries)
+    # FIXME This UInt8 is wrong, the final data depends on branch info
+    max_len = sum(bytes)
+    data = sizehint!(Vector{UInt8}(), max_len)
+    offsets = sizehint!(Vector{Int32}(), total_entries+1) # this is always Int32
     idx = 1
+    _res = sizehint!(Vector{Int32}(), max_len)
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
         basket_seek == 0 && break
         seek(io, basket_seek)
-        idx += readbasketbytes!(data, offsets, io, idx)
+        idx += readbasketbytes!(data, offsets, io, idx, _res)
     end
-    data, offsets
+    _res, offsets
 end
 
 
-function readoffsets!(out, s, contentsize, global_offset, local_offset)
-    for _ in 1:contentsize
-        offset = readtype(s, Int32) + global_offset
-        push!(out, offset)
-    end
-end
-
-function readbasketbytes!(data, offsets, io, idx)
+# Thanks Jim and Philippe
+# https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
+# The offsets start at fKeylen - fLast + 4. A singe basket of data looks like this:
+#                                           4 bytes          4 bytes
+# ┌─────────┬────────────────────────────────┬───┬────────────┬───┐
+# │ TKey    │ content                        │ X │ offsets    │ x │
+# └─────────┴────────────────────────────────┴───┴────────────┴───┘
+#           │←        fLast - fKeylen       →│                    │
+#           │                                                     │
+#           │←                       fObjlen                     →│
+#
+function readbasketbytes!(data, offsets, io, idx, _res::Vector{T}) where T
     basketkey = unpack(io, TBasketKey)
 
     # @show basketkey
@@ -254,24 +261,48 @@ function readbasketbytes!(data, offsets, io, idx)
     start = position(s)
     # @show start
     contentsize = basketkey.fLast - basketkey.fKeylen
-    offsetlength = basketkey.fObjlen - contentsize
+    offsetbytesize = basketkey.fObjlen - contentsize - 8
+    offset_len = offsetbytesize ÷ 4 # these are always Int32
 
-    if offsetlength > 0
+    if offsetbytesize > 0
         @debug "Offset data present" offsetlength
         skip(s, contentsize)
-        skip(s, 4)
-        readoffsets!(offsets, s, (offsetlength - 8) / 4, length(data), length(data))
-        # https://groups.google.com/forum/#!topic/polyglot-root-io/yeC0mAizQcA
+        skip(s, 4) # a flag that indicates the type of data that follows
+        readoffsets!(offsets, s, offset_len, length(data), length(data))
         skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
         seek(s, start)
     end
+    push!(offsets, basketkey.fLast)
+    offsets .-= basketkey.fKeylen 
 
     @debug "Reading $(contentsize) bytes"
     readbytes!(s, data, idx, contentsize)
-    # for _ in 1:contentsize
-    #     push!(data, readtype(s, UInt8))
-    # end
+
+    # FIXME wtf is going on here please make this non-allocating
+    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/jagged.py#L78-L87
+    #
+    # FIXME the +10 is for a bunch of jagged stuff, not sure what's the speial case
+    bytestarts = offsets[begin:offset_len] .+ 10
+    bytestops = offsets[begin+1:offset_len+1]
+
+    # fuck 0/1 index
+    mask = OffsetArray(zeros(Int8, contentsize), -1)
+    mask[@view bytestarts[bytestarts .< contentsize]] .=  1
+    mask[@view bytestops[bytestops .< contentsize]]   .-= 1
+    mask = OffsetArrays.no_offset_view(cumsum(mask))
+
+    #FIXME figureout what to interpret to outside
+    append!(_res, ntoh.(reinterpret(T, data[mask .== 1])))
+
+    # ======= end of magic =======
     contentsize
+end
+
+function readoffsets!(out, s, contentsize, global_offset, local_offset)
+    for _ in 1:contentsize
+        offset = readtype(s, Int32) + global_offset
+        push!(out, offset)
+    end
 end
 
 """
@@ -282,5 +313,7 @@ Efficient read of bytes into an existing array at a given offset
 function readbytes!(io, b, offset, nr)
     resize!(b, offset + nr - 1)
     nb = UInt(nr)
-    GC.@preserve b unsafe_read(io, pointer(b, offset), nb)
+    # GC.@preserve b unsafe_read(io, pointer(b, offset), nb)
+    unsafe_read(io, pointer(b, offset), nb)
+    nothing
 end
