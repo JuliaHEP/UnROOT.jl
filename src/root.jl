@@ -154,36 +154,51 @@ function array(f::ROOTFile, path; raw=false)
 
     leaf = first(branch.fLeaves.elements)
     rawdata, rawoffsets = readbasketsraw(f.fobj, branch)
+    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
+    isjagged = (match(r"\[.*\]", leaf.fTitle) !== nothing)
+
+    # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
+    # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
+    # only needs when the jaggedness comes from TLeafElements, not needed when
+    # the jaggedness comes from having "[]" in TLeaf's title
+    jagg_offset = leaf isa TLeafElement ? 10 : 0
     if raw
         return rawdata, rawoffsets
-    else
-        if leaf isa TLeafElement # non-primitive jagged leaf
-            classname = branch.fClassName # the C++ class name, such as "vector<int>"
-            m = match(r"vector<(.*)>", classname)
-            isnothing(m) && error("Cannot understand fClassName: $classname.")
-            elname = m[1]
-            elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
-            T = try
-                getfield(Base, Symbol(:C, elname))
-            catch
-                error("Cannot convert element of $elname to a native Julia type")
-            end
-
-            jagg_offset = 10 # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
-
-            # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
-            # this is why we need to append `rawoffsets` in the `readbasketsraw()` call
-            # when you use this range to index `rawdata`, you will get raw bytes belong to each event
-            # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
-            @views [
-                ntoh.(reinterpret(
-                        T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
-                    )) for i in 1:(length(rawoffsets) - 1)
-            ]
-        else # the branch is not jagged
-            return ntoh.(reinterpret(primitivetype(leaf), rawdata))
-        end
     end
+    # the other is where we need to auto detector T bsaed on class name
+    if isjagged || !iszero(jagg_offset) # non-primitive jagged leaf
+        T = autointerp_T(branch, leaf)
+
+        # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
+        # this is why we need to append `rawoffsets` in the `readbasketsraw()` call
+        # when you use this range to index `rawdata`, you will get raw bytes belong to each event
+        # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
+        @views [
+                ntoh.(reinterpret(
+                                  T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
+                                 )) for i in 1:(length(rawoffsets) - 1)
+               ]
+    else # the branch is not jagged
+        return ntoh.(reinterpret(primitivetype(leaf), rawdata))
+    end
+end
+
+function autointerp_T(branch, leaf)
+    if hasproperty(branch, :fClassName)
+        classname = branch.fClassName # the C++ class name, such as "vector<int>"
+        m = match(r"vector<(.*)>", classname)
+        isnothing(m) && error("Cannot understand fClassName: $classname.")
+        elname = m[1]
+        elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
+        try
+            getfield(Base, Symbol(:C, elname))
+        catch
+            error("Cannot convert element of $elname to a native Julia type")
+        end
+    else
+        primitivetype(leaf)
+    end
+
 end
 
 
