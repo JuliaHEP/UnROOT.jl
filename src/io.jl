@@ -24,7 +24,8 @@ function readtype(io, ::Type{T}) where T<:AbstractString
     length = readtype(io, UInt8)
 
     if length == 255
-        seek(io, start)
+        # first byte 0xff is useless now
+        # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/source/cursor.py#L91
         length = readtype(io, UInt32)
     end
 
