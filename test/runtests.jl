@@ -189,13 +189,22 @@ end
 end
 
 @testset "Jagged branches" begin
+    # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
     data = array(rootfile, "t1/int32_array")
-
     @test data isa Vector{Vector{Int32}}
     @test data[1] == Int32[]
     @test data[1:2] == [Int32[], Int32[0]]
     @test data[end] == Int32[90, 91, 92, 93, 94, 95, 96, 97, 98]
+
+    # 64bits T
+    T = Float64
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array_double.root"))
+    data = array(rootfile, "t1/double_array")
+    @test data isa Vector{Vector{T}}
+    @test data[1] == T[]
+    @test data[1:2] == [T[], T[0]]
+    @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
 end
 
 @testset "readbasketsraw()" begin
