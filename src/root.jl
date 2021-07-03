@@ -191,6 +191,7 @@ function autointerp_T(branch, leaf)
         elname = m[1]
         elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
         try
+            elname == "bool" && return Bool #Cbool doesn't exist
             getfield(Base, Symbol(:C, elname))
         catch
             error("Cannot convert element of $elname to a native Julia type")
@@ -287,22 +288,22 @@ function readbasketbytes!(data, offsets, io, idx)
         @debug "Offset data present" offsetbytesize
         skip(s, contentsize)
         skip(s, 4) # a flag that indicates the type of data that follows
-        readoffsets!(offsets, s, offset_len, length(data), length(data))
+        readoffsets!(offsets, s, offset_len, length(data), -basketkey.fKeylen)
         skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
         seek(s, start)
     end
 
     @debug "Reading $(contentsize) bytes"
     readbytes!(s, data, idx, contentsize)
-    push!(offsets, basketkey.fLast)
-    offsets .-= basketkey.fKeylen 
+    # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
+    push!(offsets, basketkey.fLast - basketkey.fKeylen)
 
     contentsize
 end
 
 function readoffsets!(out, s, contentsize, global_offset, local_offset)
     for _ in 1:contentsize
-        offset = readtype(s, Int32) + global_offset
+        offset = readtype(s, Int32) + global_offset + local_offset
         push!(out, offset)
     end
 end
