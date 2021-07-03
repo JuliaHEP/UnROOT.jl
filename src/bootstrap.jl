@@ -214,6 +214,7 @@ primitivetype(l::TLeafL) = l.fIsUnsigned ? UInt64 : Int64
     fMinimum
     fMaximum
 end
+primitivetype(l::TLeafO) = Bool
 
 function parsefields!(io, fields, T::Type{TLeafO})
     preamble = Preamble(io, T)
