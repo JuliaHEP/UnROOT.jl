@@ -101,22 +101,29 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
     @debug "Compressed stream at $(start)"
     _start = tkey.fSeekKey
     seekstart(io, tkey)
-    compression_header = unpack(io, CompressionHeader)
-    skipped = position(io) - _start
-    io_buf = IOBuffer(read(io, tkey.fNbytes - skipped))
-    if String(compression_header.algo) == "ZL"
-        return IOBuffer(read(ZlibDecompressorStream(io_buf), tkey.fObjlen))
-    elseif String(compression_header.algo) == "XZ"
-        #FIXME doesn't work, why
-        return IOBuffer(read(XzDecompressorStream(io_buf), tkey.fObjlen))
-    elseif String(compression_header.algo) == "L4"
-        #FIXME doesn't work
-        skip(io_buf, 8) #skip checksum
-        stream = IOBuffer(lz4_decompress(read(io_buf), tkey.fObjlen))
-    else
-        error("Unsupported compression type '$(String(compression_header.algo))'")
+    fufilled = 0
+    uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
+    while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
+        compression_header = unpack(io, CompressionHeader)
+        cname, _, compbytes, uncompbytes = unpack(compression_header)
+        io_buf = IOBuffer(read(io, compbytes))
+
+        # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
+        uncomp_data[fufilled+1:fufilled+uncompbytes] .= if cname == "ZL"
+            read(ZlibDecompressorStream(io_buf), uncompbytes)
+        elseif cname == "XZ"
+            read(XzDecompressorStream(io_buf), uncompbytes)
+        elseif cname == "L4"
+            skip(io_buf, 8) #skip checksum
+            lz4_decompress(read(io_buf), uncompbytes)
+        else
+            error("Unsupported compression type '$(String(compression_header.algo))'")
+        end
+
+        fufilled += uncompbytes
     end
 
+    return IOBuffer(uncomp_data)
 end
 
 
