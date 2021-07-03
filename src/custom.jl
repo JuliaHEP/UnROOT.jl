@@ -19,7 +19,7 @@ function Base.getproperty(hit::DAQHit, s::Symbol)
     r = Ref(hit)
     GC.@preserve r begin
         if s === :dom_id
-            return bswap(unsafe_load(Ptr{Int32}(Base.unsafe_convert(Ptr{Cvoid}, r))))
+            return ntoh(unsafe_load(Ptr{Int32}(Base.unsafe_convert(Ptr{Cvoid}, r))))
         elseif s === :channel_id
             return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+4))
         elseif s === :tdc
