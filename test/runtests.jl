@@ -223,7 +223,7 @@ end
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    @test array_md5 == md5(data) #FIXME, the file seems to be broken
+    @test array_md5 == md5(data)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
     data, offsets = array(rootfile, "t1/int32_array"; raw=true)

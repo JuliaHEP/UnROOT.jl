@@ -22,61 +22,43 @@ Here is also a short discussion about the [ROOT binary format
 documentation](https://github.com/scikit-hep/uproot/issues/401) 
 
 ## Status
-The project is in early alpha prototyping phase and contributions are very
+The project is in early prototyping phase and contributions are very
 welcome.
 
-Reading of raw basket data is already working for files of all different compression algorithms.
+We support reading all scalar branch and jagged branch of "basic" types, as
+a metric, UnROOT can already read all branches of CMS' NanoAOD:
+
+``` julia
+julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
+ROOTFile("test/samples/NanoAODv5_sample.root") with 2 entries and 21 streamers.
+
+# example of a flat branch
+julia> array(t, "Events/HLT_Mu3_PFJet40")
+1000-element BitVector:
+ 0
+ 1
+ 0
+ 0
+ 0
+ 
+# example of a jagged branch
+julia> array(t, "Events/Electron_dxy")
+1000-element Vector{Vector{Float32}}:
+ [0.00037050247]
+ [-0.009819031]
+ []
+ [-0.0015697479]
+```
+
+If you have custom C++ struct inside you branch, reading raw data is also possible. 
 The raw data consists of two vectors: the bytes
 and the offsets and are available using the
 `UnROOT.array(f::ROOTFile, path; raw=true)` method. This data can
 be reinterpreted using a custom type with the method
 `UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`.
 
-Everything is in a very early alpha stage, as mentioned above.
-
-Here is a quick demo of reading a simple branch containing a vector of integers
-using the preliminary high-level API, which works for non-jagged branches
-(simple vectors of primitive types):
-
-```julia
-julia> using UnROOT
-
-julia> f = ROOTFile("test/samples/tree_with_histos.root")
-ROOTFile("test/samples/tree_with_histos.root") with 1 entry and 4 streamers.
-
-julia> array(f, "t1/mynum")
-25-element Array{Int32,1}:
-  0
-  1
-  2
-  3
-  4
-  5
-  6
-  7
-  8
-  9
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
-```
-
-There is also a `raw` keyword which you can pass to `array()`, so it will skip
-the interpretation and return the raw bytes. This is similar to `uproot.asdebug`
-and can be used to read data where the streamers are not available (yet).
-Here is it in action, using some data from the KM3NeT experiment:
+You can then define suitable Julia `type` and `readtype` method for parsing these data.
+Here is it in action, with the help of the `type`s from `custom.jl`, and some data from the KM3NeT experiment:
 
 ``` julia
 julia> using UnROOT
@@ -84,19 +66,15 @@ julia> using UnROOT
 julia> f = ROOTFile("test/samples/km3net_online.root")
 ROOTFile("test/samples/km3net_online.root") with 10 entries and 41 streamers.
 
-julia> array(f, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits"; raw=true)
+julia> data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
 2058-element Array{UInt8,1}:
  0x00
  0x03
- 0x00
- 0x01
- 0x00
    ⋮
- 0x56
- 0x45
- 0x4e
- 0x54
- 0x00
+   
+julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
+4-element Vector{Vector{UnROOT.KM3NETDAQHit}}:
+ [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
 ```
 
 This is what happens behind the scenes with some additional debug output:
@@ -171,16 +149,6 @@ Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
   7
   8
   9
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
- 10
  10
  10
  10
