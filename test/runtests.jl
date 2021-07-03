@@ -188,20 +188,28 @@ end
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ df.float_array[1:5] atol=1e-7
 end
 
-@testset "simple jagged" begin
+@testset "Jagged branches" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
-    data, offsets = array(rootfile, "t1/int32_array"; raw=true)
+    data = array(rootfile, "t1/int32_array")
 
-    @test data isa Vector{Int32}
-    @test offsets isa Vector{Int32}
-    @test data[1:3] == [0,0,1]
+    @test data isa Vector{Vector{Int32}}
+    @test data[1] == Int32[]
+    @test data[1:2] == [Int32[], Int32[0]]
+    @test data[end] == Int32[90, 91, 92, 93, 94, 95, 96, 97, 98]
 end
 
 @testset "readbasketsraw()" begin
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    @test_broken array_md5 == md5(data) #FIXME, the file seems to be broken
+    @test array_md5 == md5(data) #FIXME, the file seems to be broken
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
+    data, offsets = array(rootfile, "t1/int32_array"; raw=true)
+
+    @test data isa Vector{UInt8}
+    @test offsets isa Vector{Int32}
+    @test data[1:3] == UInt8[0x40, 0x00, 0x00]
 end
 
 

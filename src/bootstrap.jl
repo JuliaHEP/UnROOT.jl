@@ -790,3 +790,6 @@ function TTree(io, tkey::TKey, refs)
     endcheck(io, preamble)
     TTree(;fields...)
 end
+
+# FIXME what to do with auto.py's massive type translation?
+# https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L360-L365

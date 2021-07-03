@@ -130,6 +130,7 @@ function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchEl
     end
     missing
 end
+
 """
     function array(f::ROOTFile, path)
 
@@ -145,17 +146,44 @@ function array(f::ROOTFile, path; raw=false)
         end
     end
 
-    if raw
-        return readbasketsraw(f.fobj, branch)
-    end
-
-    if length(branch.fLeaves.elements) > 1
-        error("Branches with multiple leaves are not supported yet.")
+    if !raw && length(branch.fLeaves.elements) > 1
+        error(
+            "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
+        )
     end
 
     leaf = first(branch.fLeaves.elements)
+    rawdata, rawoffsets = readbasketsraw(f.fobj, branch)
+    if raw
+        return rawdata, rawoffsets
+    else
+        if leaf isa TLeafElement # non-primitive jagged leaf
+            classname = branch.fClassName # the C++ class name, such as "vector<int>"
+            m = match(r"vector<(.*)>", classname)
+            isnothing(m) && error("Cannot understand fClassName: $classname.")
+            elname = m[1]
+            elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
+            T = try
+                getfield(Base, Symbol(:C, elname))
+            catch
+                error("Cannot convert element of $elname to a native Julia type")
+            end
 
-    readbaskets(f.fobj, branch, primitivetype(leaf))
+            jagg_offset = 10 # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
+
+            # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
+            # this is why we need to append `rawoffsets` in the `readbasketsraw()` call
+            # when you use this range to index `rawdata`, you will get raw bytes belong to each event
+            # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
+            @views [
+                ntoh.(reinterpret(
+                        T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
+                    )) for i in 1:(length(rawoffsets) - 1)
+            ]
+        else # the branch is not jagged
+            return ntoh.(reinterpret(primitivetype(leaf), rawdata))
+        end
+    end
 end
 
 
@@ -173,8 +201,14 @@ function DataFrame(f::ROOTFile, path)
     DataFrame(cols, names, copycols=false) #avoid double allocation
 end
 
+"""
+    splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
+
+Given the `offsets` and `data` return by `array(...; raw = true)`, reconstructed the actual
+array (can be jagged, or with custome struct).
+"""
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
-    elsize = packedsizeof(T)
+    elsize = sizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
     lengths = diff(offsets)
     push!(lengths, length(data) - offsets[end] + offsets[1])  # yay ;)
@@ -194,29 +228,6 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
 end
 
 
-function readbaskets(io, branch, ::Type{T}) where {T}
-    seeks = branch.fBasketSeek
-    entries = branch.fBasketEntry
-
-    out = sizehint!(Vector{T}(), branch.fEntries)
-
-
-    for (idx, basket_seek) in enumerate(seeks)
-        @debug "Reading basket" idx basket_seek
-        if basket_seek == 0
-            break
-        end
-        seek(io, basket_seek)
-        basketkey = unpack(io, TBasketKey)
-        s = datastream(io, basketkey)
-
-        for _ in entries[idx]:(entries[idx + 1] - 1)
-            push!(out, readtype(s, T))
-        end
-    end
-    out
-end
-
 
 function readbasketsraw(io, branch)
     seeks = branch.fBasketSeek
@@ -226,19 +237,17 @@ function readbasketsraw(io, branch)
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
-    # FIXME This UInt8 is wrong, the final data depends on branch info
     max_len = sum(bytes)
     data = sizehint!(Vector{UInt8}(), max_len)
     offsets = sizehint!(Vector{Int32}(), total_entries+1) # this is always Int32
     idx = 1
-    _res = sizehint!(Vector{Int32}(), max_len)
     for (basket_seek, n_bytes) in zip(seeks, bytes)
         @debug "Reading raw basket data" basket_seek n_bytes
         basket_seek == 0 && break
         seek(io, basket_seek)
-        idx += readbasketbytes!(data, offsets, io, idx, _res)
+        idx += readbasketbytes!(data, offsets, io, idx)
     end
-    _res, offsets
+    data, offsets
 end
 
 
@@ -253,48 +262,29 @@ end
 #           │                                                     │
 #           │←                       fObjlen                     →│
 #
-function readbasketbytes!(data, offsets, io, idx, _res::Vector{T}) where T
+function readbasketbytes!(data, offsets, io, idx)
     basketkey = unpack(io, TBasketKey)
 
-    # @show basketkey
     s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
     start = position(s)
-    # @show start
     contentsize = basketkey.fLast - basketkey.fKeylen
     offsetbytesize = basketkey.fObjlen - contentsize - 8
     offset_len = offsetbytesize ÷ 4 # these are always Int32
 
     if offsetbytesize > 0
-        @debug "Offset data present" offsetlength
+        @debug "Offset data present" offsetbytesize
         skip(s, contentsize)
         skip(s, 4) # a flag that indicates the type of data that follows
         readoffsets!(offsets, s, offset_len, length(data), length(data))
         skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
         seek(s, start)
     end
-    push!(offsets, basketkey.fLast)
-    offsets .-= basketkey.fKeylen 
 
     @debug "Reading $(contentsize) bytes"
     readbytes!(s, data, idx, contentsize)
+    push!(offsets, basketkey.fLast)
+    offsets .-= basketkey.fKeylen 
 
-    # FIXME wtf is going on here please make this non-allocating
-    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/jagged.py#L78-L87
-    #
-    # FIXME the +10 is for a bunch of jagged stuff, not sure what's the speial case
-    bytestarts = offsets[begin:offset_len] .+ 10
-    bytestops = offsets[begin+1:offset_len+1]
-
-    # fuck 0/1 index
-    mask = OffsetArray(zeros(Int8, contentsize), -1)
-    mask[@view bytestarts[bytestarts .< contentsize]] .=  1
-    mask[@view bytestops[bytestops .< contentsize]]   .-= 1
-    mask = OffsetArrays.no_offset_view(cumsum(mask))
-
-    #FIXME figureout what to interpret to outside
-    append!(_res, ntoh.(reinterpret(T, data[mask .== 1])))
-
-    # ======= end of magic =======
     contentsize
 end
 
