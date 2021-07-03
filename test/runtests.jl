@@ -210,13 +210,13 @@ end
 @testset "NanoAOD" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     event = array(rootfile, "Events/event")
-    @test event[begin:3] == UInt64[12423832, 12423821, 12423834]
+    @test event[1:3] == UInt64[12423832, 12423821, 12423834]
     Electron_dxy = array(rootfile, "Events/Electron_dxy")
     @test eltype(Electron_dxy) == Vector{Float32}
-    @test Electron_dxy[begin:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
+    @test Electron_dxy[1:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
     HLT_Mu3_PFJet40 = array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
-    @test HLT_Mu3_PFJet40[begin:3] == [false, true, false]
+    @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
 end
 
 @testset "readbasketsraw()" begin

@@ -187,7 +187,7 @@ function autointerp_T(branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         m = match(r"vector<(.*)>", classname)
-        isnothing(m) && error("Cannot understand fClassName: $classname.")
+        m===nothing && error("Cannot understand fClassName: $classname.")
         elname = m[1]
         elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
         try

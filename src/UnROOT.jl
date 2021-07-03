@@ -19,4 +19,8 @@ include("bootstrap.jl")
 include("root.jl")
 include("custom.jl")
 
+if VERSION < v"1.2"
+    hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
+end
+
 end # module
