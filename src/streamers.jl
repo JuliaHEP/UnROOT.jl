@@ -79,20 +79,18 @@ function Streamers(io)
 
     if iscompressed(tkey)
         @debug "Compressed stream at $(start)"
-        seekstart(io, tkey)
         compression_header = unpack(io, CompressionHeader)
-        #FIXME for some reason we need to re-pack such that it ends at exact bytes.
-        skipped = position(io) - start
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
-        io_buf = IOBuffer(read(io, tkey.fNbytes - skipped))
+        skipped = position(io) - start
+        #FIXME for some reason we need to re-pack such that it ends at exact bytes.
+        compressedbytes = read(io, tkey.fNbytes - skipped)
 
         if String(compression_header.algo) == "ZL"
-            stream = IOBuffer(read(ZlibDecompressorStream(io_buf), tkey.fObjlen))
+            stream = IOBuffer(transcode(ZlibDecompressor, compressedbytes))
         elseif String(compression_header.algo) == "XZ"
-            stream = IOBuffer(read(XzDecompressorStream(io_buf), tkey.fObjlen))
+            stream = IOBuffer(transcode(XzDecompressor, compressedbytes))
         elseif String(compression_header.algo) == "L4"
-            skip(io_buf, 8) #skip checksum
-            stream = IOBuffer(lz4_decompress(read(io_buf), tkey.fObjlen))
+            stream = IOBuffer(lz4_decompress(compressedbytes[9:end], tkey.fObjlen))
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end

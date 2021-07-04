@@ -14,9 +14,9 @@ Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-CodecZlib = "^0.6.0, ^0.7.0"
 CodecLz4 = "^0.3.0, ^0.4.0"
 CodecXz = "^0.6.0, ^0.7.0"
+CodecZlib = "^0.6.0, ^0.7.0"
 DataFrames = "^0.22"
 MD5 = "^0.2.1"
 Mixers = "^0.1.0"
