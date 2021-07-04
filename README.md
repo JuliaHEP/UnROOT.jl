@@ -21,7 +21,7 @@ Here's a detailed [from-scratch walk through](https://jiling.web.cern.ch/jiling/
 on reading a jagged branch from .root file, recommdned for first time contributors or just want to learn
 about .root file format.
 
-Three's also a [discussion]((https://github.com/scikit-hep/uproot/issues/401) ) reagarding the ROOT binary format
+Three's also a [discussion](https://github.com/scikit-hep/uproot/issues/401) reagarding the ROOT binary format
 documentation on uproot's issue page.
 
 ## Status
