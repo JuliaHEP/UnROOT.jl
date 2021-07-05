@@ -134,7 +134,7 @@ end
 """
     function array(f::ROOTFile, path)
 
-Reads an array from a branch. Currently hardcoded to Int32
+Reads an array from a branch.
 """
 function array(f::ROOTFile, path; raw=false)
     if path ∈ keys(f.branch_cache)
@@ -144,6 +144,7 @@ function array(f::ROOTFile, path; raw=false)
         if ismissing(branch)
             error("No branch found at $path")
         end
+        f.branch_cache[path] = branch
     end
 
     if !raw && length(branch.fLeaves.elements) > 1
@@ -181,6 +182,20 @@ function array(f::ROOTFile, path; raw=false)
     else # the branch is not jagged
         return ntoh.(reinterpret(primitivetype(leaf), rawdata))
     end
+end
+
+"""
+    arrays(f::ROOTFile, treename)
+
+Reads all branches from a tree.
+"""
+function arrays(f::ROOTFile, treename)
+    res = Dict{String, Any}()
+    # Threads.@threads for k in keys(f[treename])[1:100]
+    for k in keys(f[treename])[1:100]
+        res[k] = array(f, "$treename/$k")
+    end
+    res
 end
 
 function autointerp_T(branch, leaf)
