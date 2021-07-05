@@ -273,7 +273,10 @@ function readbranchraw(io, branch)
         @debug "Reading raw basket data" basket_seek n_bytes
         basket_seek == 0 && break
         seek(io, basket_seek)
-        idx += readbasketbytes!(data, offsets, io, idx)
+        basketkey = unpack(io, TBasketKey)
+        idx += readbasketbytes!(data, offsets,
+                                read(datastream(io, basketkey)), basketkey,
+                                idx)
     end
     data, offsets
 end
@@ -290,36 +293,28 @@ end
 #           │                                                     │
 #           │←                       fObjlen                     →│
 #
-function readbasketbytes!(data, offsets, io, idx)
-    basketkey = unpack(io, TBasketKey)
-
-    s = datastream(io, basketkey)  # position(s) == 0, but offsets start at -basketkey.fKeylen
-    start = position(s)
-    contentsize = basketkey.fLast - basketkey.fKeylen
+@inbounds function readbasketbytes!(data, offsets, basketrawbytes, basketkey, idx)
+    Keylen = basketkey.fKeylen
+    contentsize = basketkey.fLast - Keylen
     offsetbytesize = basketkey.fObjlen - contentsize - 8
     offset_len = offsetbytesize ÷ 4 # these are always Int32
 
+    # basketrawbytes = read(s)
+    l1 = contentsize + 4
     if offsetbytesize > 0
-        @debug "Offset data present" offsetbytesize
-        skip(s, contentsize)
-        skip(s, 4) # a flag that indicates the type of data that follows
-        readoffsets!(offsets, s, offset_len, length(data), -basketkey.fKeylen)
-        skip(s, 4)  # "Pointer-to/location-of last used byte in basket"
-        seek(s, start)
+        #indexing is inclusive on both ends
+        offbytes = @view basketrawbytes[l1+1:l1+4*offset_len]
+        global_offset = length(data)
+        # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
+        append!(offsets, ntoh.(reinterpret(Int32, offbytes)) .+ global_offset .+ -Keylen)
+        # readoffsets!(offsets, offbuffer, offset_len, length(data), -basketkey.fKeylen)
     end
 
     @debug "Reading $(contentsize) bytes"
-    resize!(data, idx + contentsize - 1)
-    unsafe_read(s, pointer(data, idx), contentsize)
-    # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
+    # in the naive case idx==1, contentsize == length(data)
+    resize!(data, idx + contentsize - 1) 
+    copyto!(data, idx, basketrawbytes, 1, contentsize)
     push!(offsets, basketkey.fLast - basketkey.fKeylen)
 
     contentsize
-end
-
-function readoffsets!(out, s, contentsize, global_offset, local_offset)
-    for _ in 1:contentsize
-        offset = readtype(s, Int32) + global_offset + local_offset
-        push!(out, offset)
-    end
 end
