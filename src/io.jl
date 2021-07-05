@@ -20,7 +20,6 @@ end
 @inline readtype(io, v::Type{T}) where T<:AbstractVector{UInt8} = read(io, length(v))
 
 function readtype(io, ::Type{T}) where T<:AbstractString
-    start = position(io)
     length = readtype(io, UInt8)
 
     if length == 255
@@ -77,9 +76,9 @@ end
 
 
 struct Preamble
-    start
-    cnt
-    version::Int64
+    start::Int64
+    cnt::UInt32
+    version::UInt16
     type::Type
 end
 

@@ -42,10 +42,9 @@ Return the following information:
 """
 function unpack(x::CompressionHeader)
     algname = String(x.algo)
-    ver = Int(x.method)
     # shift without casting to `Int` will give you 0x00 because we're shifting 0 bits into UInt8
     compressedbytes = x.c1 + (Int(x.c2) << 8) + (Int(x.c3) << 16)
     uncompressedbytes = x.u1 + (Int(x.u2) << 8) + (Int(x.u3) << 16)
 
-    return algname, ver, compressedbytes, uncompressedbytes
+    return algname, x.method, compressedbytes, uncompressedbytes
 end
