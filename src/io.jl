@@ -77,7 +77,7 @@ end
 
 struct Preamble
     start::Int64
-    cnt::UInt32
+    cnt::Union{UInt32, Missing}
     version::UInt16
     type::Type
 end

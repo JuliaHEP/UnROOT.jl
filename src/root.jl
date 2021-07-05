@@ -8,18 +8,19 @@ end
 
 struct ROOTFile
     filename::AbstractString
+    filepath::AbstractString
     format_version::Int32
     header::FileHeader
     fobj::IOStream
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
-    branch_cache::Dict{String, ROOTStreamedObject}
 end
 
 
 function ROOTFile(filename::AbstractString)
     fobj = Base.open(filename)
+    filepath = abspath(filename)
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion
@@ -59,7 +60,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, Dict())
+    ROOTFile(filename, filepath, format_version, header, fobj, tkey, streamers, directory)
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -86,7 +87,7 @@ function streamerfor(f::ROOTFile, name::AbstractString)
 end
 
 
-function Base.getindex(f::ROOTFile, s::AbstractString)
+@memoize LRU(maxsize = 2000) function Base.getindex(f::ROOTFile, s::AbstractString)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -95,7 +96,10 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    streamer(f.fobj, tkey, f.streamers.refs)
+    _shadow = open(f.filepath)
+    S = streamer(_shadow, tkey, f.streamers.refs)
+    close(_shadow) #
+    return S
 end
 
 function Base.keys(f::ROOTFile)
@@ -137,14 +141,9 @@ end
 Reads an array from a branch.
 """
 function array(f::ROOTFile, path; raw=false)
-    if path ∈ keys(f.branch_cache)
-        branch = f.branch_cache[path]
-    else
-        branch = f[path]
-        if ismissing(branch)
-            error("No branch found at $path")
-        end
-        f.branch_cache[path] = branch
+    branch = f[path]
+    if ismissing(branch)
+        error("No branch found at $path")
     end
 
     if !raw && length(branch.fLeaves.elements) > 1
@@ -154,7 +153,7 @@ function array(f::ROOTFile, path; raw=false)
     end
 
     leaf = first(branch.fLeaves.elements)
-    rawdata, rawoffsets = readbranchraw(f.fobj, branch)
+    rawdata, rawoffsets = readbranchraw(f, branch)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
     isjagged = (match(r"\[.*\]", leaf.fTitle) !== nothing)
 
@@ -191,8 +190,8 @@ Reads all branches from a tree.
 """
 function arrays(f::ROOTFile, treename)
     res = Dict{String, Any}()
-    # Threads.@threads for k in keys(f[treename])[1:100]
-    for k in keys(f[treename])[1:100]
+    # for k in keys(f[treename])[1:100]
+    Threads.@threads for k in keys(f[treename])
         res[k] = array(f, "$treename/$k")
     end
     res
@@ -257,28 +256,36 @@ end
 
 
 # read all bytes of DATA and OFFSET from a branch
-function readbranchraw(io, branch)
+function readbranchraw(f::ROOTFile, branch)
+    io = open(f.filepath)
     seeks = branch.fBasketSeek
-    bytes = branch.fBasketBytes
+    nbytes = branch.fBasketBytes
 
     total_entries = branch.fEntries
     # Just to check if we have a jagged structure
     # streamer = streamerfor()
 
-    max_len = sum(bytes)
-    data = sizehint!(Vector{UInt8}(), max_len)
+    max_len = sum(nbytes)
+    datas = sizehint!(Vector{UInt8}(), max_len)
     offsets = sizehint!(Vector{Int32}(), total_entries+1) # this is always Int32
-    idx = 1
-    for (basket_seek, n_bytes) in zip(seeks, bytes)
-        @debug "Reading raw basket data" basket_seek n_bytes
-        basket_seek == 0 && break
-        seek(io, basket_seek)
-        basketkey = unpack(io, TBasketKey)
-        idx += readbasketbytes!(data, offsets,
-                                read(datastream(io, basketkey)), basketkey,
-                                idx)
+    total_idx = 1
+    for i in eachindex(seeks)
+        @debug "Reading raw basket data" seeks[i] nbytes[i]
+        seek_pos, numofbytes = seeks[i], nbytes[i]
+        local_io = deepcopy(io)
+        seek_pos == 0 && break
+        seek(local_io, seek_pos)
+        basketkey = unpack(local_io, TBasketKey)
+        contentsize = basketkey.fLast - basketkey.fKeylen
+        data, offset, idx = readbasketbytes!(local_io,
+                                             basketkey, contentsize,
+                                             total_idx)
+        total_idx += idx
+        append!(datas, data)
+        append!(offsets, offset)
     end
-    data, offsets
+    close(io)
+    datas, offsets
 end
 
 
@@ -289,32 +296,33 @@ end
 # ┌─────────┬────────────────────────────────┬───┬────────────┬───┐
 # │ TKey    │ content                        │ X │ offsets    │ x │
 # └─────────┴────────────────────────────────┴───┴────────────┴───┘
-#           │←        fLast - fKeylen       →│                    │
+#           │←        fLast - fKeylen       →│(l1)                │
 #           │                                                     │
 #           │←                       fObjlen                     →│
 #
-@inbounds function readbasketbytes!(data, offsets, basketrawbytes, basketkey, idx)
+function readbasketbytes!(local_io, basketkey, contentsize, idx)
+    basketrawbytes = read(datastream(local_io, basketkey))
     Keylen = basketkey.fKeylen
-    contentsize = basketkey.fLast - Keylen
-    offsetbytesize = basketkey.fObjlen - contentsize - 8
-    offset_len = offsetbytesize ÷ 4 # these are always Int32
 
-    # basketrawbytes = read(s)
-    l1 = contentsize + 4
+    offsetbytesize = basketkey.fObjlen - contentsize - 8
+    offsetnumints = offsetbytesize ÷ 4 # these are always Int32
+    l1 = contentsize + 4 # see the graph above
+
+    data = @view basketrawbytes[begin:contentsize]
     if offsetbytesize > 0
+
         #indexing is inclusive on both ends
-        offbytes = @view basketrawbytes[l1+1:l1+4*offset_len]
-        global_offset = length(data)
+        offbytes = @view basketrawbytes[l1+1:l1+4*offsetnumints]
+        global_offset = 0
+
         # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
-        append!(offsets, ntoh.(reinterpret(Int32, offbytes)) .+ global_offset .+ -Keylen)
-        # readoffsets!(offsets, offbuffer, offset_len, length(data), -basketkey.fKeylen)
+        offset = ntoh.(reinterpret(Int32, offbytes)) .+ global_offset .- Keylen
+        push!(offset, basketkey.fLast - basketkey.fKeylen)
+        # in the naive case idx==1, contentsize == length(data)
+        # resize!(data, idx + contentsize - 1) 
+        data, offset, contentsize
+    else
+        data, Int32[], contentsize
     end
 
-    @debug "Reading $(contentsize) bytes"
-    # in the naive case idx==1, contentsize == length(data)
-    resize!(data, idx + contentsize - 1) 
-    copyto!(data, idx, basketrawbytes, 1, contentsize)
-    push!(offsets, basketkey.fLast - basketkey.fKeylen)
-
-    contentsize
 end

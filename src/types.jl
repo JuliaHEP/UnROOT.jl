@@ -41,13 +41,13 @@ end
 
 @with_kw struct TBasketKey
     fNbytes::Int32
-    fVersion
+    fVersion::Int16
     fObjlen::Int32
     fDatime::UInt32
     fKeylen::Int16
     fCycle::Int16
-    fSeekKey
-    fSeekPdir
+    fSeekKey::Integer
+    fSeekPdir::Integer
     fClassName::String
     fName::String
     fTitle::String
@@ -55,6 +55,11 @@ end
     fNevBufSize::Int32
     fNevBuf::Int32
     fLast::Int32
+end
+
+function unpack(io, seek_pos::Int, T::Type{TBasketKey})
+    seek(io, seek_pos)
+    unpack(io, T)
 end
 
 function unpack(io, T::Type{TBasketKey})
@@ -106,16 +111,17 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
     while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
-        io_buf = IOBuffer(read(io, compbytes))
+
+        iobytes = read(io, compbytes)
 
         # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
-        uncomp_data[fufilled+1:fufilled+uncompbytes] .= if cname == "ZL"
-            read(ZlibDecompressorStream(io_buf), uncompbytes)
+        @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
+            transcode(ZlibDecompressor, iobytes)
         elseif cname == "XZ"
-            read(XzDecompressorStream(io_buf), uncompbytes)
+            transcode(XzDecompressor, iobytes)
         elseif cname == "L4"
-            skip(io_buf, 8) #skip checksum
-            lz4_decompress(read(io_buf), uncompbytes)
+            # skip checksum which is 8 bytes
+            lz4_decompress(iobytes[9:end], uncompbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end

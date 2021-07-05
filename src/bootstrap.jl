@@ -782,13 +782,13 @@ function TTree(io, tkey::TKey, refs)
     # the Base.GenericIOBuffer{Array{UInt8,1}} from the compression
     # library throws an EOFError when we read more than available.
     # FIXME this needs to be checked though!
-    while !eof(io)
-        read(io, 1)
-    end
+    # while !eof(io)
+    #     read(io, 1)
+    # end
     # unpack(io, tkey, refs, Undefined)
     # println(fields[:fBranches])
 
-    endcheck(io, preamble)
+    # endcheck(io, preamble)
     TTree(;fields...)
 end
 
