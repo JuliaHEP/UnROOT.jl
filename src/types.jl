@@ -33,7 +33,7 @@ function unpack(io, ::Type{TKey})
     skip(io, 4)
     fVersion = readtype(io, Int16)
     seek(io, start)
-    if fVersion <= 1000
+    if fVersion <= 1000000
         return unpack(io, TKey32)
     end
     unpack(io, TKey64)
