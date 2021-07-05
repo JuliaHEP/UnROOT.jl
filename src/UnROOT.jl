@@ -4,8 +4,7 @@ export ROOTFile, array
 
 import Base: keys, get, getindex, show, length, iterate, position, ntoh
 using Mmap:mmap
-using Memoization
-using LRUCache
+using Memoization, LRUCache
 ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz

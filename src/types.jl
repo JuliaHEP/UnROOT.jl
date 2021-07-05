@@ -101,7 +101,7 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
                 "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
         skip(io, 1)   # ???
-        return io
+        return IOBuffer(read(io, tkey.fObjlen))
     end
     @debug "Compressed stream at $(start)"
     _start = tkey.fSeekKey

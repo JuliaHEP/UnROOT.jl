@@ -16,6 +16,7 @@ struct ROOTFile
     streamers::Streamers
     directory::ROOTDirectory
 end
+Base.open(f::ROOTFile) = open(f.filepath)
 
 
 function ROOTFile(filename::AbstractString)
@@ -96,9 +97,9 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    _shadow = open(f.filepath)
-    S = streamer(_shadow, tkey, f.streamers.refs)
-    close(_shadow) #
+    S = open(f) do local_io
+        streamer(local_io, tkey, f.streamers.refs)
+    end
     return S
 end
 
@@ -189,10 +190,10 @@ end
 Reads all branches from a tree.
 """
 function arrays(f::ROOTFile, treename)
-    res = Dict{String, Any}()
-    # for k in keys(f[treename])[1:100]
-    Threads.@threads for k in keys(f[treename])
-        res[k] = array(f, "$treename/$k")
+    names = keys(f[treename])
+    res = Vector{Any}(undef, length(names))
+    Threads.@threads for i in eachindex(names)
+        res[i] = array(f, "$treename/$(names[i])")
     end
     res
 end
@@ -257,7 +258,7 @@ end
 
 # read all bytes of DATA and OFFSET from a branch
 function readbranchraw(f::ROOTFile, branch)
-    io = open(f.filepath)
+    io = open(f)
     seeks = branch.fBasketSeek
     nbytes = branch.fBasketBytes
 
@@ -272,14 +273,8 @@ function readbranchraw(f::ROOTFile, branch)
     for i in eachindex(seeks)
         @debug "Reading raw basket data" seeks[i] nbytes[i]
         seek_pos, numofbytes = seeks[i], nbytes[i]
-        local_io = deepcopy(io)
         seek_pos == 0 && break
-        seek(local_io, seek_pos)
-        basketkey = unpack(local_io, TBasketKey)
-        contentsize = basketkey.fLast - basketkey.fKeylen
-        data, offset, idx = readbasketbytes!(local_io,
-                                             basketkey, contentsize,
-                                             total_idx)
+        data, offset, idx = readbasketbytes!(f, seek_pos, total_idx)
         total_idx += idx
         append!(datas, data)
         append!(offsets, offset)
@@ -300,15 +295,23 @@ end
 #           │                                                     │
 #           │←                       fObjlen                     →│
 #
-function readbasketbytes!(local_io, basketkey, contentsize, idx)
+@memoize LRU(;maxsize=2000) function readbasketbytes!(f::ROOTFile, seek_pos, idx)
+    local_io = open(f)
+    seek(local_io, seek_pos)
+
+    basketkey = unpack(local_io, TBasketKey)
     basketrawbytes = read(datastream(local_io, basketkey))
+
+    close(local_io)
+
+    contentsize = basketkey.fLast - basketkey.fKeylen
     Keylen = basketkey.fKeylen
 
     offsetbytesize = basketkey.fObjlen - contentsize - 8
     offsetnumints = offsetbytesize ÷ 4 # these are always Int32
     l1 = contentsize + 4 # see the graph above
 
-    data = @view basketrawbytes[begin:contentsize]
+    data = @view basketrawbytes[1:contentsize]
     if offsetbytesize > 0
 
         #indexing is inclusive on both ends
