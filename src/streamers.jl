@@ -22,12 +22,12 @@ end
 
 
 # Structures required to read streamers
-struct TStreamerInfo
-    fName
-    fTitle
-    fCheckSum
-    fClassVersion
-    fElements
+struct TStreamerInfo{T}
+    fName::String
+    fTitle::String
+    fCheckSum::UInt32
+    fClassVersion::Int32
+    fElements::T
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerInfo})
@@ -82,7 +82,6 @@ function Streamers(io)
         compression_header = unpack(io, CompressionHeader)
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
         skipped = position(io) - start
-        #FIXME for some reason we need to re-pack such that it ends at exact bytes.
         compressedbytes = read(io, tkey.fNbytes - skipped)
 
         if String(compression_header.algo) == "ZL"
@@ -261,9 +260,9 @@ end
 
 
 struct TList
-    preamble
-    name
-    size
+    preamble::Preamble
+    name::String
+    size::Int32
     objects
 end
 
@@ -288,8 +287,8 @@ end
 
 
 struct TObjArray
-    name
-    low
+    name::String
+    low::Int32
     elements
 end
 

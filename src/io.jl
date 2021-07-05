@@ -1,8 +1,8 @@
 struct Cursor
-    start
-    io
+    start::Int64
+    io::IO
     tkey
-    refs
+    refs::Dict{Int32, Any}
 end
 
 Base.position(c::Cursor) = position(c.io)
@@ -48,9 +48,7 @@ end
 
 macro io(data)
     struct_name = data.args[2]
-
     types = []
-    parametric_types = []
     for f in data.args[3].args
         isa(f, LineNumberNode) && continue
         isa(f, Symbol) && error("Untyped field")
