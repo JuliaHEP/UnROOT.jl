@@ -33,7 +33,7 @@ function unpack(io, ::Type{TKey})
     skip(io, 4)
     fVersion = readtype(io, Int16)
     seek(io, start)
-    if fVersion <= 1000000
+    if fVersion <= 1000
         return unpack(io, TKey32)
     end
     unpack(io, TKey64)
@@ -59,7 +59,7 @@ end
 
 function unpack(io, T::Type{TBasketKey})
     start = position(io)
-    fields = Dict{Symbol, Any}()
+    fields = Dict{Symbol, Union{Integer, String}}()
     fields[:fNbytes] = readtype(io, Int32)
     fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
 
