@@ -14,7 +14,7 @@ struct ROOTFile
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
-    branch_cache::Dict{String, TBranch}
+    branch_cache::Dict{String, ROOTStreamedObject}
 end
 
 
@@ -154,7 +154,7 @@ function array(f::ROOTFile, path; raw=false)
     end
 
     leaf = first(branch.fLeaves.elements)
-    rawdata, rawoffsets = readbasketsraw(f.fobj, branch)
+    rawdata, rawoffsets = readbranchraw(f.fobj, branch)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
     isjagged = (match(r"\[.*\]", leaf.fTitle) !== nothing)
 
@@ -171,7 +171,7 @@ function array(f::ROOTFile, path; raw=false)
         T = autointerp_T(branch, leaf)
 
         # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
-        # this is why we need to append `rawoffsets` in the `readbasketsraw()` call
+        # this is why we need to append `rawoffsets` in the `readbranchraw()` call
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         @views [
@@ -256,8 +256,8 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=f
 end
 
 
-
-function readbasketsraw(io, branch)
+# read all bytes of DATA and OFFSET from a branch
+function readbranchraw(io, branch)
     seeks = branch.fBasketSeek
     bytes = branch.fBasketBytes
 
@@ -309,7 +309,8 @@ function readbasketbytes!(data, offsets, io, idx)
     end
 
     @debug "Reading $(contentsize) bytes"
-    readbytes!(s, data, idx, contentsize)
+    resize!(data, idx + contentsize - 1)
+    unsafe_read(s, pointer(data, idx), contentsize)
     # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
     push!(offsets, basketkey.fLast - basketkey.fKeylen)
 
@@ -321,17 +322,4 @@ function readoffsets!(out, s, contentsize, global_offset, local_offset)
         offset = readtype(s, Int32) + global_offset + local_offset
         push!(out, offset)
     end
-end
-
-"""
-    function readbytes!(io, b, offset, nr)
-
-Efficient read of bytes into an existing array at a given offset
-"""
-function readbytes!(io, b, offset, nr)
-    resize!(b, offset + nr - 1)
-    nb = UInt(nr)
-    # GC.@preserve b unsafe_read(io, pointer(b, offset), nb)
-    unsafe_read(io, pointer(b, offset), nb)
-    nothing
 end

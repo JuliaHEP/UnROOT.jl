@@ -1,3 +1,5 @@
+# by putting Cursor inside the branch/tree struct, we don't need to
+# seek to and read the Directory everytime we access a branch
 struct Cursor
     start::Int64
     io::IO
