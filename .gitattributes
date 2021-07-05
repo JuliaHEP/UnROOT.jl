@@ -1,0 +1,5 @@
+# Notebook examples
+notebooks/* linguist-detectable=false
+
+# Scripts to generate data for tests
+test/samples/* linguist-detectable=false
