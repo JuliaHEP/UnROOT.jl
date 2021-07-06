@@ -1,8 +1,11 @@
 using Test
 using UnROOT
-using ThreadsX
 using StaticArrays
 using MD5
+
+@static if VERSION > v"1.3.0"
+    using ThreadsX
+end
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -210,12 +213,14 @@ end
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
 
 
-    branch_names = keys(rootfile["Events"])
-    # thread-safety test
-    @test all(
-       map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
-       ThreadsX.map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names)
-       )
+    if VERSION > v"1.3.0"
+        branch_names = keys(rootfile["Events"])
+        # thread-safety test
+        @test all(
+           map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
+           ThreadsX.map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names)
+           )
+    end
 
 end
 
