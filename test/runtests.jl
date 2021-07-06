@@ -171,13 +171,12 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     arr = array(rootfile, "t1/int32_array")
     @test 100000 == length(arr)
-    @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
+    @test [0, 1, 2, 3, 4] == arr[1:5]
+    @test 99999-4:99999 == arr[end-4:end]
     arr = array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
-
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    arr = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    @test 105881.296875 ≈ last(arr)
 end
 
 @testset "DataFrame()" begin
