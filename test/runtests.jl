@@ -1,6 +1,6 @@
 using Test
 using UnROOT
-using DataFrames
+using ThreadsX
 using StaticArrays
 using MD5
 
@@ -179,14 +179,6 @@ end
     @test 105881.296875 ≈ last(arr)
 end
 
-@testset "DataFrame()" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
-    df = DataFrame(rootfile, "t1")
-    @test 100000 == length(df.int32_array)
-    @test [0, 1, 2, 3, 4] ≈ df.int32_array[1:5] atol=0.1
-    @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ df.float_array[1:5] atol=1e-7
-end
-
 @testset "Jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
@@ -216,6 +208,15 @@ end
     HLT_Mu3_PFJet40 = array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
+
+
+    branch_names = keys(rootfile["Events"])
+    # thread-safety test
+    @test all(
+       map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
+       ThreadsX.map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names)
+       )
+
 end
 
 @testset "readbasketsraw()" begin

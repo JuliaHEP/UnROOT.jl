@@ -1,5 +1,3 @@
-using DataFrames: DataFrame
-
 struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
@@ -217,17 +215,6 @@ function autointerp_T(branch, leaf)
 
 end
 
-
-"""
-    function DataFrame(f::ROOTFile, path)
-
-Reads a tree into a dataframe
-"""
-function DataFrame(f::ROOTFile, path)
-    names = keys(f[path])
-    cols = [array(f, path * "/" * n) for n in names]
-    DataFrame(cols, names, copycols=false) #avoid double allocation
-end
 
 """
     splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
