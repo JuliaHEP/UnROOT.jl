@@ -109,13 +109,6 @@ function Base.keys(d::ROOTDirectory)
     [key.fName for key in d.keys]
 end
 
-function Base.keys(b::TBranchElement)
-    [branch.fName for branch in b.fBranches.elements]
-end
-
-function Base.get(f::ROOTFile, k::TKey)
-end
-
 Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
 
 function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchElement}}
@@ -132,6 +125,9 @@ function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchEl
         end
     end
     missing
+end
+function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
+    [t[n] for n in s]
 end
 
 """
