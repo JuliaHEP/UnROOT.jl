@@ -6,20 +6,23 @@
 [![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
 UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
-written entirely in Julia, without depending on any official ROOT libraries.
-In contrast to the C++ ROOT framework, this package focuses only on I/O.
+written entirely in pure Julia, without depending on the official ROOT libraries or Python.
+In contrast to the C++ ROOT framework, this package focuses only on I/O. (read-only as of now)
 
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
 
-- [uproot](https://github.com/scikit-hep/uproot) (Python)
+- [uproot3](https://github.com/scikit-hep/uproot) (Python)
 - [groot](https://godoc.org/go-hep.org/x/hep/groot#hdr-File_layout) (Go)
 - [root-io](https://github.com/cbourjau/alice-rs/tree/master/root-io) (Rust)
 - [Laurelin](https://github.com/spark-root/laurelin) (Java)
-- [ROOT](https://github.com/root-project/root) (Official C++ implementation)
 
-Here is also a short discussion about the [ROOT binary format
-documentation](https://github.com/scikit-hep/uproot/issues/401) 
+Here's a detailed [from-scratch walk through](https://jiling.web.cern.ch/jiling/dump/ROOT_Fileformat.pdf) 
+on reading a jagged branch from .root file, recommdned for first time contributors or just want to learn
+about .root file format.
+
+Three's also a [discussion](https://github.com/scikit-hep/uproot/issues/401) reagarding the ROOT binary format
+documentation on uproot's issue page.
 
 ## Status
 The project is in early prototyping phase and contributions are very
