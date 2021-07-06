@@ -1,3 +1,29 @@
+"""
+    splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
+
+Given the `offsets` and `data` return by `array(...; raw = true)`, reconstructed the actual
+array (can be jagged, or with custome struct).
+"""
+function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, primitive=false)
+    elsize = sizeof(T)
+    out = sizehint!(Vector{Vector{T}}(), length(offsets))
+    lengths = diff(offsets)
+    push!(lengths, length(data) - offsets[end] + offsets[1])  # yay ;)
+    io = IOBuffer(data)
+    for (idx, l) in enumerate(lengths)
+        # println("$idx / $(length(lengths))")
+        if primitive
+            error("primitive interpretation is buggy")
+            push!(out, reinterpret(T, data[skipbytes+1:skipbytes+Int32((l - skipbytes))]))
+        else
+            skip(io, skipbytes)
+            n = (l - skipbytes) / elsize
+            push!(out, [readtype(io, T) for _ in 1:n])
+        end
+    end
+    out
+end
+
 # Custom, hardcoded streamers
 
 abstract type CustomROOTStruct end

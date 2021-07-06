@@ -95,16 +95,15 @@ iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t
 origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
 seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
 
-function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
-    start = position(io)
+datastream(io, tkey::TKey) = IOBuffer(_datastream(io, tkey))
+datastream(io, tkey::TBasketKey) = _datastream(io, tkey)
+function _datastream(io, tkey)
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
                 "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
         skip(io, 1)   # ???
-        return IOBuffer(read(io, tkey.fObjlen))
+        return read(io, tkey.fObjlen)
     end
-    @debug "Compressed stream at $(start)"
-    _start = tkey.fSeekKey
     seekstart(io, tkey)
     fufilled = 0
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
@@ -129,7 +128,7 @@ function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
         fufilled += uncompbytes
     end
     @assert fufilled == length(uncomp_data)
-    return IOBuffer(uncomp_data)
+    return uncomp_data
 end
 
 
