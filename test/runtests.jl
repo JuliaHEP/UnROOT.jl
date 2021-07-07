@@ -228,6 +228,9 @@ end
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    reco = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
+    @test reco[1][1].tdc == 9
+    @test reco[end-1][1].tdc == 58729296
     @test array_md5 == md5(data)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))

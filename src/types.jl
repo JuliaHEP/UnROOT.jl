@@ -57,11 +57,6 @@ end
     fLast::Int32
 end
 
-function unpack(io, seek_pos::Int, T::Type{TBasketKey})
-    seek(io, seek_pos)
-    unpack(io, T)
-end
-
 function unpack(io, T::Type{TBasketKey})
     start = position(io)
     fields = Dict{Symbol, Union{Integer, String}}()
