@@ -256,6 +256,25 @@ end
 
 end
 
+# Custom bootstrap things
+
+@testset "custom boostrapping" begin
+    f = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    event_hits = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit
+    @test length(event_hits) == 3
+    @test length(event_hits[1]) == 96
+    @test length(event_hits[2]) == 124
+    @test length(event_hits[3]) == 78
+    @test event_hits[1][1].dom_id == 806451572
+    @test event_hits[1][1].tdc == 30733918
+    @test event_hits[1][end].dom_id == 809544061
+    @test event_hits[1][end].tdc == 30735112
+    @test event_hits[3][1].dom_id == 806451572
+    @test event_hits[3][1].tdc == 63512204
+    @test event_hits[3][end].dom_id == 809544061
+    @test event_hits[3][end].tdc == 63512892
+end
 
 
 # Issues
