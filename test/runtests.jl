@@ -127,6 +127,13 @@ end
     # end
 end
 
+@testset "No (basket) compression" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "uncomressed_lz4_int32.root"))
+    arr = array(rootfile, "t1/int32_array")
+    @test length(arr) == 3
+    @test all(arr .== [[1,2], [], [3]])
+end
+
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
     @test rootfile isa ROOTFile
