@@ -88,7 +88,6 @@ end
 
 @testset "ROOTFile" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
-    show(rootfile)
     @test 100 == rootfile.header.fBEGIN
     @test 1 == length(rootfile.directory.keys)
     @test "t1" ∈ keys(rootfile)
@@ -125,6 +124,23 @@ end
     # for key in keys(rootfile)
     #     @test !ismissing(rootfile[key])
     # end
+end
+
+@testset "readbasketsraw()" begin
+    array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    reco = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
+    @test reco[1][1].tdc == 9
+    @test reco[end-1][1].tdc == 58729296
+    @test array_md5 == md5(data)
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
+    data, offsets = array(rootfile, "t1/int32_array"; raw=true)
+
+    @test data isa Vector{UInt8}
+    @test offsets isa Vector{Int32}
+    @test data[1:3] == UInt8[0x40, 0x00, 0x00]
 end
 
 @testset "No (basket) compression" begin
@@ -189,6 +205,15 @@ end
     @test 105881.296875 ≈ last(arr)
 end
 
+@testset "TNtupel" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TNtuple.root"))
+    arrs = [array(rootfile, "n1/$c") for c in "xyz"]
+    @test length.(arrs) == fill(100, 3)
+    @test arrs[1] ≈ 0:99
+    @test arrs[2] ≈ arrs[1] .+ arrs[1] ./ 13
+    @test arrs[3] ≈ arrs[1] .+ arrs[1] ./ 17
+end
+
 @testset "Jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
@@ -231,22 +256,6 @@ end
 
 end
 
-@testset "readbasketsraw()" begin
-    array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    reco = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
-    @test reco[1][1].tdc == 9
-    @test reco[end-1][1].tdc == 58729296
-    @test array_md5 == md5(data)
-
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
-    data, offsets = array(rootfile, "t1/int32_array"; raw=true)
-
-    @test data isa Vector{UInt8}
-    @test offsets isa Vector{Int32}
-    @test data[1:3] == UInt8[0x40, 0x00, 0x00]
-end
 
 
 # Issues
