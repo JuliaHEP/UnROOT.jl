@@ -710,9 +710,17 @@ end
     fFriends
 end
 
-# FIXME preliminary TTree implementation
-function TTree(io, tkey::TKey, refs)
+# FIXME idk what is going on but this just looks like a TTree.....
+function TNtuple(io, tkey::TKey, refs)
     io = datastream(io, tkey)
+    preamble = Preamble(io, Missing)
+    tree = TTree(io, tkey, refs; top=false) #embeded tree
+end
+
+# FIXME preliminary TTree implementation
+function TTree(io, tkey::TKey, refs; top=true)
+    # if embeded in a Ntuple, don't run datastream again
+    io = top ? datastream(io, tkey) : io
 
     @initparse
 
