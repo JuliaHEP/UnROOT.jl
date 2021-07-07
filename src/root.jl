@@ -163,7 +163,7 @@ function array(f::ROOTFile, path::AbstractString; raw=false)
     end
     leaf = first(branch.fLeaves.elements)
     jagt = JaggType(leaf)
-    T = eltype(branch)
+    T = eltype(branch) 
     interped_data(rawdata, rawoffsets, branch, JaggType(leaf), T)
 end
 

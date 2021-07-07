@@ -8,7 +8,7 @@ struct BranchItr{T, J}
         T = eltype(b)
         J = JaggType(only(b.fLeaves.elements))
         # we don't know how to deal with multiple leaves yet
-        new{T, J}(f, b, 0, sum(b.fBasketEntry))
+        new{T, J}(f, b, 0, maximum(b.fBasketEntry))
     end
 end
 
