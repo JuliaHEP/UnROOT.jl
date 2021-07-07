@@ -6,7 +6,6 @@ end
 
 struct ROOTFile
     filename::AbstractString
-    filepath::AbstractString
     format_version::Int32
     header::FileHeader
     fobj::IOStream
@@ -15,14 +14,12 @@ struct ROOTFile
     directory::ROOTDirectory
     lk::SpinLock
 end
-Base.open(f::ROOTFile) = open(f.filepath)
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
 
 
 function ROOTFile(filename::AbstractString)
     fobj = Base.open(filename)
-    filepath = abspath(filename)
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion
@@ -62,7 +59,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, filepath, format_version, header, fobj, tkey, streamers, directory, SpinLock())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, SpinLock())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -98,10 +95,10 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    S = open(f) do local_io
-        streamer(local_io, tkey, f.streamers.refs)
-    end
-    return S
+    lock(f)
+    S = streamer(f.fobj, tkey, f.streamers.refs)
+    unlock(f)
+    S
 end
 
 function Base.keys(f::ROOTFile)
@@ -217,7 +214,6 @@ end
 
 # read all bytes of DATA and OFFSET from a branch
 function readbranchraw(f::ROOTFile, branch)
-    io = open(f)
     nbytes = branch.fBasketBytes
     datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(Vector{Int32}(), branch.fEntries+1) # this is always Int32
@@ -227,7 +223,6 @@ function readbranchraw(f::ROOTFile, branch)
         append!(datas, data)
         append!(offsets, offset)
     end
-    close(io)
     datas, offsets
 end
 
