@@ -95,9 +95,10 @@ iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t
 origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
 seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
 
-datastream(io, tkey::TKey) = IOBuffer(_datastream(io, tkey))
-datastream(io, tkey::TBasketKey) = _datastream(io, tkey)
-function _datastream(io, tkey)
+datastream(io, tkey::TKey) = IOBuffer(decompress_datastreambytes(compressed_datastream(io, tkey), tkey))
+
+# extract all [compressionheader][rawbytes]... first so we can release IO lock earlier
+function compressed_datastream(io, tkey)
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
                 "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
@@ -105,6 +106,14 @@ function _datastream(io, tkey)
         return read(io, tkey.fObjlen)
     end
     seekstart(io, tkey)
+    return read(io, tkey.fNbytes - tkey.fKeylen)
+end
+function decompress_datastreambytes(compbytes, tkey)
+    # not compressed
+    iscompressed(tkey) || return compbytes
+
+    # compressed
+    io = IOBuffer(compbytes)
     fufilled = 0
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
     while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
@@ -124,14 +133,10 @@ function _datastream(io, tkey)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
-
         fufilled += uncompbytes
     end
-    @assert fufilled == length(uncomp_data)
     return uncomp_data
 end
-
-
 @io struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
     fVersion::Int32                # File format version

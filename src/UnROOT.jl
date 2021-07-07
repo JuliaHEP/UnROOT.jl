@@ -2,7 +2,8 @@ module UnROOT
 
 export ROOTFile, array
 
-import Base: keys, get, getindex, show, length, iterate, position, ntoh
+import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
+using Base.Threads: SpinLock
 using Mmap:mmap
 using Memoization, LRUCache
 ntoh(b::Bool) = b

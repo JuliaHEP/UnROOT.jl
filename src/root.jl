@@ -13,8 +13,11 @@ struct ROOTFile
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
+    lk::SpinLock
 end
 Base.open(f::ROOTFile) = open(f.filepath)
+lock(f::ROOTFile) = lock(f.lk)
+unlock(f::ROOTFile) = unlock(f.lk)
 
 
 function ROOTFile(filename::AbstractString)
@@ -59,7 +62,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, filepath, format_version, header, fobj, tkey, streamers, directory)
+    ROOTFile(filename, filepath, format_version, header, fobj, tkey, streamers, directory, SpinLock())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -238,18 +241,18 @@ end
 #           │←        fLast - fKeylen       →│(l1)                │
 #           │                                                     │
 #           │←                       fObjlen                     →│
-# 5GB cache for baskets
-@memoize LRU(;maxsize=5*1024^3, by=x->sum(length,x)) function readbasket(f::ROOTFile, branch, ith)
+# 3GB cache for baskets
+@memoize LRU(;maxsize=3*1024^3, by=x->sum(length,x)) function readbasket(f::ROOTFile, branch, ith)
     seek_pos = branch.fBasketSeek[ith]
 
-    # FIXME can we not open a new handler every time?
-    local_io = open(f)
-    seek(local_io, seek_pos)
+    lock(f)
+    seek(f.fobj, seek_pos)
+    basketkey = unpack(f.fobj, TBasketKey)
+    compressedbytes = compressed_datastream(f.fobj, basketkey)
+    unlock(f)
 
-    basketkey = unpack(local_io, TBasketKey)
-    basketrawbytes = datastream(local_io, basketkey)
+    basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
 
-    close(local_io)
 
     Keylen = basketkey.fKeylen
     contentsize = Int32(basketkey.fLast - Keylen)
