@@ -1,6 +1,6 @@
 module UnROOT
 
-export ROOTFile, array
+export ROOTFile, array, BranchItr
 
 import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
 using Base.Threads: SpinLock
@@ -19,6 +19,7 @@ include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
 include("root.jl")
+include("itr.jl")
 include("custom.jl")
 
 @static if VERSION < v"1.2"
