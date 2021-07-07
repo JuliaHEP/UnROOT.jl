@@ -1,8 +1,11 @@
 using Test
 using UnROOT
-using DataFrames
 using StaticArrays
 using MD5
+
+@static if VERSION > v"1.3.0"
+    using ThreadsX
+end
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -124,6 +127,13 @@ end
     # end
 end
 
+@testset "No (basket) compression" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "uncomressed_lz4_int32.root"))
+    arr = array(rootfile, "t1/int32_array")
+    @test length(arr) == 3
+    @test all(arr .== [[1,2], [], [3]])
+end
+
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
     @test rootfile isa ROOTFile
@@ -171,21 +181,12 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     arr = array(rootfile, "t1/int32_array")
     @test 100000 == length(arr)
-    @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
+    @test [0, 1, 2, 3, 4] == arr[1:5]
+    @test 99999-4:99999 == arr[end-4:end]
     arr = array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
-
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    arr = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-end
-
-@testset "DataFrame()" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
-    df = DataFrame(rootfile, "t1")
-    @test 100000 == length(df.int32_array)
-    @test [0, 1, 2, 3, 4] ≈ df.int32_array[1:5] atol=0.1
-    @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ df.float_array[1:5] atol=1e-7
+    @test 105881.296875 ≈ last(arr)
 end
 
 @testset "Jagged branches" begin
@@ -217,12 +218,26 @@ end
     HLT_Mu3_PFJet40 = array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
+
+
+    if VERSION > v"1.3.0"
+        branch_names = keys(rootfile["Events"])
+        # thread-safety test
+        @test all(
+           map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
+           ThreadsX.map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names)
+           )
+    end
+
 end
 
 @testset "readbasketsraw()" begin
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    reco = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
+    @test reco[1][1].tdc == 9
+    @test reco[end-1][1].tdc == 58729296
     @test array_md5 == md5(data)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))

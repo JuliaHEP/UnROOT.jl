@@ -1,8 +1,10 @@
+# by putting Cursor inside the branch/tree struct, we don't need to
+# seek to and read the Directory everytime we access a branch
 struct Cursor
-    start
-    io
+    start::Int64
+    io::IO
     tkey
-    refs
+    refs::Dict{Int32, Any}
 end
 
 Base.position(c::Cursor) = position(c.io)
@@ -20,7 +22,6 @@ end
 @inline readtype(io, v::Type{T}) where T<:AbstractVector{UInt8} = read(io, length(v))
 
 function readtype(io, ::Type{T}) where T<:AbstractString
-    start = position(io)
     length = readtype(io, UInt8)
 
     if length == 255
@@ -49,9 +50,7 @@ end
 
 macro io(data)
     struct_name = data.args[2]
-
     types = []
-    parametric_types = []
     for f in data.args[3].args
         isa(f, LineNumberNode) && continue
         isa(f, Symbol) && error("Untyped field")
@@ -77,9 +76,9 @@ end
 
 
 struct Preamble
-    start
-    cnt
-    version::Int64
+    start::Int64
+    cnt::Union{UInt32, Missing}
+    version::UInt16
     type::Type
 end
 

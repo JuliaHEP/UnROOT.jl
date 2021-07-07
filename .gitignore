@@ -6,4 +6,4 @@
 /dev/
 /docs/build/
 /docs/site/
-__pycache__/
+*__pycache__*

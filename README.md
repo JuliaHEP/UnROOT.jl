@@ -32,10 +32,12 @@ We support reading all scalar branch and jagged branch of "basic" types, as
 a metric, UnROOT can already read all branches of CMS' NanoAOD:
 
 ``` julia
+using UnROOT
+
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile("test/samples/NanoAODv5_sample.root") with 2 entries and 21 streamers.
 
-# example of a flat branch
+# reading a flat branch
 julia> array(t, "Events/HLT_Mu3_PFJet40")
 1000-element BitVector:
  0
@@ -43,14 +45,27 @@ julia> array(t, "Events/HLT_Mu3_PFJet40")
  0
  0
  0
+ ...
  
-# example of a jagged branch
+# reading a jagged branch
 julia> array(t, "Events/Electron_dxy")
 1000-element Vector{Vector{Float32}}:
  [0.00037050247]
  [-0.009819031]
  []
  [-0.0015697479]
+ ...
+ 
+# reading branch is also thread-safe, although may not be faster depending to disk I/O and cache
+julia> using ThreadsX
+
+julia> branch_names = keys(t["Events"])
+
+julia> all(
+       map(bn->array(rf, "Events/$bn"; raw=true), branch_names) .== 
+       ThreadsX.map(bn->array(rf, "Events/$bn"; raw=true), branch_names)
+       )
+true
 ```
 
 If you have custom C++ struct inside you branch, reading raw data is also possible. 

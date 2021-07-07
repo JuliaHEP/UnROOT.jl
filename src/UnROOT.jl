@@ -2,7 +2,9 @@ module UnROOT
 
 export ROOTFile, array
 
-import Base: keys, get, getindex, show, length, iterate, position, ntoh
+import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
+using Base.Threads: SpinLock
+using Memoization, LRUCache
 ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz
@@ -19,7 +21,7 @@ include("bootstrap.jl")
 include("root.jl")
 include("custom.jl")
 
-if VERSION < v"1.2"
+@static if VERSION < v"1.2"
     hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
 end
 

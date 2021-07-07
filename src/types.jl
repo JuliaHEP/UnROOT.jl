@@ -41,13 +41,13 @@ end
 
 @with_kw struct TBasketKey
     fNbytes::Int32
-    fVersion
+    fVersion::Int16
     fObjlen::Int32
     fDatime::UInt32
     fKeylen::Int16
     fCycle::Int16
-    fSeekKey
-    fSeekPdir
+    fSeekKey::Integer
+    fSeekPdir::Integer
     fClassName::String
     fName::String
     fTitle::String
@@ -59,7 +59,7 @@ end
 
 function unpack(io, T::Type{TBasketKey})
     start = position(io)
-    fields = Dict{Symbol, Any}()
+    fields = Dict{Symbol, Union{Integer, String}}()
     fields[:fNbytes] = readtype(io, Int32)
     fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
 
@@ -90,43 +90,48 @@ iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t
 origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
 seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
 
-function datastream(io, tkey::T) where T<:Union{TKey, TBasketKey}
-    start = position(io)
+datastream(io, tkey::TKey) = IOBuffer(decompress_datastreambytes(compressed_datastream(io, tkey), tkey))
+
+# extract all [compressionheader][rawbytes]... first so we can release IO lock earlier
+function compressed_datastream(io, tkey)
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
                 "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
         skip(io, 1)   # ???
-        return io
+        return read(io, tkey.fObjlen)
     end
-    @debug "Compressed stream at $(start)"
-    _start = tkey.fSeekKey
     seekstart(io, tkey)
+    return read(io, tkey.fNbytes - tkey.fKeylen)
+end
+function decompress_datastreambytes(compbytes, tkey)
+    # not compressed
+    iscompressed(tkey) || return compbytes
+
+    # compressed
+    io = IOBuffer(compbytes)
     fufilled = 0
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
     while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
-        io_buf = IOBuffer(read(io, compbytes))
+
+        iobytes = read(io, compbytes)
 
         # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
-        uncomp_data[fufilled+1:fufilled+uncompbytes] .= if cname == "ZL"
-            read(ZlibDecompressorStream(io_buf), uncompbytes)
+        @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
+            transcode(ZlibDecompressor, iobytes)
         elseif cname == "XZ"
-            read(XzDecompressorStream(io_buf), uncompbytes)
+            transcode(XzDecompressor, iobytes)
         elseif cname == "L4"
-            skip(io_buf, 8) #skip checksum
-            lz4_decompress(read(io_buf), uncompbytes)
+            # skip checksum which is 8 bytes
+            lz4_decompress(iobytes[9:end], uncompbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
-
         fufilled += uncompbytes
     end
-    @assert fufilled == length(uncomp_data)
-    return IOBuffer(uncomp_data)
+    return uncomp_data
 end
-
-
 @io struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
     fVersion::Int32                # File format version
