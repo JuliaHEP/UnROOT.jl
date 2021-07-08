@@ -100,14 +100,16 @@ Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
-function Base.show(io::IO, ba::LazyBranch)
-    summary(io, ba)
+
+Base.show(io::IO,m::MIME"text/plain", lb::LazyBranch) = Base.show(io, lb)
+function Base.show(io::IO, lb::LazyBranch)
+    summary(io, lb)
     println(":")
-    println("  File: $(ba.f.filename)")
-    println("  Branch: $(ba.b.fName)")
-    println("  Description: $(ba.b.fTitle)")
-    println("  NumEntry: $(ba.L)")
-    print("  Entry Type: $(eltype(ba))")
+    println("  File: $(lb.f.filename)")
+    println("  Branch: $(lb.b.fName)")
+    println("  Description: $(lb.b.fTitle)")
+    println("  NumEntry: $(lb.L)")
+    print("  Entry Type: $(eltype(lb))")
 end
 
 function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}

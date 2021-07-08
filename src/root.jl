@@ -167,6 +167,7 @@ function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where 
 
 end
 
+# function interp_jaggT(branch, leaf)
 @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
@@ -176,6 +177,7 @@ end
         elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
         try
             elname == "bool" && return Bool #Cbool doesn't exist
+            elname == "unsigned int" && return UInt32 #Cunsigned doesn't exist
             getfield(Base, Symbol(:C, elname))
         catch
             error("Cannot convert element of $elname to a native Julia type")
