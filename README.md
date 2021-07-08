@@ -56,10 +56,10 @@ UnROOT.TBranch_13
 julia> for i = 5:8
            @show LB[i]
        end
-ab[i] = Float32[]
-ab[i] = Float32[-0.0012559891]
-ab[i] = Float32[0.06121826, 0.00064229965]
-ab[i] = Float32[0.005870819, 0.00054883957, -0.00617218]
+LB[i] = Float32[]
+LB[i] = Float32[-0.0012559891]
+LB[i] = Float32[0.06121826, 0.00064229965]
+LB[i] = Float32[0.005870819, 0.00054883957, -0.00617218]
 
 # or a range
 julia> LB[5:8]
