@@ -53,6 +53,14 @@ function basketarray(f::ROOTFile, branch, ithbasket)
     interped_data(rawdata, rawoffsets, branch, jagt, T)
 end
 
+function Table(f::ROOTFile, s::AbstractString)
+    tree = f[s]
+    tree isa TTree || error("$s is not a tree nam")
+    names = keys(tree)
+    vals = [f["$s/$b"] for b in names]
+    NT = Table(;zip(Symbol.(names), vals)...)
+end
+
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement
 #
