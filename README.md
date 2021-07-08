@@ -37,7 +37,7 @@ ROOTFile("test/samples/NanoAODv5_sample.root") with 2 entries and 21 streamers.
 
 julia< b = rf["Events/Electron_dxy"];
 
-julia> BA = BranchAccess(rf, b);
+julia> BA = LazyBranch(rf, b);
 
 # you can access a branch by index, this is fairly fast, memory footprint ~ single basket
 julia> for i = 5:8

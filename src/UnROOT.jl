@@ -1,6 +1,6 @@
 module UnROOT
 
-export ROOTFile, array, BranchAccess
+export ROOTFile, array, LazyBranch
 
 import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
 using Base.Threads: SpinLock

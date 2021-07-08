@@ -57,7 +57,7 @@ end
 # TODO upstream some types into parametric types for Branch/BranchElement
 #
 """
-    BranchAccess(f::ROOTFile, branch)
+    LazyBranch(f::ROOTFile, branch)
 
 Construct an accessor for a given branch such that `BA[idx]` and or `BA[1:20]` is almost
 type-stable. And memory footprint is a single basket (<20MB usually).
@@ -68,7 +68,7 @@ julia> rf = ROOTFile("./test/samples/tree_with_large_array.root");
 
 julia> b = rf["t1/int32_array"];
 
-julia> ab = UnROOT.BranchAccess(rf, b);
+julia> ab = UnROOT.LazyBranch(rf, b);
 
 julia> ab[1]
 0
@@ -79,29 +79,30 @@ julia> ab[begin:end]
 ...
 ```
 """
-mutable struct BranchAccess{T, J}
+mutable struct LazyBranch{T, J}
     f::ROOTFile
     b::Union{TBranch, TBranchElement}
+    L::Int64
     fEntry::Vector{Int64}
     buffer_seek::Int64
     buffer::Vector{T}
 
-    function BranchAccess(f::ROOTFile, b::Union{TBranch, TBranchElement})
+    function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T = eltype(b)
         J = JaggType(first(b.fLeaves.elements))
         max_len = maximum(diff(b.fBasketEntry))
         # we don't know how to deal with multiple leaves yet
-        new{T, J}(f, b, b.fBasketEntry, -1, T[])
+        new{T, J}(f, b, length(b), b.fBasketEntry, -1, T[])
     end
 end
-Base.firstindex(ba::BranchAccess) = 1
-Base.lastindex(ba::BranchAccess) = length(ba.b)
-Base.length(ba::BranchAccess) = length(ba.b)
-Base.eltype(ba::BranchAccess{T,J}) where {T,J} = T
+Base.firstindex(ba::LazyBranch) = 1
+Base.lastindex(ba::LazyBranch) = ba.L
+Base.length(ba::LazyBranch) = ba.L
+Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
 
-function Base.getindex(ba::BranchAccess{T, J}, idx::Integer) where {T, J}
+function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     # I hate 1-based indexing
-    seek_idx = findfirst(>(idx-1), ba.fEntry)-1
+    seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
     localidx = idx - ba.fEntry[seek_idx]
     if seek_idx != ba.buffer_seek # update buffer
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
@@ -110,7 +111,12 @@ function Base.getindex(ba::BranchAccess{T, J}, idx::Integer) where {T, J}
     return ba.buffer[localidx]
 end
 
+function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
+    idx>ba.L && return nothing
+    return (ba[idx], idx+1)
+end
+
 # TODO this is not terribly slow, but we can get faster implementation still ;)
-function Base.getindex(ba::BranchAccess{T, J}, rang::UnitRange) where {T, J}
+function Base.getindex(ba::LazyBranch{T, J}, rang::UnitRange) where {T, J}
     [ba[i] for i in rang]
 end

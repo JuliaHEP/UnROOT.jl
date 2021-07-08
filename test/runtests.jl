@@ -184,11 +184,11 @@ end
     # @test 1619244 == header.fSeekKeys
 end
 
-@testset "getindex() of BranchAcess" begin
+@testset "getindex() of LazyBranch" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1/int32_array"]
     arr = array(rootfile, branch)
-    BA = BranchAccess(rootfile, branch)
+    BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
     @test BA[1] == arr[1]
     @test BA[end] == arr[end]

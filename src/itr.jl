@@ -1,4 +1,4 @@
-# TODO this doesn't look too useful to deserve it's own thing in light of the BranchAccess
+# TODO this doesn't look too useful to deserve it's own thing in light of the LazyBranch
 # struct BranchItr{T, J}
 #     f::ROOTFile
 #     b::Union{TBranch, TBranchElement}
