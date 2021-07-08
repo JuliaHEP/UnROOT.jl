@@ -5,15 +5,12 @@ Given the `offsets` and `data` return by `array(...; raw = true)`, reconstructed
 array (with custome struct, can be jagged as well).
 """
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
-    elsize = sizeof(T)
+    packedsize = packedsizeof(T)
     out = sizehint!(Vector{Vector{T}}(), length(offsets))
-    lengths = diff(offsets)
-    push!(lengths, length(data) - offsets[end] + offsets[1])  # yay ;)
     io = IOBuffer(data)
-    for (idx, l) in enumerate(lengths)
-        # println("$idx / $(length(lengths))")
+    for l in diff(offsets)
         skip(io, skipbytes)
-        n = (l - skipbytes) / elsize
+        n = (l - skipbytes) / packedsize
         push!(out, [readtype(io, T) for _ in 1:n])
     end
     out
