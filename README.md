@@ -46,8 +46,12 @@ LazyBranch{Vector{Float32}, UnROOT.Nooffsetjagg}:
   NumEntry: 1000
   Entry Type: Vector{Float32}
 
-# while `t["tree"]["branch"]` will give you the branch object itself
-julia> LB = t["Events/Electron_dxy"]
+# while this pattern, `t["tree"]["branch"]`, will give you the branch object itself
+julia> rf["Events"]["Electron_dxy"]
+UnROOT.TBranch_13
+  cursor: UnROOT.Cursor
+  fName: String "Electron_dxy"
+  ...
   
 julia> for i = 5:8
            @show LB[i]
