@@ -25,11 +25,9 @@ Three's also a [discussion](https://github.com/scikit-hep/uproot/issues/401) rea
 documentation on uproot's issue page.
 
 ## Status
-The project is in early prototyping phase and contributions are very
-welcome.
-
-We support reading all scalar branch and jagged branch of "basic" types, as
-a metric, UnROOT can already read all branches of CMS' NanoAOD:
+We support reading all scalar branch and jagged branch of "basic" types, provide
+indexing interface (thus iteration too) with basket-cache. As
+a metric, UnROOT can read all branches of CMS NanoAOD:
 
 ``` julia
 using UnROOT
@@ -37,7 +35,28 @@ using UnROOT
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile("test/samples/NanoAODv5_sample.root") with 2 entries and 21 streamers.
 
-# reading a flat branch
+julia< b = rf["Events/Electron_dxy"];
+
+julia> BA = BranchAccess(rf, b);
+
+# you can access a branch by index, this is fairly fast, memory footprint ~ single basket
+julia> for i = 5:8
+           @show BA[i]
+       end
+ab[i] = Float32[]
+ab[i] = Float32[-0.0012559891]
+ab[i] = Float32[0.06121826, 0.00064229965]
+ab[i] = Float32[0.005870819, 0.00054883957, -0.00617218]
+
+# or a range
+julia> BA[5:8]
+4-element Vector{Vector{Float32}}:
+ []
+ [-0.0012559891]
+ [0.06121826, 0.00064229965]
+ [0.005870819, 0.00054883957, -0.00617218]
+
+# or dump a branch
 julia> array(t, "Events/HLT_Mu3_PFJet40")
 1000-element BitVector:
  0
@@ -47,7 +66,7 @@ julia> array(t, "Events/HLT_Mu3_PFJet40")
  0
  ...
  
-# reading a jagged branch
+# a jagged branch
 julia> array(t, "Events/Electron_dxy")
 1000-element Vector{Vector{Float32}}:
  [0.00037050247]
@@ -56,7 +75,7 @@ julia> array(t, "Events/Electron_dxy")
  [-0.0015697479]
  ...
  
-# reading branch is also thread-safe, although may not be faster depending to disk I/O and cache
+# reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
 julia> using ThreadsX
 
 julia> branch_names = keys(t["Events"])
@@ -95,7 +114,9 @@ julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
  [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
 ```
 
-This is what happens behind the scenes with some additional debug output:
+<details><summary>This is what happens behind the scenes with some additional debug output: </summary>
+<p>
+
 
 ``` julia
 julia> using UnROOT
@@ -173,6 +194,8 @@ Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
  10
  10
 ```
+</p>
+</details>
 
 ## Main challenges
 

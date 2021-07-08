@@ -88,7 +88,7 @@ mutable struct BranchAccess{T, J}
 
     function BranchAccess(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T = eltype(b)
-        J = JaggType(only(b.fLeaves.elements))
+        J = JaggType(first(b.fLeaves.elements))
         max_len = maximum(diff(b.fBasketEntry))
         # we don't know how to deal with multiple leaves yet
         new{T, J}(f, b, b.fBasketEntry, -1, T[])
@@ -100,11 +100,12 @@ Base.length(ba::BranchAccess) = length(ba.b)
 Base.eltype(ba::BranchAccess{T,J}) where {T,J} = T
 
 function Base.getindex(ba::BranchAccess{T, J}, idx::Integer) where {T, J}
-    seek_idx = searchsortedlast(ba.fEntry, idx-1)
+    # I hate 1-based indexing
+    seek_idx = findfirst(>(idx-1), ba.fEntry)-1
     localidx = idx - ba.fEntry[seek_idx]
     if seek_idx != ba.buffer_seek # update buffer
-        ba.buffer_seek = seek_idx
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
+        ba.buffer_seek = seek_idx
     end
     return ba.buffer[localidx]
 end
