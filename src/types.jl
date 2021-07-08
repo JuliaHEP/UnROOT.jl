@@ -122,6 +122,8 @@ function decompress_datastreambytes(compbytes, tkey)
             transcode(ZlibDecompressor, io)
         elseif cname == "XZ"
             transcode(XzDecompressor, io)
+        elseif cname == "ZS"
+            transcode(ZstdDecompressor, io)
         elseif cname == "L4"
             # skip checksum which is 8 bytes
             lz4_decompress(io[9:end], uncompbytes)
