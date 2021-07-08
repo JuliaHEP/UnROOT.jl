@@ -55,7 +55,7 @@ end
 
 function Table(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
-    tree isa TTree || error("$s is not a tree nam")
+    tree isa TTree || error("$s is not a tree name.")
     vals = [f["$s/$b"] for b in branches]
     NT = Table(;zip(Symbol.(branches), vals)...)
 end
@@ -64,11 +64,6 @@ function Table(f::ROOTFile, s::AbstractString)
     Table(f, s, keys(f[s]))
 end
 
-function Base.iterate(A::AbstractArray, state=(eachindex(A),))
-    y = iterate(state...)
-    y === nothing && return nothing
-    A[y[1]], (state[1], tail(y)...)
-end
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement
 #
