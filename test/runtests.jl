@@ -54,7 +54,8 @@ end
     @test foo.c ≈ 3
     @test d == foo.d
 
-    @test_skip 21 == sizeof(Foo)
+    @test 32 == sizeof(Foo)
+    @test 21 == UnROOT.packedsizeof(Foo)
 
     buf = IOBuffer(Vector{UInt8}(1:sizeof(Foo)))
     foo = UnROOT.unpack(buf, Foo)
@@ -130,9 +131,6 @@ end
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    reco = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
-    @test reco[1][1].tdc == 9
-    @test reco[end-1][1].tdc == 58729296
     @test array_md5 == md5(data)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
@@ -256,6 +254,25 @@ end
 
 end
 
+# Custom bootstrap things
+
+@testset "custom boostrapping" begin
+    f = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    event_hits = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit; skipbytes=10)
+    @test length(event_hits) == 3
+    @test length(event_hits[1]) == 96
+    @test length(event_hits[2]) == 124
+    @test length(event_hits[3]) == 78
+    @test event_hits[1][1].dom_id == 806451572
+    @test event_hits[1][1].tdc == 30733918
+    @test event_hits[1][end].dom_id == 809544061
+    @test event_hits[1][end].tdc == 30735112
+    @test event_hits[3][1].dom_id == 806451572
+    @test event_hits[3][1].tdc == 63512204
+    @test event_hits[3][end].dom_id == 809544061
+    @test event_hits[3][end].tdc == 63512892
+end
 
 
 # Issues

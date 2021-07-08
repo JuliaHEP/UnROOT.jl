@@ -11,6 +11,7 @@ Base.position(c::Cursor) = position(c.io)
 
 
 function unpack() end
+packedsizeof(T::Type) = sum(sizeof.(fieldtypes(T)))
 
 """The packed size of a type, e.g. when stored on disk."""
 function packedsizeof(::Type{T}) where T
