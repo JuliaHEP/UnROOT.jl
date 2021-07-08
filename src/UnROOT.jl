@@ -24,7 +24,7 @@ include("itr.jl")
 include("custom.jl")
 
 @static if VERSION < v"1.1"
-    fieldtypes(T::Type) = ntupleany(i -> fieldtype(T, i), fieldcount(T))
+    fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]
 end
 
 @static if VERSION < v"1.2"
