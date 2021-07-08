@@ -55,7 +55,7 @@ end
 
 function Table(f::ROOTFile, s::AbstractString)
     tree = f[s]
-    tree isa TTree || error("$s is not a tree nam")
+    tree isa TTree || error("$s is not a tree name.")
     names = keys(tree)
     vals = [f["$s/$b"] for b in names]
     NT = Table(;zip(Symbol.(names), vals)...)
