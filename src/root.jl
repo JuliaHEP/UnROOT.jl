@@ -130,53 +130,16 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
-"""
-    arrays(f::ROOTFile, treename)
-
-Reads all branches from a tree.
-"""
-function arrays(f::ROOTFile, treename)
-    names = keys(f[treename])
-    res = Vector{Any}(undef, length(names))
-    Threads.@threads for i in eachindex(names)
-        res[i] = array(f, "$treename/$(names[i])")
-    end
-    res
-end
-
-
-"""
-    function array(f::ROOTFile, path)
-
-Reads an array from a branch.
-"""
-function array(f::ROOTFile, path; raw=false)
-    branch = f[path]
-    ismissing(branch) && error("No branch found at $path")
-
-    (!raw && length(branch.fLeaves.elements) > 1) && error(
-            "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
-
-    rawdata, rawoffsets = readbranchraw(f, branch)
-    if raw
-        return rawdata, rawoffsets
-    end
-    leaf = first(branch.fLeaves.elements)
-    interped_data(rawdata, rawoffsets, branch, leaf)
-end
-
-function interped_data(rawdata, rawoffsets, branch, leaf)
-    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
-    isjagged = (match(r"\[.*\]", leaf.fTitle) !== nothing)
-
+function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
     # only needs when the jaggedness comes from TLeafElements, not needed when
     # the jaggedness comes from having "[]" in TLeaf's title
-    jagg_offset = leaf isa TLeafElement ? 10 : 0
     # the other is where we need to auto detector T bsaed on class name
-    if isjagged || !iszero(jagg_offset) # non-primitive jagged leaf
-        T = autointerp_T(branch, leaf)
+    # we want the fundamental type as `reinterpret` will create vector
+    elT = eltype(T)
+    if J !== Nojagg
+        jagg_offset = J===Offsetjagg ? 10 : 0
 
         # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
         # this is why we need to append `rawoffsets` in the `readbranchraw()` call
@@ -184,16 +147,16 @@ function interped_data(rawdata, rawoffsets, branch, leaf)
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         @views [
                 ntoh.(reinterpret(
-                                  T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
+                                  elT, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
                                  )) for i in 1:(length(rawoffsets) - 1)
                ]
     else # the branch is not jagged
-        return ntoh.(reinterpret(primitivetype(leaf), rawdata))
+        return ntoh.(reinterpret(T, rawdata))
     end
 
 end
 
-@memoize LRU(;maxsize=10^3) function autointerp_T(branch, leaf)
+@memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         m = match(r"vector<(.*)>", classname)
@@ -217,9 +180,9 @@ function readbranchraw(f::ROOTFile, branch)
     nbytes = branch.fBasketBytes
     datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(Vector{Int32}(), branch.fEntries+1) # this is always Int32
-    for (i, pos) in enumerate(branch.fBasketSeek)
-        pos == 0 && break
-        data, offset = readbasket(f, branch, i)
+    foreach(branch.fBasketSeek) do seek
+        seek==0 && return
+        data, offset = readbasketseek(f, branch, seek)
         append!(datas, data)
         append!(offsets, offset)
     end
@@ -237,9 +200,11 @@ end
 #           │                                                     │
 #           │←                       fObjlen                     →│
 # 3GB cache for baskets
-@memoize LRU(;maxsize=3*1024^3, by=x->sum(length,x)) function readbasket(f::ROOTFile, branch, ith)
-    seek_pos = branch.fBasketSeek[ith]
+readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
+@memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(length, x)) function readbasketseek(
+    f::ROOTFile, branch, seek_pos
+)::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
     lock(f)
     seek(f.fobj, seek_pos)
     basketkey = unpack(f.fobj, TBasketKey)
@@ -247,7 +212,6 @@ end
     unlock(f)
 
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
-
 
     Keylen = basketkey.fKeylen
     contentsize = Int32(basketkey.fLast - Keylen)
@@ -258,7 +222,7 @@ end
     if offsetbytesize > 0
 
         #indexing is inclusive on both ends
-        offbytes = @view basketrawbytes[contentsize+4+1:end-4]
+        offbytes = @view basketrawbytes[(contentsize + 4 + 1):(end - 4)]
 
         # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
         offset = ntoh.(reinterpret(Int32, offbytes)) .- Keylen

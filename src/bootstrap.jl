@@ -369,6 +369,14 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TLe
 end
 
 abstract type TBranch <: ROOTStreamedObject end
+abstract type TBranchElement <: ROOTStreamedObject end
+Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
+Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
+function Base.eltype(b::Union{TBranch, TBranchElement})
+    leaf = first(b.fLeaves.elements)
+    JaggType(leaf)===Nojagg ? primitivetype(leaf) : Vector{interp_jaggT(b, leaf)}
+end
+
 @with_kw struct TBranch_12 <: TBranch
     cursor::Cursor
     # from TNamed
@@ -522,7 +530,6 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
     fields[:fFileName] = readtype(io, String)
 end
 
-abstract type TBranchElement <: ROOTStreamedObject end
 @with_kw struct TBranchElement_9 <: TBranchElement
     cursor::Cursor
     # from TNamed

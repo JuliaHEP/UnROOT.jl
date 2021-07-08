@@ -80,20 +80,23 @@ function Streamers(io)
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
         skipped = position(io) - start
         compressedbytes = read(io, tkey.fNbytes - skipped)
+        cname = String(compression_header.algo)
 
-        if String(compression_header.algo) == "ZL"
-            stream = IOBuffer(transcode(ZlibDecompressor, compressedbytes))
-        elseif String(compression_header.algo) == "XZ"
-            stream = IOBuffer(transcode(XzDecompressor, compressedbytes))
-        elseif String(compression_header.algo) == "L4"
-            stream = IOBuffer(lz4_decompress(compressedbytes[9:end], tkey.fObjlen))
+        stream = if cname == "ZL"
+            IOBuffer(transcode(ZlibDecompressor, compressedbytes))
+        elseif cname == "XZ"
+            IOBuffer(transcode(XzDecompressor, compressedbytes))
+        elseif cname == "ZS"
+            IOBuffer(transcode(ZstdDecompressor, io))
+        elseif cname == "L4"
+            IOBuffer(lz4_decompress(compressedbytes[9:end], tkey.fObjlen))
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
 
     else
         @debug "Unompressed stream at $(start)"
-        stream = io
+        io
     end
     preamble = Preamble(stream, Streamers)
     skiptobj(stream)
@@ -129,7 +132,7 @@ function Streamers(io)
 
     streamer_infos = topological_sort(streamer_infos)
 
-    # FIXME not implemented
+    # TODO not implemented
     # for streamer_info in streamer_infos
     #     initialise_streamer(streamer_info)
     # end
@@ -363,7 +366,7 @@ function parsefields!(io, fields, T::Type{TStreamerElement})
     endcheck(io, preamble)
 end
 
-# FIXME really not used?
+# TODO really not used?
 # function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerElement})
 #     @initparse
 #     parsefields!(io, fields, T)

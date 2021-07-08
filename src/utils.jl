@@ -48,3 +48,16 @@ function unpack(x::CompressionHeader)
 
     return algname, x.method, compressedbytes, uncompressedbytes
 end
+
+
+abstract type JaggType end
+struct Nojagg      <:JaggType  end
+struct Nooffsetjagg<:JaggType  end
+struct Offsetjagg  <:JaggType  end
+
+function JaggType(leaf)
+    leaf isa TLeafElement && return Offsetjagg
+    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
+    (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Nooffsetjagg
+    return Nojagg
+end
