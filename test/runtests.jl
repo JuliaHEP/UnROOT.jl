@@ -261,7 +261,7 @@ end
 @testset "custom boostrapping" begin
     f = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    event_hits = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit
+    event_hits = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
     @test length(event_hits) == 3
     @test length(event_hits[1]) == 96
     @test length(event_hits[2]) == 124
