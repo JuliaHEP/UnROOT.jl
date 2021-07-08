@@ -29,22 +29,43 @@ We support reading all scalar branch and jagged branch of "basic" types, provide
 indexing interface (thus iteration too) with basket-cache. As
 a metric, UnROOT can read all branches of CMS NanoAOD.
 
-The most easy way to access data is through `LazyBranch` which will be constructed
-when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
-you can index it, iterate through it, `map` over it etc:
-
-``` julia
+The most easy way to access data is through (typed) `Table`:
+```julia
 using UnROOT
 
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
 
+julia> table = Table(t, "Events", keys(t["Events"])[1:4])
+Table with 4 columns and 1000 rows:
+      run  luminosityBlock  event     HTXS_Higgs_pt
+    ┌──────────────────────────────────────────────
+ 1  │ 1    30303            12423832  0.0
+ 2  │ 1    30303            12423821  0.0
+ 3  │ 1    30303            12423834  0.0
+ 4  │ 1    30303            12423867  0.0
+ ...
+```
+
+You can iterate through a table either by:
+```julia
+for row in table
+   row.MET > 100 && continue
+end
+```
+or
+```julia
+for i in eachindex(table)
+   table.MET[1] > 100 && continue
+end
+```
+The latter has the advantage that if your arrange the cut cleverly, you can save a lot of time
+by no decompressing baskets from irrelevant branches.
+
+Or you can have a single `LazyBranch` (they make up columes of `Table`) which will be constructed
+when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
+you can index it, iterate through it, `map` over it etc.
+``` julia
 julia> LB = t["Events/Electron_dxy"]
-LazyBranch{Vector{Float32}, UnROOT.Nooffsetjagg}:
-  File: ./test/samples/NanoAODv5_sample.root
-  Branch: Electron_dxy
-  Description: dxy (with sign) wrt first PV, in cm
-  NumEntry: 1000
-  Entry Type: Vector{Float32}
 
 # while this pattern, `t["tree"]["branch"]`, will give you the branch object itself
 julia> rf["Events"]["Electron_dxy"]
@@ -69,14 +90,6 @@ julia> LB[5:8]
  [0.06121826, 0.00064229965]
  [0.005870819, 0.00054883957, -0.00617218]
 
-# a jagged branch
-julia> collect(LB)
-1000-element Vector{Vector{Float32}}:
- [0.00037050247]
- [-0.009819031]
- []
- ...
- 
 # reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
 julia> using ThreadsX
 
