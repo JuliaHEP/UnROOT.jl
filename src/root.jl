@@ -86,7 +86,18 @@ function streamerfor(f::ROOTFile, name::AbstractString)
 end
 
 
-@memoize LRU(maxsize = 2000) function Base.getindex(f::ROOTFile, s::AbstractString)
+function Base.getindex(f::ROOTFile, s::AbstractString)
+    S = _getindex(f, s)
+    if S isa Union{TBranch, TBranchElement}
+        try # if we can't construct LazyBranch, just give up (maybe due to custom class)
+            return LazyBranch(f, S)
+        catch
+        end
+    end
+    S
+end
+
+@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')

@@ -18,7 +18,7 @@ end
 
 Reads an array from a branch. Set `raw=true` to return raw data and correct offsets.
 """
-array(f::ROOTFile, path::AbstractString; raw=false) = array(f::ROOTFile, f[path]; raw=raw)
+array(f::ROOTFile, path::AbstractString; raw=false) = array(f::ROOTFile, _getindex(f, path); raw=raw)
 
 function array(f::ROOTFile, branch; raw=false)
     ismissing(branch) && error("No branch found at $path")
@@ -79,7 +79,7 @@ julia> ab[begin:end]
 ...
 ```
 """
-mutable struct LazyBranch{T, J}
+mutable struct LazyBranch{T, J} <: AbstractVector{T}
     f::ROOTFile
     b::Union{TBranch, TBranchElement}
     L::Int64
@@ -95,10 +95,20 @@ mutable struct LazyBranch{T, J}
         new{T, J}(f, b, length(b), b.fBasketEntry, -1, T[])
     end
 end
+Base.size(ba::LazyBranch) = (ba.L,)
+Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
-Base.length(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
+function Base.show(io::IO, ba::LazyBranch)
+    summary(io, ba)
+    println(":")
+    println("  File: $(ba.f.filename)")
+    println("  Branch: $(ba.b.fName)")
+    println("  Description: $(ba.b.fTitle)")
+    println("  NumEntry: $(ba.L)")
+    print("  Entry Type: $(eltype(ba))")
+end
 
 function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     # I hate 1-based indexing

@@ -1,6 +1,6 @@
 module UnROOT
 
-export ROOTFile, array, LazyBranch
+export ROOTFile, LazyBranch
 
 import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
 using Base.Threads: SpinLock
@@ -12,6 +12,14 @@ using Mixers
 using Parameters
 using StaticArrays
 
+@static if VERSION < v"1.1"
+    fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]
+end
+
+@static if VERSION < v"1.2"
+    hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
+end
+
 include("constants.jl")
 include("io.jl")
 include("types.jl")
@@ -22,13 +30,7 @@ include("root.jl")
 include("arrayapi.jl")
 # include("itr.jl")
 include("custom.jl")
+include("precompile.jl")
 
-@static if VERSION < v"1.1"
-    fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]
-end
-
-@static if VERSION < v"1.2"
-    hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
-end
 
 end # module

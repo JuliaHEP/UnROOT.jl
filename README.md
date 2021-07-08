@@ -27,21 +27,30 @@ documentation on uproot's issue page.
 ## Status
 We support reading all scalar branch and jagged branch of "basic" types, provide
 indexing interface (thus iteration too) with basket-cache. As
-a metric, UnROOT can read all branches of CMS NanoAOD:
+a metric, UnROOT can read all branches of CMS NanoAOD.
+
+The most easy way to access data is through `LazyBranch` which will be constructed
+when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
+you can index it, iterate through it, `map` over it etc:
 
 ``` julia
 using UnROOT
 
-julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
-ROOTFile("test/samples/NanoAODv5_sample.root") with 2 entries and 21 streamers.
+julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
 
-julia< b = rf["Events/Electron_dxy"];
+julia> LB = t["Events/Electron_dxy"]
+LazyBranch{Vector{Float32}, UnROOT.Nooffsetjagg}:
+  File: ./test/samples/NanoAODv5_sample.root
+  Branch: Electron_dxy
+  Description: dxy (with sign) wrt first PV, in cm
+  NumEntry: 1000
+  Entry Type: Vector{Float32}
 
-julia> BA = LazyBranch(rf, b);
-
-# you can access a branch by index, this is fairly fast, memory footprint ~ single basket
+# while `t["tree"]["branch"]` will give you the branch object itself
+julia> LB = t["Events/Electron_dxy"]
+  
 julia> for i = 5:8
-           @show BA[i]
+           @show LB[i]
        end
 ab[i] = Float32[]
 ab[i] = Float32[-0.0012559891]
@@ -49,30 +58,19 @@ ab[i] = Float32[0.06121826, 0.00064229965]
 ab[i] = Float32[0.005870819, 0.00054883957, -0.00617218]
 
 # or a range
-julia> BA[5:8]
+julia> LB[5:8]
 4-element Vector{Vector{Float32}}:
  []
  [-0.0012559891]
  [0.06121826, 0.00064229965]
  [0.005870819, 0.00054883957, -0.00617218]
 
-# or dump a branch
-julia> array(t, "Events/HLT_Mu3_PFJet40")
-1000-element BitVector:
- 0
- 1
- 0
- 0
- 0
- ...
- 
 # a jagged branch
-julia> array(t, "Events/Electron_dxy")
+julia> collect(LB)
 1000-element Vector{Vector{Float32}}:
  [0.00037050247]
  [-0.009819031]
  []
- [-0.0015697479]
  ...
  
 # reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
@@ -81,17 +79,15 @@ julia> using ThreadsX
 julia> branch_names = keys(t["Events"])
 
 julia> all(
-       map(bn->array(rf, "Events/$bn"; raw=true), branch_names) .== 
-       ThreadsX.map(bn->array(rf, "Events/$bn"; raw=true), branch_names)
+       map(bn->UnROOT.array(rf, "Events/$bn"; raw=true), branch_names) .== 
+       ThreadsX.map(bn->UnROOT.array(rf, "Events/$bn"; raw=true), branch_names)
        )
 true
 ```
 
-If you have custom C++ struct inside you branch, reading raw data is also possible. 
-The raw data consists of two vectors: the bytes
-and the offsets and are available using the
-`UnROOT.array(f::ROOTFile, path; raw=true)` method. This data can
-be reinterpreted using a custom type with the method
+If you have custom C++ struct inside you branch, reading raw data is also possible
+using the `UnROOT.array(f::ROOTFile, path; raw=true)` method. The output can
+be then reinterpreted using a custom type with the method
 `UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`.
 
 You can then define suitable Julia `type` and `readtype` method for parsing these data.
@@ -114,7 +110,9 @@ julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
  [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
 ```
 
-<details><summary>This is what happens behind the scenes with some additional debug output: </summary>
+
+#3 Behind the scene
+<details><summary>Some additional debug output: </summary>
 <p>
 
 
@@ -214,10 +212,11 @@ Pick one ;)
 - [x] Parsing the file header
 - [x] Read the `TKey`s of the top level dictionary
 - [x] Reading the available trees
-- [ ] Reading the available streamers
+- [x] Reading the available streamers
 - [x] Reading a simple dataset with primitive streamers
 - [x] Reading of raw basket bytes for debugging
 - [ ] Automatically generate streamer logic
+- [ ] Clean up `Cursor` use
 - [x] Reading `TNtuple` #27
 
 ## Acknowledgements

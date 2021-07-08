@@ -130,11 +130,11 @@ end
 @testset "readbasketsraw()" begin
     array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    data, offsets = array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    data, offsets = UnROOT.array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
     @test array_md5 == md5(data)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
-    data, offsets = array(rootfile, "t1/int32_array"; raw=true)
+    data, offsets = UnROOT.array(rootfile, "t1/int32_array"; raw=true)
 
     @test data isa Vector{UInt8}
     @test offsets isa Vector{Int32}
@@ -143,7 +143,7 @@ end
 
 @testset "No (basket) compression" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "uncomressed_lz4_int32.root"))
-    arr = array(rootfile, "t1/int32_array")
+    arr = UnROOT.array(rootfile, "t1/int32_array")
     @test length(arr) == 3
     @test all(arr .== [[1,2], [], [3]])
 end
@@ -151,11 +151,11 @@ end
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
     @test rootfile isa ROOTFile
-    arr = array(rootfile, "t1/float_array")
+    arr = UnROOT.array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lz4.root"))
-    arr = array(rootfile, "t1/float_array")
+    arr = collect(rootfile["t1/float_array"])
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
 end
@@ -186,8 +186,8 @@ end
 
 @testset "getindex() of LazyBranch" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
-    branch = rootfile["t1/int32_array"]
-    arr = array(rootfile, branch)
+    branch = rootfile["t1"]["int32_array"]
+    arr = UnROOT.array(rootfile, branch)
     BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
     @test BA[1] == arr[1]
@@ -196,27 +196,9 @@ end
     @test BA[1:end] == arr
 end
 
-@testset "array()" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
-    arr = array(rootfile, "t1/mynum")
-    @test 25 == length(arr)
-    @test [0, 1, 2, 3, 4] ≈ arr[1:5] atol=0.1
-    @test [10, 10, 10, 10, 10, 10] ≈ arr[20:end] atol=0.1
-
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
-    arr = array(rootfile, "t1/int32_array")
-    @test 100000 == length(arr)
-    @test [0, 1, 2, 3, 4] == arr[1:5]
-    @test 99999-4:99999 == arr[end-4:end]
-    arr = array(rootfile, "t1/float_array")
-    @test 100000 == length(arr)
-    @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
-    @test 105881.296875 ≈ last(arr)
-end
-
 @testset "TNtupel" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TNtuple.root"))
-    arrs = [array(rootfile, "n1/$c") for c in "xyz"]
+    arrs = [collect(rootfile["n1/$c"]) for c in "xyz"]
     @test length.(arrs) == fill(100, 3)
     @test arrs[1] ≈ 0:99
     @test arrs[2] ≈ arrs[1] .+ arrs[1] ./ 13
@@ -226,8 +208,7 @@ end
 @testset "Jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
-    data = array(rootfile, "t1/int32_array")
-    @test data isa Vector{Vector{Int32}}
+    data = rootfile["t1/int32_array"]
     @test data[1] == Int32[]
     @test data[1:2] == [Int32[], Int32[0]]
     @test data[end] == Int32[90, 91, 92, 93, 94, 95, 96, 97, 98]
@@ -235,8 +216,9 @@ end
     # 64bits T
     T = Float64
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array_double.root"))
-    data = array(rootfile, "t1/double_array")
-    @test data isa Vector{Vector{T}}
+    data = rootfile["t1/double_array"]
+    @test data isa AbstractVector
+    @test eltype(data) === Vector{T}
     @test data[1] == T[]
     @test data[1:2] == [T[], T[0]]
     @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
@@ -244,12 +226,12 @@ end
 
 @testset "NanoAOD" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
-    event = array(rootfile, "Events/event")
+    event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
-    Electron_dxy = array(rootfile, "Events/Electron_dxy")
+    Electron_dxy = rootfile["Events/Electron_dxy"]
     @test eltype(Electron_dxy) == Vector{Float32}
     @test Electron_dxy[1:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
-    HLT_Mu3_PFJet40 = array(rootfile, "Events/HLT_Mu3_PFJet40")
+    HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
 
@@ -258,8 +240,8 @@ end
         branch_names = keys(rootfile["Events"])
         # thread-safety test
         @test all(
-           map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
-           ThreadsX.map(bn->array(rootfile, "Events/$bn"; raw=true), branch_names)
+           map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
+           ThreadsX.map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names)
            )
     end
 
@@ -269,7 +251,7 @@ end
 
 @testset "custom boostrapping" begin
     f = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
-    data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
+    data, offsets = UnROOT.array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
     event_hits = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit; skipbytes=10)
     @test length(event_hits) == 3
     @test length(event_hits[1]) == 96
@@ -291,6 +273,6 @@ end
 @testset "issues" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue7.root"))
     @test 2 == length(keys(rootfile))
-    @test [1.0, 2.0, 3.0] == array(rootfile, "TreeD/nums")
-    @test [1.0, 2.0, 3.0] == array(rootfile, "TreeF/nums")
+    @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
+    @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
 end
