@@ -54,7 +54,8 @@ end
     @test foo.c ≈ 3
     @test d == foo.d
 
-    @test_skip 21 == sizeof(Foo)
+    @test 32 == sizeof(Foo)
+    @test 21 == UnROOT.packedsizeof(Foo)
 
     buf = IOBuffer(Vector{UInt8}(1:sizeof(Foo)))
     foo = UnROOT.unpack(buf, Foo)
