@@ -23,6 +23,10 @@ include("arrayapi.jl")
 include("itr.jl")
 include("custom.jl")
 
+@static if VERSION < v"1.1"
+    fieldtypes(T::Type) = ntupleany(i -> fieldtype(T, i), fieldcount(T))
+end
+
 @static if VERSION < v"1.2"
     hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
 end
