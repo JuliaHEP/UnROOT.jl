@@ -130,55 +130,6 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
-"""
-    arrays(f::ROOTFile, treename)
-
-Reads all branches from a tree.
-"""
-function arrays(f::ROOTFile, treename)
-    names = keys(f[treename])
-    res = Vector{Any}(undef, length(names))
-    Threads.@threads for i in eachindex(names)
-        res[i] = array(f, "$treename/$(names[i])")
-    end
-    res
-end
-
-
-"""
-    function array(f::ROOTFile, path)
-
-Reads an array from a branch.
-"""
-function array(f::ROOTFile, path::AbstractString; raw=false)
-    branch = f[path]
-    ismissing(branch) && error("No branch found at $path")
-
-    (!raw && length(branch.fLeaves.elements) > 1) && error(
-            "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
-
-    rawdata, rawoffsets = readbranchraw(f, branch)
-    if raw
-        return rawdata, rawoffsets
-    end
-    leaf = first(branch.fLeaves.elements)
-    jagt = JaggType(leaf)
-    T = eltype(branch) 
-    interped_data(rawdata, rawoffsets, branch, JaggType(leaf), T)
-end
-
-abstract type JaggType end
-struct Nojagg      <:JaggType  end
-struct Nooffsetjagg<:JaggType  end
-struct Offsetjagg  <:JaggType  end
-
-function JaggType(leaf)
-    leaf isa TLeafElement && return Offsetjagg
-    # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
-    (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Nooffsetjagg
-    return Nojagg
-end
-
 function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -203,11 +154,6 @@ function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where 
         return ntoh.(reinterpret(T, rawdata))
     end
 
-end
-
-function Base.eltype(b::Union{TBranch, TBranchElement}) 
-    leaf = first(b.fLeaves.elements)
-    JaggType(leaf)===Nojagg ? primitivetype(leaf) : Vector{interp_jaggT(b, leaf)}
 end
 
 @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)

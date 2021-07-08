@@ -19,6 +19,7 @@ include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
 include("root.jl")
+include("arrayapi.jl")
 include("itr.jl")
 include("custom.jl")
 

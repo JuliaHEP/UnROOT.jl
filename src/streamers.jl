@@ -129,7 +129,7 @@ function Streamers(io)
 
     streamer_infos = topological_sort(streamer_infos)
 
-    # FIXME not implemented
+    # TODO not implemented
     # for streamer_info in streamer_infos
     #     initialise_streamer(streamer_info)
     # end
@@ -363,7 +363,7 @@ function parsefields!(io, fields, T::Type{TStreamerElement})
     endcheck(io, preamble)
 end
 
-# FIXME really not used?
+# TODO really not used?
 # function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerElement})
 #     @initparse
 #     parsefields!(io, fields, T)
