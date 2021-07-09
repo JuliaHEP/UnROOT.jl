@@ -282,9 +282,13 @@ end
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
 end
 
-@testset "" begin
+@testset "jagged subbranch type by leaf" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_offline.root"))
     times = UnROOT.array(rootfile, "E/Evt/trks/trks.t")
     @test times[1][1] ≈ 7.0311446e7
     @test times[10][11] ≈ 5.4956456e7
+
+    ids_jagged = UnROOT.array(rootfile, "E/Evt/trks/trks.id")
+    @test all(ids_jagged[1] .== collect(1:56))
+    @test all(ids_jagged[9] .== collect(1:54))
 end

@@ -196,9 +196,15 @@ end
         # Try to interpret by leaf type
         else
             leaftype = _normalize_ftype(leaf.fType)
+            leaftype == Const.kBool && return Bool
+            leaftype == Const.kChar && return Int8
+            leaftype == Const.kUChar && return UInt8
             leaftype == Const.kShort && return Int16
+            leaftype == Const.kUShort && return UInt16
             leaftype == Const.kInt && return Int32
-            leaftype == Const.kLong && return Int64
+            (leaftype in [Const.kBits, Const.kUInt, Const.kCounter]) && return UInt32
+            (leaftype in [Const.kLong, Const.kLong64]) && return Int64
+            (leaftype in [Const.kULong, Const.kULong64]) && return UInt64
             leaftype == Const.kDouble32 && return Float32
             leaftype == Const.kDouble && return Float64
             error("Cannot interpret type.")
