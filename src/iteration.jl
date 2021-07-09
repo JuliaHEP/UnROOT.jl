@@ -144,6 +144,18 @@ function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
     return (ba[idx], idx+1)
 end
 
+const _LazyTreeType = TypedTables.Table{<:NamedTuple, 1, NamedTuple{S, N}} where {S, N <: Tuple{Vararg{LazyBranch}}}
+struct LazyEvent{T<:_LazyTreeType}
+    tree::T
+    idx::Int64
+end
+Base.getproperty(evt::LazyEvent{T}, s::Symbol) where T = getindex(getproperty(getfield(evt, :tree), s), getfield(evt, :idx))
+
+function Base.iterate(tree::T, idx=1) where T<: _LazyTreeType
+    idx > length(tree) && return nothing
+    LazyEvent{T}(tree, idx), idx+1
+end
+
 # TODO this is not terribly slow, but we can get faster implementation still ;)
 function Base.getindex(ba::LazyBranch{T, J}, rang::UnitRange) where {T, J}
     [ba[i] for i in rang]

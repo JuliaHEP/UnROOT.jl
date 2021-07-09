@@ -197,6 +197,7 @@ end
     @test BA[1:end] == arr
     @test table.int32_array[20:30] == BA[20:30]
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
+    @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
 end
 
