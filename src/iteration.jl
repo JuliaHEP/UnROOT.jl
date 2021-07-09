@@ -53,9 +53,25 @@ function basketarray(f::ROOTFile, branch, ithbasket)
     interped_data(rawdata, rawoffsets, branch, jagt, T)
 end
 
+function LazyTree(f::ROOTFile, s::AbstractString, branches)
+    tree = f[s]
+    tree isa TTree || error("$s is not a tree name.")
+    d = Dict{Symbol, LazyBranch}()
+    for (i,b) in enumerate(branches)
+        d[Symbol(b)] = f["$s/$b"]
+    end
+    if length(branches) > 30
+        @warn "Your tree is pretty wide $(length(branches)), this will take compiler a moment."
+    end
+    TypedTables.Table(d)
+end
+
+function LazyTree(f::ROOTFile, s::AbstractString)
+    LazyTree(f, s, keys(f[s]))
+end
+
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement
-#
 """
     LazyBranch(f::ROOTFile, branch)
 
@@ -100,21 +116,23 @@ Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
-function Base.show(io::IO, ba::LazyBranch)
-    summary(io, ba)
+
+Base.show(io::IO,m::MIME"text/plain", lb::LazyBranch) = Base.show(io, lb)
+function Base.show(io::IO, lb::LazyBranch)
+    summary(io, lb)
     println(":")
-    println("  File: $(ba.f.filename)")
-    println("  Branch: $(ba.b.fName)")
-    println("  Description: $(ba.b.fTitle)")
-    println("  NumEntry: $(ba.L)")
-    print("  Entry Type: $(eltype(ba))")
+    println("  File: $(lb.f.filename)")
+    println("  Branch: $(lb.b.fName)")
+    println("  Description: $(lb.b.fTitle)")
+    println("  NumEntry: $(lb.L)")
+    print("  Entry Type: $(eltype(lb))")
 end
 
 function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     # I hate 1-based indexing
     seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
     localidx = idx - ba.fEntry[seek_idx]
-    if seek_idx != ba.buffer_seek # update buffer
+    if seek_idx != ba.buffer_seek # update buffer if index in a new basket
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
         ba.buffer_seek = seek_idx
     end

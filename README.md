@@ -29,37 +29,55 @@ We support reading all scalar branch and jagged branch of "basic" types, provide
 indexing interface (thus iteration too) with basket-cache. As
 a metric, UnROOT can read all branches of CMS NanoAOD.
 
-The most easy way to access data is through `LazyBranch` which will be constructed
-when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
-you can index it, iterate through it, `map` over it etc:
 
-``` julia
-using UnROOT
+## Quick Start
+The most easy way to access data is through `LazyTree`, which returns a `TypedTables` for now:
+```julia
+julia> using UnROOT
 
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
 
-julia> LB = t["Events/Electron_dxy"]
-LazyBranch{Vector{Float32}, UnROOT.Nooffsetjagg}:
-  File: ./test/samples/NanoAODv5_sample.root
-  Branch: Electron_dxy
-  Description: dxy (with sign) wrt first PV, in cm
-  NumEntry: 1000
-  Entry Type: Vector{Float32}
+julia> mytree = LazyTree(rf, "Events", ["nMuon", "Electron_dxy"])
+Table with 2 columns and 1000 rows:
+      nMuon  Electron_dxy
+    ┌──────────────────────────────────────────────────────────────
+ 1  │ 0      Float32[0.000370502]
+ 2  │ 2      Float32[-0.00981903]
+ 3  │ 0      Float32[]
+```
 
-# while this pattern, `t["tree"]["branch"]`, will give you the branch object itself
+You can iterate through a `LazyTree`:
+```julia
+julia> for event in mytree
+           @show event.Electron_dxy
+           break
+       end
+event.Electron_dxy = Float32[0.00037050247]
+```
+
+Only one basket per branch will be cached so you don't have to worry about running out or RAM.
+At the same time, `event` inside the for-loop is not materialized, such that if one has a
+stringent cut in the main looper, disk I/O can be reduced significantly.
+
+If you only care about a few branches, you can directly use `LazyBranch` (they make up columes of `Table`) which can be constructed
+when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
+you can index it, iterate through it, `map` over it efficiently. Or even dump the entire branch, by `collect()` them!
+``` julia
+julia> LB = t["Events/Electron_dxy"]
+
+# this pattern, `t["tree"]["branch"]`, will give you the branch object itself
 julia> rf["Events"]["Electron_dxy"]
 UnROOT.TBranch_13
   cursor: UnROOT.Cursor
   fName: String "Electron_dxy"
   ...
   
-julia> for i = 5:8
+julia> for i = 5:7
            @show LB[i]
        end
 LB[i] = Float32[]
 LB[i] = Float32[-0.0012559891]
 LB[i] = Float32[0.06121826, 0.00064229965]
-LB[i] = Float32[0.005870819, 0.00054883957, -0.00617218]
 
 # or a range
 julia> LB[5:8]
@@ -69,14 +87,6 @@ julia> LB[5:8]
  [0.06121826, 0.00064229965]
  [0.005870819, 0.00054883957, -0.00617218]
 
-# a jagged branch
-julia> collect(LB)
-1000-element Vector{Vector{Float32}}:
- [0.00037050247]
- [-0.009819031]
- []
- ...
- 
 # reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
 julia> using ThreadsX
 
@@ -88,6 +98,7 @@ julia> all(
        )
 true
 ```
+
 
 If you have custom C++ struct inside you branch, reading raw data is also possible
 using the `UnROOT.array(f::ROOTFile, path; raw=true)` method. The output can
@@ -114,8 +125,41 @@ julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
  [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
 ```
 
+## Main challenges
 
-#3 Behind the scene
+- ROOT data is generally stored as big endian and is a
+  self-descriptive format, i.e. so-called streamers are stored in the files
+  which describe the actual structure of the data in the corresponding branches.
+  These streamers are read during runtime and need to be used to generate
+  Julia structs and `unpack` methods on the fly.
+- Performance is very important for a low level I/O library.
+
+
+## Low hanging fruits
+
+Pick one ;)
+
+- [x] Parsing the file header
+- [x] Read the `TKey`s of the top level dictionary
+- [x] Reading the available trees
+- [x] Reading the available streamers
+- [x] Reading a simple dataset with primitive streamers
+- [x] Reading of raw basket bytes for debugging
+- [ ] Automatically generate streamer logic
+- [ ] Prettier `show` for `Lazy*`s
+- [ ] Clean up `Cursor` use
+- [x] Reading `TNtuple` #27
+
+## Acknowledgements
+
+Special thanks to Jim Pivarski ([@jpivarski](https://github.com/jpivarski))
+from the [Scikit-HEP](https://github.com/scikit-hep) project, who is the
+main author of [uproot](https://github.com/scikit-hep/uproot), a native
+Python library to read and write ROOT files, which was and is a great source
+of inspiration and information for reverse engineering the ROOT binary
+structures.
+
+## Behind the scene
 <details><summary>Some additional debug output: </summary>
 <p>
 
@@ -198,36 +242,3 @@ Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
 ```
 </p>
 </details>
-
-## Main challenges
-
-- ROOT data is generally stored as big endian and is a
-  self-descriptive format, i.e. so-called streamers are stored in the files
-  which describe the actual structure of the data in the corresponding branches.
-  These streamers are read during runtime and need to be used to generate
-  Julia structs and `unpack` methods on the fly.
-- Performance is very important for a low level I/O library.
-
-
-## Low hanging fruits
-
-Pick one ;)
-
-- [x] Parsing the file header
-- [x] Read the `TKey`s of the top level dictionary
-- [x] Reading the available trees
-- [x] Reading the available streamers
-- [x] Reading a simple dataset with primitive streamers
-- [x] Reading of raw basket bytes for debugging
-- [ ] Automatically generate streamer logic
-- [ ] Clean up `Cursor` use
-- [x] Reading `TNtuple` #27
-
-## Acknowledgements
-
-Special thanks to Jim Pivarski ([@jpivarski](https://github.com/jpivarski))
-from the [Scikit-HEP](https://github.com/scikit-hep) project, who is the
-main author of [uproot](https://github.com/scikit-hep/uproot), a native
-Python library to read and write ROOT files, which was and is a great source
-of inspiration and information for reverse engineering the ROOT binary
-structures.

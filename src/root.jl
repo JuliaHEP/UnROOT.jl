@@ -92,12 +92,14 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
         try # if we can't construct LazyBranch, just give up (maybe due to custom class)
             return LazyBranch(f, S)
         catch
+            @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
         end
     end
     S
 end
 
 @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
+# function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -167,6 +169,7 @@ function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where 
 
 end
 
+# function interp_jaggT(branch, leaf)
 @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
@@ -176,6 +179,8 @@ end
         elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
         try
             elname == "bool" && return Bool #Cbool doesn't exist
+            elname == "unsigned int" && return UInt32 #Cunsigned doesn't exist
+            elname == "unsigned char" && return Char #Cunsigned doesn't exist
             getfield(Base, Symbol(:C, elname))
         catch
             error("Cannot convert element of $elname to a native Julia type")
