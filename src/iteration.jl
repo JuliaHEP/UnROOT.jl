@@ -53,11 +53,6 @@ function basketarray(f::ROOTFile, branch, ithbasket)
     interped_data(rawdata, rawoffsets, branch, jagt, T)
 end
 
-
-struct LazyTree <: Tables.AbstractColumns
-    table::Tables.DictColumnTable
-end
-
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
     tree isa TTree || error("$s is not a tree name.")
@@ -65,56 +60,15 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     for (i,b) in enumerate(branches)
         d[Symbol(b)] = f["$s/$b"]
     end
-    # don't crush our poor compiler
-    LazyTree(Tables.dictcolumntable(d))
+    if length(branches) > 30
+        @warn "Your tree is pretty wide $(length(branches)), this will take compiler a moment."
+    end
+    TypedTables.Table(d)
 end
 
 function LazyTree(f::ROOTFile, s::AbstractString)
     LazyTree(f, s, keys(f[s]))
 end
-
-function Base.iterate(tree::LazyTree, idx=1)
-    idx > size(tree, 1) && return nothing
-    LazyEvent(tree, idx), idx+1
-end
-
-Base.length(tree::LazyTree) = length(getfield(tree, :table)[1])
-Base.eachindex(tree::LazyTree) = Base.OneTo(length(tree))
-Base.size(tree::LazyTree) = (length(tree), length(getfield(tree, :table)))
-Base.size(tree::LazyTree, i::Int) = size(tree)[i]
-Base.getindex(tree::LazyTree, i::Int) = LazyEvent(tree, i)
-# FIXME do we even need this?
-Base.getindex(tree::LazyTree, rang::AbstractRange) = (LazyEvent(tree, i) for i in rang)
-Tables.getcolumn(tree::LazyTree, i::Int) = Tables.getcolumn(getfield(tree, :table), i)
-Tables.getcolumn(tree::LazyTree, s::Symbol) = Tables.getcolumn(getfield(tree, :table), s)
-Tables.columnnames(tree::LazyTree) = Tables.columnnames(getfield(tree, :table))
-
-Base.show(io::IO,m::MIME"text/plain", tree::LazyTree) = Base.show(io, tree)
-function Base.show(io::IO, tree::LazyTree)
-    summary(io, tree)
-    println(":")
-    println("  NumColumns: $(size(tree, 2))")
-    print("  NumEntry: $(size(tree, 1))")
-end
-
-struct LazyEvent
-    tree::LazyTree
-    idx::Int64
-end
-
-Base.show(io::IO,m::MIME"text/plain", evt::LazyEvent) = Base.show(io, evt)
-function Base.show(io::IO, evt::LazyEvent)
-    summary(io, evt)
-    println(":")
-    println("    NumCols: $(length(evt))")
-    print("    CurrentIdx: $(getfield(evt, :idx))")
-end
-Base.propertynames(evt::LazyEvent) = Tables.columnnames(getfield(evt, :tree))
-
-# length of event is width of the underlying tree
-Base.length(evt::LazyEvent) = size(getfield(evt, :tree), 2)
-# we want to be able to evt.colname, so we overload getproperty, and use `getfield` intrinsic
-Base.getproperty(evt::LazyEvent, s::Symbol) = getproperty(getfield(evt, :tree), s)[getfield(evt, :idx)]
 
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement

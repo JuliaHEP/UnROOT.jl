@@ -31,16 +31,19 @@ a metric, UnROOT can read all branches of CMS NanoAOD.
 
 
 ## Quick Start
-The most easy way to access data is through `LazyTree`:
+The most easy way to access data is through `LazyTree`, which returns a `TypedTables` for now:
 ```julia
 julia> using UnROOT
 
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
 
-julia> mytree = LazyTree(t, "Events")
-UnROOT.LazyTree:
-  NumColumns: 1479  
-  NumEntry: 1000
+julia> mytree = LazyTree(rf, "Events", ["nMuon", "Electron_dxy"])
+Table with 2 columns and 1000 rows:
+      nMuon  Electron_dxy
+    ┌──────────────────────────────────────────────────────────────
+ 1  │ 0      Float32[0.000370502]
+ 2  │ 2      Float32[-0.00981903]
+ 3  │ 0      Float32[]
 ```
 
 You can iterate through a `LazyTree`:
