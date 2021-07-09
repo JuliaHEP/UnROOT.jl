@@ -63,7 +63,6 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree isa TTree || error("$s is not a tree name.")
     d = Dict{Symbol, LazyBranch}()
     for (i,b) in enumerate(branches)
-        @show b
         d[Symbol(b)] = f["$s/$b"]
     end
     # don't crush our poor compiler
