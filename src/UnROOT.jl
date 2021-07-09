@@ -8,7 +8,8 @@ ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
 using Mixers, Parameters, Memoization, LRUCache 
-import TypedTables: Table
+using Lazy: @forward
+import Tables, TypedTables
 
 @static if VERSION < v"1.1"
     fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]
@@ -25,8 +26,7 @@ include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
 include("root.jl")
-include("arrayapi.jl")
-# include("itr.jl")
+include("iteration.jl")
 include("custom.jl")
 include("precompile.jl")
 

@@ -184,12 +184,11 @@ end
     # @test 1619244 == header.fSeekKeys
 end
 
-@testset "LazyBranch and Table" begin
+@testset "LazyBranch and LazyTree" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1"]["int32_array"]
     arr = UnROOT.array(rootfile, branch)
     table = Table(rootfile, "t1")
-    @test table == Table(rootfile, "t1", ["int32_array", "float_array"])
     BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
     @test BA[1] == arr[1]
