@@ -8,7 +8,7 @@ ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
 using Mixers, Parameters, Memoization, LRUCache 
-import Tables, TypedTables
+import Tables, TypedTables, PrettyTables
 
 @static if VERSION < v"1.1"
     fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]

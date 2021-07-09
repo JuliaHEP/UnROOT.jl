@@ -145,6 +145,7 @@ function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
 end
 
 const _LazyTreeType = TypedTables.Table{<:NamedTuple, 1, NamedTuple{S, N}} where {S, N <: Tuple{Vararg{LazyBranch}}}
+
 struct LazyEvent{T<:_LazyTreeType}
     tree::T
     idx::Int64
@@ -160,3 +161,35 @@ end
 function Base.getindex(ba::LazyBranch{T, J}, rang::UnitRange) where {T, J}
     [ba[i] for i in rang]
 end
+
+function Base.show(io::IO, m::MIME"text/plain", tree::T) where T <: _LazyTreeType
+    PrettyTables.pretty_table(io, tree; 
+                 header=_make_header(tree),
+                 alignment = :l,
+                 compact_printing=true,
+                 crop = :both,
+                 display_size = (min(Base.displaysize()[1], 40), -1),
+                 vlines = :none,
+                 formatters = _treeformat
+                )
+end
+_symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
+function _make_header(t)
+    pn = propertynames(t)
+    header = _symtup2str(pn)
+    subheader = _symtup2str(Tables.columntype.(Ref(t), pn))
+    (header, subheader)
+end
+function _treeformat(val, i, j)
+    s = if isempty(val)
+        "[]"
+    elseif val isa Vector{T} where T<:Integer
+        string(Int.(val))
+    elseif val isa Vector{T} where T<:AbstractFloat
+        string(round.(Float64.(val); sigdigits=3))
+    else
+        string(val)
+    end
+    s
+end
+
