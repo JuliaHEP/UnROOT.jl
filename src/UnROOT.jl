@@ -8,7 +8,6 @@ ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
 using Mixers, Parameters, Memoization, LRUCache 
-using Lazy: @forward
 import Tables, TypedTables
 
 @static if VERSION < v"1.1"
