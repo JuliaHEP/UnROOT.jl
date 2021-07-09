@@ -54,20 +54,24 @@ function basketarray(f::ROOTFile, branch, ithbasket)
 end
 
 
-function Table(f::ROOTFile, s::AbstractString, branches)
-    tree = f[s]
-    tree isa TTree || error("$s is not a tree name.")
-    vals = [f["$s/$b"] for b in branches]
-    # don't crush our poor compiler
-    Dict(Symbol(branches[i]) => vals[i] for i in eachindex(vals)) |> Tables.dictcolumntable |> LazyTree
-end
-
-function Table(f::ROOTFile, s::AbstractString)
-    Table(f, s, keys(f[s]))
-end
-
 struct LazyTree <: Tables.AbstractColumns
     table::Tables.DictColumnTable
+end
+
+function LazyTree(f::ROOTFile, s::AbstractString, branches)
+    tree = f[s]
+    tree isa TTree || error("$s is not a tree name.")
+    d = Dict{Symbol, LazyBranch}()
+    for (i,b) in enumerate(branches)
+        @show b
+        d[Symbol(b)] = f["$s/$b"]
+    end
+    # don't crush our poor compiler
+    LazyTree(Tables.dictcolumntable(d))
+end
+
+function LazyTree(f::ROOTFile, s::AbstractString)
+    LazyTree(f, s, keys(f[s]))
 end
 
 function Base.iterate(tree::LazyTree, idx=1)

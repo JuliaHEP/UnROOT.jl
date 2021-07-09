@@ -37,7 +37,7 @@ julia> using UnROOT
 
 julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
 
-julia> table = Table(t, "Events")
+julia> mytree = LazyTree(t, "Events")
 UnROOT.LazyTree:
   NumColumns: 1479  
   NumEntry: 1000
@@ -45,7 +45,7 @@ UnROOT.LazyTree:
 
 You can iterate through a `LazyTree`:
 ```julia
-julia> for event in table
+julia> for event in mytree
            @show event.Electron_dxy
            break
        end

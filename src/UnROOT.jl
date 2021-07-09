@@ -1,6 +1,6 @@
 module UnROOT
 
-export ROOTFile, LazyBranch, Table
+export ROOTFile, LazyBranch, LazyTree
 
 import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
 using Base.Threads: SpinLock
@@ -27,7 +27,6 @@ include("bootstrap.jl")
 include("root.jl")
 include("iteration.jl")
 include("custom.jl")
-include("precompile.jl")
 
 
 end # module

@@ -188,7 +188,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1"]["int32_array"]
     arr = UnROOT.array(rootfile, branch)
-    table = Table(rootfile, "t1")
+    table = LazyTree(rootfile, "t1")
     BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
     @test BA[1] == arr[1]

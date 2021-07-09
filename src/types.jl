@@ -109,24 +109,24 @@ function decompress_datastreambytes(compbytes, tkey)
     iscompressed(tkey) || return compbytes
 
     # compressed
-    io = compbytes
+    io = IOBuffer(compbytes)
     fufilled = 0
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
     while fufilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
-        compression_header = unpack(IOBuffer(io[1:9]), CompressionHeader)
+        compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
-        io = io[10:end]
+        rawbytes = read(io, compbytes)
 
         # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
         @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
-            transcode(ZlibDecompressor, io)
+            transcode(ZlibDecompressor, rawbytes)
         elseif cname == "XZ"
-            transcode(XzDecompressor, io)
+            transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"
-            transcode(ZstdDecompressor, io)
+            transcode(ZstdDecompressor, rawbytes)
         elseif cname == "L4"
             # skip checksum which is 8 bytes
-            lz4_decompress(io[9:end], uncompbytes)
+            lz4_decompress(rawbytes[9:end], uncompbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
