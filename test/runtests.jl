@@ -281,3 +281,10 @@ end
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
 end
+
+@testset "" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_offline.root"))
+    times = UnROOT.array(rootfile, "E/Evt/trks/trks.t")
+    @test times[1][1] ≈ 7.0311446e7
+    @test times[10][11] ≈ 5.4956456e7
+end
