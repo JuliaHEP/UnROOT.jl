@@ -169,21 +169,45 @@ function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where 
 
 end
 
-# function interp_jaggT(branch, leaf)
+function _normalize_ftype(fType)
+    # Taken from uproot4; thanks Jim ;)
+    if Const.kOffsetL < fType < Const.kOffsetP
+        fType - kOffsetP
+    else
+        fType
+    end
+end
+
 @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         m = match(r"vector<(.*)>", classname)
-        m===nothing && error("Cannot understand fClassName: $classname.")
-        elname = m[1]
-        elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
-        try
-            elname == "bool" && return Bool #Cbool doesn't exist
-            elname == "unsigned int" && return UInt32 #Cunsigned doesn't exist
-            elname == "unsigned char" && return Char #Cunsigned doesn't exist
-            getfield(Base, Symbol(:C, elname))
-        catch
-            error("Cannot convert element of $elname to a native Julia type")
+        if m!==nothing
+            elname = m[1]
+            elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
+            try
+                elname == "bool" && return Bool #Cbool doesn't exist
+                elname == "unsigned int" && return UInt32 #Cunsigned doesn't exist
+                elname == "unsigned char" && return Char #Cunsigned doesn't exist
+                getfield(Base, Symbol(:C, elname))
+            catch
+                error("Cannot convert element of $elname to a native Julia type")
+            end
+        # Try to interpret by leaf type
+        else
+            leaftype = _normalize_ftype(leaf.fType)
+            leaftype == Const.kBool && return Bool
+            leaftype == Const.kChar && return Int8
+            leaftype == Const.kUChar && return UInt8
+            leaftype == Const.kShort && return Int16
+            leaftype == Const.kUShort && return UInt16
+            leaftype == Const.kInt && return Int32
+            (leaftype in [Const.kBits, Const.kUInt, Const.kCounter]) && return UInt32
+            (leaftype in [Const.kLong, Const.kLong64]) && return Int64
+            (leaftype in [Const.kULong, Const.kULong64]) && return UInt64
+            leaftype == Const.kDouble32 && return Float32
+            leaftype == Const.kDouble && return Float64
+            error("Cannot interpret type.")
         end
     else
         primitivetype(leaf)
