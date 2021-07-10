@@ -35,15 +35,33 @@ The most easy way to access data is through `LazyTree`, which returns a `TypedTa
 ```julia
 julia> using UnROOT
 
-julia> t = ROOTFile("test/samples/NanoAODv5_sample.root");
+julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
+ROOTFile with 2 entries and 21 streamers.
+test/samples/NanoAODv5_sample.root
+└─ Events
+   ├─ "run"
+   ├─ "luminosityBlock"
+   ├─ "event"
+   ├─ "HTXS_Higgs_pt"
+   ├─ "HTXS_Higgs_y"
+   └─ "⋮"
 
-julia> mytree = LazyTree(rf, "Events", ["nMuon", "Electron_dxy"])
-Table with 2 columns and 1000 rows:
-      nMuon  Electron_dxy
-    ┌──────────────────────────────────────────────────────────────
- 1  │ 0      Float32[0.000370502]
- 2  │ 2      Float32[-0.00981903]
- 3  │ 0      Float32[]
+julia> mytree = LazyTree(t, "Events", ["nMuon", "Electron_dxy"])
+───────────────────────────────────────
+ nMuon   Electron_dxy                  
+ UInt32  Vector{Float32}               
+───────────────────────────────────────
+ 0       [0.000371]
+ 2       [-0.00982]
+ 0       []
+ 0       [-0.00157]
+ 0       []
+ 0       [-0.00126]
+ 2       [0.0612, 0.000642]
+ 0       [0.00587, 0.000549, -0.00617]
+   ⋮                   ⋮
+───────────────────────────────────────
+                       992 rows omitted
 ```
 
 You can iterate through a `LazyTree`:
