@@ -145,6 +145,7 @@ function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
 end
 
 const _LazyTreeType = TypedTables.Table{<:NamedTuple, 1, NamedTuple{S, N}} where {S, N <: Tuple{Vararg{LazyBranch}}}
+
 struct LazyEvent{T<:_LazyTreeType}
     tree::T
     idx::Int64
