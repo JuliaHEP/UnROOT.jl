@@ -12,7 +12,7 @@ struct ROOTFile
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
-    lk::SpinLock
+    lk::ReentrantLock
 end
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
@@ -59,17 +59,18 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, SpinLock())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, ReentrantLock())
 end
 
-function Base.show(io::IO, f::ROOTFile)
+function Base.show(io::IO, m::MIME"text/plain", f::ROOTFile)
     n_entries = length(f.directory.keys)
     entries_suffix = n_entries == 1 ? "entry" : "entries"
     n_streamers = length(f.streamers)
     streamers_suffix = n_streamers == 1 ? "streamer" : "streamers"
     print(io, typeof(f))
-    print(io, "(\"$(f.filename)\") with $n_entries $entries_suffix ")
-    print(io, "and $n_streamers $streamers_suffix.")
+    print(io, " with $n_entries $entries_suffix ")
+    println(io, "and $n_streamers $streamers_suffix.")
+    print_tree(f)
 end
 
 

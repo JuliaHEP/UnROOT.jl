@@ -4,6 +4,7 @@ authors = ["Tamas Gal", "Jerry Ling"]
 version = "0.2.2"
 
 [deps]
+AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
 CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
@@ -18,6 +19,7 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [compat]
+AbstractTrees = "^0.3.0"
 CodecLz4 = "^0.3.0, ^0.4.0"
 CodecXz = "^0.6.0, ^0.7.0"
 CodecZlib = "^0.6.0, ^0.7.0"
