@@ -4,6 +4,7 @@ function children(f::ROOTFile)
         try
             push!(ch, f[k])
         catch
+            unlock(f) #TODO remove these hacks
         end
     end
     ch
