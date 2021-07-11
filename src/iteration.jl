@@ -144,6 +144,7 @@ Base.getindex(lt::LazyTree, ::typeof(!), i::Int) = lt[:, propertynames(lt)[i]]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 
 # a specific event
+Base.getindex(lt::LazyTree, row::Int, col::Int) = lt[:, col][row]
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
 Base.getindex(lt::LazyTree, ::Colon) = lt[begin:end]
 Base.firstindex(lt::LazyTree) = 1
@@ -183,7 +184,8 @@ struct LazyEvent{T<:LazyTree}
 end
 Base.show(io::IO, m::MIME"text/plain", evt::LazyEvent) = show(io, evt)
 Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
-Base.getproperty(evt::LazyEvent{T}, s::Symbol) where T = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
+Base.getproperty(evt::LazyEvent, s::Symbol) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
+Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
 function Base.iterate(tree::T, idx=1) where T <: LazyTree
     idx > length(tree) && return nothing
