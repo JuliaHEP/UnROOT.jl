@@ -16,16 +16,24 @@ end
 printnode(io::IO, t::TTree) = print(io, t.fName)
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
 
-function Base.show(io::IO, m::MIME"text/plain", tree::T) where T <: _LazyTreeType
-    PrettyTables.pretty_table(io, tree; 
-                 header=_make_header(tree),
-                 alignment = :l,
-                 compact_printing=true,
-                 crop = :both,
-                 display_size = (min(Base.displaysize()[1], 40), -1),
-                 vlines = :none,
-                 formatters = _treeformat
-                )
+function Base.show(io::IO, m::MIME"text/plain", tree::LazyTree)
+    _hs = _make_header(tree)
+    _ds = displaysize(io)
+    PrettyTables.pretty_table(
+        io,
+        tree;
+        header=_hs,
+        alignment=:l,
+        vlines=[1],
+        hlines=[:header],
+        crop_num_lines_at_beginning=2,
+        row_number_alignment=:l,
+        row_number_column_title="Row",
+        show_row_number=true,
+        compact_printing=false,
+        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(5, length(_hs[1]))),
+        display_size=(min(_ds[1], 40), min(_ds[2], 160)),
+    )
 end
 _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
@@ -34,7 +42,7 @@ function _make_header(t)
     subheader = _symtup2str(Tables.columntype.(Ref(t), pn))
     (header, subheader)
 end
-function _treeformat(val, i, j)
+function _treeformat(val, trunc)
     s = if isempty(val)
         "[]"
     elseif val isa Vector{T} where T<:Integer
@@ -44,6 +52,5 @@ function _treeformat(val, i, j)
     else
         string(val)
     end
-    s
+    first(s, trunc)
 end
-

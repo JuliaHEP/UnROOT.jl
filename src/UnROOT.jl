@@ -2,13 +2,15 @@ module UnROOT
 
 export ROOTFile, LazyBranch, LazyTree
 
-import Base: keys, get, getindex, show, length, iterate, position, ntoh, lock, unlock
+import Base: keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock
 import AbstractTrees: children, printnode, print_tree
 using Base.Threads: SpinLock
+import DataFrames
 ntoh(b::Bool) = b
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
 using Mixers, Parameters, Memoization, LRUCache
+# using Lazy: @forward
 import Tables, TypedTables, PrettyTables
 
 @static if VERSION < v"1.1"
