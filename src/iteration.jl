@@ -53,23 +53,6 @@ basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[pat
     interped_data(rawdata, rawoffsets, branch, jagt, T)
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString, branches)
-    tree = f[s]
-    tree isa TTree || error("$s is not a tree name.")
-    d = Dict{Symbol, LazyBranch}()
-    for (i,b) in enumerate(branches)
-        d[Symbol(b)] = f["$s/$b"]
-    end
-    if length(branches) > 30
-        @warn "Your tree is pretty wide $(length(branches)), this will take compiler a moment."
-    end
-    TypedTables.Table(d)
-end
-
-function LazyTree(f::ROOTFile, s::AbstractString)
-    LazyTree(f, s, keys(f[s]))
-end
-
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement
 """
@@ -146,13 +129,66 @@ end
 
 const _LazyTreeType = TypedTables.Table{<:NamedTuple, 1, NamedTuple{S, N}} where {S, N <: Tuple{Vararg{LazyBranch}}}
 
-struct LazyEvent{T<:_LazyTreeType}
+struct LazyTree{T} <: DataFrames.AbstractDataFrame
+    treetable::T
+    colidx::DataFrames.Index
+end
+@inline innertable(t::LazyTree) = Core.getfield(t, :treetable)
+
+# a specific branch
+Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
+Base.getindex(lt::LazyTree, rang::UnitRange) = LazyTree(innertable(lt)[rang], Core.getfield(lt, :colidx))
+Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
+Base.getindex(lt::LazyTree, ::Colon, i::Int) = lt[:, propertynames(lt)[i]]
+Base.getindex(lt::LazyTree, ::typeof(!), i::Int) = lt[:, propertynames(lt)[i]]
+Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
+
+# a specific event
+Base.getindex(lt::LazyTree, row::Int, col::Int) = lt[:, col][row]
+Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
+Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
+Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
+Base.firstindex(lt::LazyTree) = 1
+Base.lastindex(lt::LazyTree) = length(lt)
+
+# interfacing AbstractDataFrame
+DataFrames._check_consistency(lt::LazyTree) = nothing #we're read-only
+Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
+DataFrames.index(lt::LazyTree) = Core.getfield(lt, :colidx)
+DataFrames.ncol(lt::LazyTree) = length(DataFrames.index(lt))
+Base.length(lt::LazyTree) = length(innertable(lt))
+DataFrames.nrow(lt::LazyTree) = length(lt)
+
+function LazyTree(f::ROOTFile, s::AbstractString, branches)
+    tree = f[s]
+    tree isa TTree || error("$s is not a tree name.")
+    d = Dict{Symbol, LazyBranch}()
+    d_colidx = Dict{Symbol, Int}()
+    SB = Symbol.(branches)
+    for (i,b) in enumerate(SB)
+        d[b] = f["$s/$b"]
+        d_colidx[b] = i
+    end
+    if length(branches) > 30
+        @warn "Your tree is pretty wide $(length(branches)), this will take compiler a moment."
+    end
+    LazyTree( TypedTables.Table(d), DataFrames.Index(d_colidx, SB) )
+end
+
+function LazyTree(f::ROOTFile, s::AbstractString)
+    LazyTree(f, s, keys(f[s]))
+end
+
+struct LazyEvent{T<:LazyTree}
     tree::T
     idx::Int64
 end
-Base.getproperty(evt::LazyEvent{T}, s::Symbol) where T = getindex(getproperty(getfield(evt, :tree), s), getfield(evt, :idx))
+Base.show(io::IO, m::MIME"text/plain", evt::LazyEvent) = show(io, evt)
+Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
+Base.getproperty(evt::LazyEvent, s::Symbol) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
+Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
-function Base.iterate(tree::T, idx=1) where T<: _LazyTreeType
+function Base.iterate(tree::T, idx=1) where T <: LazyTree
     idx > length(tree) && return nothing
     LazyEvent{T}(tree, idx), idx+1
 end
