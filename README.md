@@ -164,7 +164,7 @@ Pick one ;)
 - [x] Reading a simple dataset with primitive streamers
 - [x] Reading of raw basket bytes for debugging
 - [ ] Automatically generate streamer logic
-- [ ] Prettier `show` for `Lazy*`s
+- [x] Prettier `show` for `Lazy*`s
 - [ ] Clean up `Cursor` use
 - [x] Reading `TNtuple` #27
 
