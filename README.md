@@ -26,12 +26,13 @@ documentation on uproot's issue page.
 
 ## Status
 We support reading all scalar branch and jagged branch of "basic" types, provide
-indexing interface (thus iteration too) with basket-cache. As
-a metric, UnROOT can read all branches of CMS NanoAOD.
-
+indexing and iteration interface with per branch basket-cache. As
+a metric, UnROOT can read all branches (~1800) of CMS NanoAOD.
 
 ## Quick Start
-The most easy way to access data is through `LazyTree`, which returns a `TypedTables` for now:
+The most easy way to access data is through `LazyTree`, which is `<: AbstractDataFrame` and
+a thin-wrap around `TypedTable` under the hood. It supports most accessing pattern from
+the loved `DataFrames` eco-system.
 ```julia
 julia> using UnROOT
 
@@ -47,21 +48,21 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 
 julia> mytree = LazyTree(t, "Events", ["nMuon", "Electron_dxy"])
-───────────────────────────────────────
- nMuon   Electron_dxy                  
- UInt32  Vector{Float32}               
-───────────────────────────────────────
- 0       [0.000371]
- 2       [-0.00982]
- 0       []
- 0       [-0.00157]
- 0       []
- 0       [-0.00126]
- 2       [0.0612, 0.000642]
- 0       [0.00587, 0.000549, -0.00617]
-   ⋮                   ⋮
-───────────────────────────────────────
-                       992 rows omitted
+ Row │ nMuon   Electron_dxy                      
+     │ UInt32  Vector{Float32}                   
+─────┼───────────────────────────────────────────
+ 1   │ 0       [0.000371]
+ 2   │ 2       [-0.00982]
+ 3   │ 0       []
+ 4   │ 0       [-0.00157]
+ ⋮   │ ⋮           ⋮
+ 
+ 
+julia> mytree[1:3, :nMuon]
+3-element Vector{UInt32}:
+ 0x00000000
+ 0x00000002
+ 0x00000000
 ```
 
 You can iterate through a `LazyTree`:
@@ -74,10 +75,10 @@ event.Electron_dxy = Float32[0.00037050247]
 ```
 
 Only one basket per branch will be cached so you don't have to worry about running out or RAM.
-At the same time, `event` inside the for-loop is not materialized, such that if one has a
-stringent cut in the main looper, disk I/O can be reduced significantly.
+At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
+is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
 
-If you only care about a few branches, you can directly use `LazyBranch` (they make up columes of `Table`) which can be constructed
+If you only care about a few branches, you can directly use `LazyBranch` which can be constructed
 when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
 you can index it, iterate through it, `map` over it efficiently. Or even dump the entire branch, by `collect()` them!
 ``` julia
@@ -86,25 +87,8 @@ julia> LB = t["Events/Electron_dxy"]
 # this pattern, `t["tree"]["branch"]`, will give you the branch object itself
 julia> rf["Events"]["Electron_dxy"]
 UnROOT.TBranch_13
-  cursor: UnROOT.Cursor
-  fName: String "Electron_dxy"
   ...
   
-julia> for i = 5:7
-           @show LB[i]
-       end
-LB[i] = Float32[]
-LB[i] = Float32[-0.0012559891]
-LB[i] = Float32[0.06121826, 0.00064229965]
-
-# or a range
-julia> LB[5:8]
-4-element Vector{Vector{Float32}}:
- []
- [-0.0012559891]
- [0.06121826, 0.00064229965]
- [0.005870819, 0.00054883957, -0.00617218]
-
 # reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
 julia> using ThreadsX
 

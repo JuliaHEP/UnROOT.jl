@@ -146,7 +146,8 @@ Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s)
 # a specific event
 Base.getindex(lt::LazyTree, row::Int, col::Int) = lt[:, col][row]
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
-Base.getindex(lt::LazyTree, ::Colon) = lt[begin:end]
+Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
+Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
 Base.lastindex(lt::LazyTree) = length(lt)
 
