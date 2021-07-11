@@ -135,6 +135,7 @@ struct LazyTree{T} <: DataFrames.AbstractDataFrame
 end
 @inline innertable(t::LazyTree) = Core.getfield(t, :treetable)
 
+# a specific branch
 Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
 Base.getindex(lt::LazyTree, rang::UnitRange) = LazyTree(innertable(lt)[rang], Core.getfield(lt, :colidx))
 Base.getindex(lt::LazyTree, row::Int, col::Int) = lt[:, col][row]
@@ -143,6 +144,12 @@ Base.getindex(lt::LazyTree, ::Colon, i::Int) = lt[:, propertynames(lt)[i]]
 Base.getindex(lt::LazyTree, ::typeof(!), i::Int) = lt[:, propertynames(lt)[i]]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 
+# a specific event
+Base.getindex(lt::LazyTree, ::Colon) = lt[begin:end]
+Base.firstindex(lt::LazyTree) = 1
+Base.lastindex(lt::LazyTree) = length(lt)
+
+# interfacing AbstractDataFrame
 DataFrames._check_consistency(lt::LazyTree) = nothing #we're read-only
 Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
 DataFrames.index(lt::LazyTree) = Core.getfield(lt, :colidx)
