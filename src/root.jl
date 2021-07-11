@@ -133,7 +133,6 @@ function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchEl
     end
     @debug "Searching for branch '$s' in $(length(t.fBranches.elements)) branches."
     for branch in t.fBranches.elements
-        @debug branch.fName
         if branch.fName == s
             return branch
         end
@@ -253,6 +252,13 @@ readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketS
     unlock(f)
 
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
+
+    @debug begin
+        ibasket = findfirst(==(seek_pos), branch.fBasketSeek)
+        mbcompressed = length(compressedbytes)/1024^2
+        mbuncompressed = length(basketrawbytes)/1024^2
+        "Read branch $(branch.fName), basket $(ibasket), $(mbcompressed) MB compressed, $(mbuncompressed) MB uncompressed"
+    end
 
     Keylen = basketkey.fKeylen
     contentsize = Int32(basketkey.fLast - Keylen)
