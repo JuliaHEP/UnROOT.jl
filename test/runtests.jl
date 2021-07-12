@@ -239,17 +239,6 @@ end
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
-
-
-    if VERSION > v"1.3.0"
-        branch_names = keys(rootfile["Events"])
-        # thread-safety test
-        @test all(
-           map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
-           ThreadsX.map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names)
-           )
-    end
-
 end
 
 @testset "Displaying" begin

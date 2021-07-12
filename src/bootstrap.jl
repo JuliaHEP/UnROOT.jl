@@ -374,7 +374,8 @@ Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
 function Base.eltype(b::Union{TBranch, TBranchElement})
     leaf = first(b.fLeaves.elements)
-    JaggType(leaf)===Nojagg ? primitivetype(leaf) : Vector{interp_jaggT(b, leaf)}
+    _T, _J = interp_jaggT(b, leaf)
+    _J === Nojagg ? _T : Vector{_T}
 end
 
 @with_kw struct TBranch_12 <: TBranch

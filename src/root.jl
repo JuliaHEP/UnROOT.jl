@@ -70,7 +70,7 @@ function Base.show(io::IO, f::ROOTFile)
     print(io, typeof(f))
     print(io, " with $n_entries $entries_suffix ")
     println(io, "and $n_streamers $streamers_suffix.")
-    print_tree(f)
+    print_tree(io, f)
 end
 
 
@@ -99,8 +99,8 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
     S
 end
 
-@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-# function _getindex(f::ROOTFile, s)
+# @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
+function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -182,40 +182,49 @@ function _normalize_ftype(fType)
     end
 end
 
-@memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
+function interp_jaggT(branch, leaf)
+# @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
+    _type = Nothing
+    _jaggtype = JaggType(leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
+        if classname == "TLorentzVector" 
+            _type = LorentzVector
+            _jaggtype = Nooffsetjagg
+        end
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
             elname = m[1]
             elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
             try
-                elname == "bool" && return Bool #Cbool doesn't exist
-                elname == "unsigned int" && return UInt32 #Cunsigned doesn't exist
-                elname == "unsigned char" && return Char #Cunsigned doesn't exist
-                getfield(Base, Symbol(:C, elname))
+                _type = elname == "bool" ?          Bool : _type #Cbool doesn't exist
+                _type = elname == "unsigned int" ?  UInt32 : _type #Cunsigned doesn't exist
+                _type = elname == "unsigned char" ? Char   : _type #Cunsigned doesn't exist
+                _type = getfield(Base, Symbol(:C, elname))
             catch
                 error("Cannot convert element of $elname to a native Julia type")
             end
         # Try to interpret by leaf type
         else
             leaftype = _normalize_ftype(leaf.fType)
-            leaftype == Const.kBool && return Bool
-            leaftype == Const.kChar && return Int8
-            leaftype == Const.kUChar && return UInt8
-            leaftype == Const.kShort && return Int16
-            leaftype == Const.kUShort && return UInt16
-            leaftype == Const.kInt && return Int32
-            (leaftype in [Const.kBits, Const.kUInt, Const.kCounter]) && return UInt32
-            (leaftype in [Const.kLong, Const.kLong64]) && return Int64
-            (leaftype in [Const.kULong, Const.kULong64]) && return UInt64
-            leaftype == Const.kDouble32 && return Float32
-            leaftype == Const.kDouble && return Float64
-            error("Cannot interpret type.")
+            _type = leaftype == Const.kBool   ? Bool   : _type
+            _type = leaftype == Const.kChar   ? Int8   : _type
+            _type = leaftype == Const.kUChar  ? UInt8  : _type
+            _type = leaftype == Const.kShort  ? Int16  : _type
+            _type = leaftype == Const.kUShort ? UInt16 : _type
+            _type = leaftype == Const.kInt    ? Int32  : _type
+            _type = (leaftype in [Const.kBits, Const.kUInt, Const.kCounter]) ? UInt32 : _type
+            _type = (leaftype in [Const.kLong, Const.kLong64]) ?  Int64   : _type
+            _type = (leaftype in [Const.kULong, Const.kULong64]) ? UInt64 : _type
+            _type = leaftype == Const.kDouble32 ? Float32 : _type
+            _type = leaftype == Const.kDouble ?   Float64 : _type
+            isnothing(_type) && error("Cannot interpret type.")
         end
     else
-        primitivetype(leaf)
+        _type = primitivetype(leaf)
     end
+
+    return _type, _jaggtype
 end
 
 
@@ -251,7 +260,8 @@ end
 # 3GB cache for baskets
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-@memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(length, x)) function readbasketseek(
+# @memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(length, x)) function readbasketseek(
+function readbasketseek(
     f::ROOTFile, branch, seek_pos
 )::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
     lock(f)
