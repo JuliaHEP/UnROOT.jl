@@ -147,7 +147,7 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
-function interped_data(rawdata, rawoffsets, branch, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
+function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
     # only needs when the jaggedness comes from TLeafElements, not needed when

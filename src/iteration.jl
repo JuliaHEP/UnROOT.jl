@@ -32,7 +32,7 @@ function array(f::ROOTFile, branch; raw=false)
     leaf = first(branch.fLeaves.elements)
     jagt = JaggType(leaf)
     T = eltype(branch) 
-    interped_data(rawdata, rawoffsets, branch, jagt, T)
+    interped_data(rawdata, rawoffsets, jagt, T)
 end
 
 """
@@ -50,7 +50,7 @@ basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[pat
     leaf = first(branch.fLeaves.elements)
     jagt = JaggType(leaf)
     T = eltype(branch)
-    interped_data(rawdata, rawoffsets, branch, jagt, T)
+    interped_data(rawdata, rawoffsets, jagt, T)
 end
 
 # function barrior to make getting individual index faster
