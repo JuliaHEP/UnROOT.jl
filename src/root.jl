@@ -62,7 +62,7 @@ function ROOTFile(filename::AbstractString)
     ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, ReentrantLock())
 end
 
-function Base.show(io::IO, m::MIME"text/plain", f::ROOTFile)
+function Base.show(io::IO, f::ROOTFile)
     n_entries = length(f.directory.keys)
     entries_suffix = n_entries == 1 ? "entry" : "entries"
     n_streamers = length(f.streamers)
@@ -113,6 +113,7 @@ end
     try
         S = streamer(f.fobj, tkey, f.streamers.refs)
         return S
+    catch
     finally
         unlock(f)
     end

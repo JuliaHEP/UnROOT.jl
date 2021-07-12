@@ -201,7 +201,7 @@ end
     @test [row.int32_array for row in table] == BA
 end
 
-@testset "TNtupel" begin
+@testset "TNtuple" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TNtuple.root"))
     arrs = [collect(rootfile["n1/$c"]) for c in "xyz"]
     @test length.(arrs) == fill(100, 3)
@@ -252,6 +252,14 @@ end
 
 end
 
+@testset "Displaying" begin
+    files = filter(endswith(".root"), readdir(SAMPLES_DIR))
+    _io = IOBuffer()
+    for f in files
+        r = ROOTFile(joinpath(SAMPLES_DIR, f))
+        show(_io, r)
+    end
+end
 # Custom bootstrap things
 
 @testset "custom boostrapping" begin

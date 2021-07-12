@@ -100,7 +100,6 @@ Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
 
-Base.show(io::IO,m::MIME"text/plain", lb::LazyBranch) = Base.show(io, lb)
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
     println(":")
@@ -183,7 +182,6 @@ struct LazyEvent{T<:LazyTree}
     tree::T
     idx::Int64
 end
-Base.show(io::IO, m::MIME"text/plain", evt::LazyEvent) = show(io, evt)
 Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
 Base.getproperty(evt::LazyEvent, s::Symbol) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
 Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]

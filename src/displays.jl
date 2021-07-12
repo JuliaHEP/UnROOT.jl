@@ -1,7 +1,13 @@
 function children(f::ROOTFile)
     ch = Vector{TTree}()
     for k in keys(f)
-        push!(ch, f[k])
+        lock(f.fobj)
+        try
+            push!(ch, f[k])
+        catch
+        finally
+            unlock(f.fobj)
+        end
     end
     ch
 end
@@ -12,7 +18,7 @@ end
 printnode(io::IO, t::TTree) = print(io, t.fName)
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
 
-function Base.show(io::IO, m::MIME"text/plain", tree::LazyTree)
+function Base.show(io::IO, tree::LazyTree)
     _hs = _make_header(tree)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
