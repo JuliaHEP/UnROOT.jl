@@ -112,10 +112,10 @@ end
     lock(f)
     try
         S = streamer(f.fobj, tkey, f.streamers.refs)
+        return S
     finally
         unlock(f)
     end
-    S
 end
 
 function Base.keys(f::ROOTFile)
