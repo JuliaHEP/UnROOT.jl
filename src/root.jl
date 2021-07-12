@@ -110,9 +110,12 @@ end
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
     lock(f)
-    S = streamer(f.fobj, tkey, f.streamers.refs)
-    unlock(f)
-    S
+    try
+        S = streamer(f.fobj, tkey, f.streamers.refs)
+        return S
+    finally
+        unlock(f)
+    end
 end
 
 function Base.keys(f::ROOTFile)
