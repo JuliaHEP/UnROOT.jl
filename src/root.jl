@@ -110,8 +110,11 @@ end
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
     lock(f)
-    S = streamer(f.fobj, tkey, f.streamers.refs)
-    unlock(f)
+    try
+        S = streamer(f.fobj, tkey, f.streamers.refs)
+    finally
+        unlock(f)
+    end
     S
 end
 

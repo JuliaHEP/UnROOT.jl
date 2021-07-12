@@ -1,11 +1,7 @@
 function children(f::ROOTFile)
     ch = Vector{TTree}()
     for k in keys(f)
-        try
-            push!(ch, f[k])
-        catch
-            unlock(f) #TODO remove these hacks
-        end
+        push!(ch, f[k])
     end
     ch
 end
