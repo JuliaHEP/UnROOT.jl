@@ -6,13 +6,12 @@
 [![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
 UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
-written entirely in pure Julia, without depending on the official ROOT libraries or Python.
-In contrast to the C++ ROOT framework, this package focuses only on I/O. (read-only as of now)
+written entirely in pure Julia, without no dependence on ROOT or Python.
 
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
 
-- [uproot3](https://github.com/scikit-hep/uproot) (Python)
+- [uproot3](https://github.com/scikit-hep/uproot) (Python), see also [UpROOT.jl](https://github.com/JuliaHEP/UpROOT.jl/)
 - [groot](https://godoc.org/go-hep.org/x/hep/groot#hdr-File_layout) (Go)
 - [root-io](https://github.com/cbourjau/alice-rs/tree/master/root-io) (Rust)
 - [Laurelin](https://github.com/spark-root/laurelin) (Java)
