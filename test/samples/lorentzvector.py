@@ -15,5 +15,10 @@ for i in range(1, 4):
      p4.SetPxPyPzE(1*x, 2*x, 3*x, 4*x)
      t.Fill()
 
+for i in range(4, 6):
+     x = 10**i
+     p4.SetXYZT(1*x, 2*x, 3*x, 4*x)
+     t.Fill()
+
 t.Write()
 f.Close()
