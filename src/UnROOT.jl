@@ -12,12 +12,8 @@ using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
 using Mixers, Parameters, Memoization, LRUCache
 import Tables, TypedTables, PrettyTables
 
-@static if VERSION < v"1.1"
-    fieldtypes(T::Type) = [fieldtype(T, f) for f in fieldnames(T)]
-end
-
-@static if VERSION < v"1.2"
-    hasproperty(x, s::Symbol) = s in fieldnames(typeof(x))
+@static if VERSION < v"1.4"
+    Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
 end
 
 include("constants.jl")
