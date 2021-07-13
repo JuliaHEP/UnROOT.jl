@@ -16,9 +16,10 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
     out
 end
 
-# Custom, hardcoded streamers
-
+# Custom struct interpretation
 abstract type CustomROOTStruct end
+
+reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: CustomROOTStruct = reinterpret(T, data)
 
 function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J <: JaggType, T <: CustomROOTStruct}
     interped_data(rawdata, rawoffsets, J, T)
@@ -33,13 +34,15 @@ using LorentzVectors
 struct TLorentzVector <: CustomROOTStruct end
 
 Base.eltype(::Type{TLorentzVector}) = LorentzVector
+Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
 function Base.reinterpret(::Type{LorentzVector}, v::AbstractVector{UInt8})
     # x,y,z,t in ROOT
     v4 = ntoh.(reinterpret(Float64, v[end-31:end]))
-    # t,z,y,z in LorentzVectors.jl
+    # t,x,y,z in LorentzVectors.jl
     LorentzVector(v4[4], v4[1], v4[2], v4[3])
 end
 function interp_jaggT(branch, ::Type{TLorentzVector})
+    #TODO add jagged TLV support here
     LorentzVector, Nojagg
 end
 function interped_data(rawdata, rawoffsets, ::Type{Nojagg}, ::Type{LorentzVector})
@@ -49,6 +52,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Nojagg}, ::Type{LorentzVector
                        ) for i in 1:(length(rawoffsets) - 1)
            ]
 end
+# TLorentzVector ends
 
 # KM3NeT
 struct KM3NETDAQHit <: CustomROOTStruct

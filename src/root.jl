@@ -147,6 +147,8 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
+reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
+
 function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -154,7 +156,6 @@ function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J<:Jagg
     # the jaggedness comes from having "[]" in TLeaf's title
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
-    elT = eltype(T)
     if J !== Nojagg
         jagg_offset = J===Offsetjagg ? 10 : 0
 
@@ -164,7 +165,7 @@ function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J<:Jagg
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         @views [
                 ntoh.(reinterpret(
-                                  elT, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
+                                  T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
                                  )) for i in 1:(length(rawoffsets) - 1)
                ]
     else # the branch is not jagged
@@ -201,8 +202,11 @@ function interp_jaggT(branch)
             try
                 _type = elname == "bool" ?          Bool : _type #Cbool doesn't exist
                 _type = elname == "unsigned int" ?  UInt32 : _type #Cunsigned doesn't exist
-                _type = elname == "unsigned char" ? Char   : _type #Cunsigned doesn't exist
+                _type = elname == "unsigned char" ? Char   : _type
                 _type = getfield(Base, Symbol(:C, elname))
+
+                # we know it's a vector because we saw vector<>
+                _type = Vector{_type}
             catch
                 error("Cannot convert element of $elname to a native Julia type")
             end
@@ -224,6 +228,7 @@ function interp_jaggT(branch)
         end
     else
         _type = primitivetype(leaf)
+        _type = _jaggtype === Nojagg ? _type : Vector{_type}
     end
 
     return _type, _jaggtype

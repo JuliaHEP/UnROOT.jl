@@ -1,5 +1,5 @@
 using Test
-using UnROOT
+using UnROOT, LorentzVectors
 using StaticArrays
 using MD5
 
@@ -199,6 +199,19 @@ end
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
+end
+
+@testset "TLorentzVector" begin
+    # 64bits T
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TLorentzVector.root"))
+    branch = rootfile["t1/LV"]
+    tree = LazyTree(rootfile, "t1")
+
+    @test branch[1].x == 1.0
+    @test branch[1].t == 4.0
+    @test eltype(branch) === LorentzVectors.LorentzVector
+    @test tree[1].LV.x == 1.0
+    @test tree[1].LV.t == 4.0
 end
 
 @testset "TNtuple" begin
