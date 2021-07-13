@@ -19,26 +19,26 @@ end
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
-reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: CustomROOTStruct = reinterpret(T, data)
+# reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: CustomROOTStruct = reinterpret(T, data)
 
 # TLorentzVector
 Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
-function Base.reinterpret(::Type{LorentzVector}, v::AbstractVector{UInt8})
+function Base.reinterpret(::Type{LorentzVector{T}}, v::AbstractVector{UInt8}) where T
     # x,y,z,t in ROOT
-    v4 = ntoh.(reinterpret(Float64, v[end-31:end]))
+    v4 = ntoh.(reinterpret(T, v[begin+32:end]))
     # t,x,y,z in LorentzVectors.jl
-    LorentzVector(v4[4], v4[1], v4[2], v4[3])
+    LorentzVector{T}(v4[4], v4[1], v4[2], v4[3])
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{LorentzVector}}, ::Type{Offsetjagg})
+function interped_data(rawdata, rawoffsets, ::Type{Vector{LorentzVector{Float64}}}, ::Type{Offsetjagg})
     @views map(1:length(rawoffsets)-1) do idx
         idxrange = rawoffsets[idx]+10+1 : rawoffsets[idx+1]
-        interped_data(rawdata[idxrange], rawoffsets[idx], LorentzVector, Nojagg)
+        interped_data(rawdata[idxrange], rawoffsets[idx], LorentzVector{Float64}, Nojagg)
     end
 end
-function interped_data(rawdata, rawoffsets, ::Type{LorentzVector}, ::Type{J}) where J <: JaggType
+function interped_data(rawdata, rawoffsets, ::Type{LorentzVector{T}}, ::Type{J}) where {T, J <: JaggType}
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes
     [
-     reinterpret(LorentzVector, x) for x in Base.Iterators.partition(rawdata, 64)
+     reinterpret(LorentzVector{Float64}, x) for x in Base.Iterators.partition(rawdata, 64)
     ]
 end
 # TLorentzVector ends

@@ -18,7 +18,7 @@ end
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
 
-function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector))
+function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = Base.open(filename)
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
