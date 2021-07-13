@@ -183,6 +183,23 @@ function _normalize_ftype(fType)
     end
 end
 
+const _leaftypeconstlookup = Dict(
+                             Const.kBool   => Bool  ,
+                             Const.kChar   => Int8  ,
+                             Const.kUChar  => UInt8 ,
+                             Const.kShort  => Int16 ,
+                             Const.kUShort => UInt16,
+                             Const.kInt    => Int32 ,
+                             Const.kBits   => UInt32,
+                             Const.kUInt   => UInt32,
+                             Const.kCounter=>UInt32 ,
+                             Const.kLong => Int64   ,
+                             Const.kLong64 =>  Int64,
+                             Const.kULong =>  UInt64,
+                             Const.kULong64 =>UInt64,
+                             Const.kDouble32 => Float32,
+                             Const.kDouble =>   Float64,
+                            )
 function interp_jaggT(branch)
 # @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
     leaf = first(branch.fLeaves.elements)
@@ -213,17 +230,7 @@ function interp_jaggT(branch)
         # Try to interpret by leaf type
         else
             leaftype = _normalize_ftype(leaf.fType)
-            _type = leaftype == Const.kBool   ? Bool   : _type
-            _type = leaftype == Const.kChar   ? Int8   : _type
-            _type = leaftype == Const.kUChar  ? UInt8  : _type
-            _type = leaftype == Const.kShort  ? Int16  : _type
-            _type = leaftype == Const.kUShort ? UInt16 : _type
-            _type = leaftype == Const.kInt    ? Int32  : _type
-            _type = (leaftype in [Const.kBits, Const.kUInt, Const.kCounter]) ? UInt32 : _type
-            _type = (leaftype in [Const.kLong, Const.kLong64]) ?  Int64   : _type
-            _type = (leaftype in [Const.kULong, Const.kULong64]) ? UInt64 : _type
-            _type = leaftype == Const.kDouble32 ? Float32 : _type
-            _type = leaftype == Const.kDouble ?   Float64 : _type
+            _type = get(_leaftypeconstlookup, leaftype, nothing)
             isnothing(_type) && error("Cannot interpret type.")
         end
     else
