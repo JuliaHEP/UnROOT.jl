@@ -223,12 +223,14 @@ end
 function readbranchraw(f::ROOTFile, branch)
     nbytes = branch.fBasketBytes
     datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
-    offsets = sizehint!(Vector{Int32}(), branch.fEntries+1) # this is always Int32
+    offsets = sizehint!(zeros(Int32, 1), branch.fEntries+1) # this is always Int32
+    position = 0
     foreach(branch.fBasketSeek) do seek
         seek==0 && return
         data, offset = readbasketseek(f, branch, seek)
         append!(datas, data)
-        append!(offsets, offset)
+        append!(offsets, offset[2:end] .+ position)
+        position = offset[end]
     end
     datas, offsets
 end
