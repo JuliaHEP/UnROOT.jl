@@ -40,6 +40,7 @@ Reads an array from ith basket of a branch. Set `raw=true` to return raw data an
 
 basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[path], ithbasket)
 @memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
+# function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
             "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")

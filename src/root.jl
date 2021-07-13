@@ -146,7 +146,7 @@ end
 
 reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {J<:JaggType, T}
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
     # only needs when the jaggedness comes from TLeafElements, not needed when
@@ -208,8 +208,8 @@ This is also where you may want to "redirect" classname -> Julia struct name,
 for example `"TLorentzVector" => LorentzVector` here and you can focus on `LorentzVectors.LorentzVector`
 methods from here on.
 """
-# function auto_T_JaggT(branch; customstructs::Dict{String, Type})
 @memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+# function auto_T_JaggT(branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(leaf)
@@ -218,12 +218,18 @@ methods from here on.
         try
             # this will call a customize routine if defined by user
             # see custom.jl
-            return auto_T_JaggT(branch, customstructs[classname])
+            _custom = customstructs[classname]
+            return _custom, _jaggtype
         catch
         end
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
             elname = m[1]
+            try
+                _custom = customstructs[elname]
+                return Vector{_custom}, _jaggtype
+            catch
+            end
             elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
             try
                 _type = elname == "bool" ?          Bool : _type #Cbool doesn't exist
