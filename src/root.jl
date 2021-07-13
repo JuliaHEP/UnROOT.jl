@@ -12,13 +12,13 @@ struct ROOTFile
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
+    customstructs::Dict{String, Type}
     lk::ReentrantLock
 end
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
 
-
-function ROOTFile(filename::AbstractString)
+function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector))
     fobj = Base.open(filename)
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
@@ -47,9 +47,6 @@ function ROOTFile(filename::AbstractString)
     # Reading the header key for the top ROOT directory
     seek(fobj, header.fBEGIN + header.fNbytesName)
     dir_header = unpack(fobj, ROOTDirectoryHeader)
-    if dir_header.fSeekKeys == 0
-        ROOTFile(format_version, header, fobj, tkey, [])
-    end
 
     seek(fobj, dir_header.fSeekKeys)
     header_key = unpack(fobj, TKey)
@@ -59,7 +56,7 @@ function ROOTFile(filename::AbstractString)
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, ReentrantLock())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, ReentrantLock())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -99,8 +96,8 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
     S
 end
 
-# @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-function _getindex(f::ROOTFile, s)
+@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
+# function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -149,7 +146,7 @@ end
 
 reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
-function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J<:JaggType, T}
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {J<:JaggType, T}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
     # only needs when the jaggedness comes from TLeafElements, not needed when
@@ -200,8 +197,19 @@ const _leaftypeconstlookup = Dict(
                              Const.kDouble32 => Float32,
                              Const.kDouble =>   Float64,
                             )
-function interp_jaggT(branch)
-# @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
+
+"""
+    auto_T_JaggT(branch; customstructs::Dict{String, Type})
+
+Given a branch, automatically return (eltype, Jaggtype). This function is aware of custom structs that
+are carried with the parent `ROOTFile`.
+
+This is also where you may want to "redirect" classname -> Julia struct name,
+for example `"TLorentzVector" => LorentzVector` here and you can focus on `LorentzVectors.LorentzVector`
+methods from here on.
+"""
+# function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+@memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(leaf)
@@ -209,7 +217,8 @@ function interp_jaggT(branch)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         try
             # this will call a customize routine if defined by user
-            return interp_jaggT(branch, eval(Symbol(classname)))
+            # see custom.jl
+            return auto_T_JaggT(branch, customstructs[classname])
         catch
         end
         m = match(r"vector<(.*)>", classname)
@@ -274,8 +283,8 @@ end
 # 3GB cache for baskets
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-# @memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(length, x)) function readbasketseek(
-function readbasketseek(
+@memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
+# function readbasketseek(
     f::ROOTFile, branch, seek_pos
 )::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
     lock(f)

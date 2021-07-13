@@ -8,7 +8,7 @@ ntoh(b::Bool) = b
 import AbstractTrees: children, printnode, print_tree
 using Base.Threads: SpinLock
 
-using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
+using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors
 using Mixers, Parameters, Memoization, LRUCache
 
 import Tables, TypedTables, PrettyTables, DataFrames
