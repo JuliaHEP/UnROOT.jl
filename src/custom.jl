@@ -29,16 +29,17 @@ function Base.reinterpret(::Type{LorentzVector}, v::AbstractVector{UInt8})
     # t,x,y,z in LorentzVectors.jl
     LorentzVector(v4[4], v4[1], v4[2], v4[3])
 end
-function auto_T_JaggT(branch, ::Type{LorentzVector})
-    #TODO add jagged TLV support here
-    LorentzVector, Nojagg
+function interped_data(rawdata, rawoffsets, ::Type{Vector{LorentzVector}}, ::Type{Offsetjagg})
+    @views map(1:length(rawoffsets)-1) do idx
+        idxrange = rawoffsets[idx]+10+1 : rawoffsets[idx+1]
+        interped_data(rawdata[idxrange], rawoffsets[idx], LorentzVector, Nojagg)
+    end
 end
-function interped_data(rawdata, rawoffsets, ::Type{LorentzVector}, ::Type{Nojagg})
-    @views [
-            reinterpret(
-                        LorentzVector, rawdata[ (rawoffsets[i]+1):rawoffsets[i+1] ]
-                       ) for i in 1:(length(rawoffsets) - 1)
-           ]
+function interped_data(rawdata, rawoffsets, ::Type{LorentzVector}, ::Type{J}) where J <: JaggType
+    # even with rawoffsets, we know each TLV is destinied to be 64 bytes
+    [
+     reinterpret(LorentzVector, x) for x in Base.Iterators.partition(rawdata, 64)
+    ]
 end
 # TLorentzVector ends
 

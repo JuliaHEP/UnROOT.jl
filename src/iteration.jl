@@ -40,6 +40,7 @@ Reads an array from ith basket of a branch. Set `raw=true` to return raw data an
 
 basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[path], ithbasket)
 @memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
+# function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
             "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
@@ -105,14 +106,15 @@ function Base.show(io::IO, lb::LazyBranch)
 end
 
 function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
+    @boundscheck checkbounds(ba, idx)
     # I hate 1-based indexing
     seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
-    localidx = idx - ba.fEntry[seek_idx]
+    @inbounds localidx = idx - ba.fEntry[seek_idx]
     if seek_idx != ba.buffer_seek # update buffer if index in a new basket
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
         ba.buffer_seek = seek_idx
     end
-    return ba.buffer[localidx]
+    return @inbounds ba.buffer[localidx]
 end
 
 function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
@@ -177,8 +179,8 @@ struct LazyEvent{T<:LazyTree}
     idx::Int64
 end
 Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
-Base.getproperty(evt::LazyEvent, s::Symbol) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
-Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
+Base.getproperty(evt::LazyEvent, s::Symbol) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
+Base.collect(evt::LazyEvent) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
 function Base.iterate(tree::T, idx=1) where T <: LazyTree
     idx > length(tree) && return nothing
