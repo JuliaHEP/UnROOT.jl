@@ -229,7 +229,7 @@ function readbranchraw(f::ROOTFile, branch)
         seek==0 && return
         data, offset = readbasketseek(f, branch, seek)
         append!(datas, data)
-        append!(offsets, @view(offset, 2:end) .+ position)
+        append!(offsets, (@view offset[begin+1:end]) .+ position)
         position = offset[end]
     end
     datas, offsets
