@@ -39,18 +39,13 @@ Reads an array from ith basket of a branch. Set `raw=true` to return raw data an
 """
 
 basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[path], ithbasket)
-function basketarray(f::ROOTFile, branch, ithbasket)
+@memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
             "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     T, J = auto_T_JaggT(branch; customstructs = f.customstructs)
-    basketarray(rawdata, rawoffsets, T, J)
-end
-
-@memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J}
-# function basketarray(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J}
     interped_data(rawdata, rawoffsets, T, J)
 end
 
@@ -92,10 +87,6 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
         new{T, J}(f, b, length(b), b.fBasketEntry, -1, T[])
     end
 end
-function basketarray(f::ROOTFile, lb::LazyBranch{T, J}, ithbasket) where {T, J}
-    rawdata, rawoffsets = readbasket(f, lb.b, ithbasket)
-    basketarray(rawdata, rawoffsets, T, J)
-end
 
 Base.size(ba::LazyBranch) = (ba.L,)
 Base.length(ba::LazyBranch) = ba.L
@@ -118,7 +109,7 @@ function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
     localidx = idx - ba.fEntry[seek_idx]
     if seek_idx != ba.buffer_seek # update buffer if index in a new basket
-        ba.buffer = basketarray(ba.f, ba, seek_idx)
+        ba.buffer = basketarray(ba.f, ba.b, seek_idx)
         ba.buffer_seek = seek_idx
     end
     return ba.buffer[localidx]
