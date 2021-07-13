@@ -9,7 +9,7 @@ import AbstractTrees: children, printnode, print_tree
 using Base.Threads: SpinLock
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays
-using Mixers, Parameters, Memoization, LRUCache, LorentzVectors
+using Mixers, Parameters, Memoization, LRUCache
 
 import Tables, TypedTables, PrettyTables, DataFrames
 

@@ -16,30 +16,41 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
     out
 end
 
-Base.eltype(::Type{LorentzVector}) = LorentzVector
-Base.ntoh(t::LorentzVector) = t
+# Custom, hardcoded streamers
+
+abstract type CustomROOTStruct end
+
+function interped_data(rawdata, rawoffsets, ::Type{J}, ::Type{T}) where {J <: JaggType, T <: CustomROOTStruct}
+    interped_data(rawdata, rawoffsets, J, T)
+end
+
+function interp_jaggT(branch, ::Type{T}) where T <: CustomROOTStruct
+    interp_jaggT(branch)
+end
+
+# TLorentzVector
+using LorentzVectors
+struct TLorentzVector <: CustomROOTStruct end
+
+Base.eltype(::Type{TLorentzVector}) = LorentzVector
 function Base.reinterpret(::Type{LorentzVector}, v::AbstractVector{UInt8})
     # x,y,z,t in ROOT
     v4 = ntoh.(reinterpret(Float64, v[end-31:end]))
     # t,z,y,z in LorentzVectors.jl
     LorentzVector(v4[4], v4[1], v4[2], v4[3])
 end
-function interped_data(rawdata, rawoffsets, ::Type{J}, T::Type{LorentzVector}) where {J<:JaggType}
-    elT = eltype(T)
-    jagg_offset = J===Offsetjagg ? 10 : 0
+function interp_jaggT(branch, ::Type{TLorentzVector})
+    LorentzVector, Nojagg
+end
+function interped_data(rawdata, rawoffsets, ::Type{Nojagg}, ::Type{LorentzVector})
     @views [
             reinterpret(
-                        elT, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
+                        LorentzVector, rawdata[ (rawoffsets[i]+1):rawoffsets[i+1] ]
                        ) for i in 1:(length(rawoffsets) - 1)
            ]
 end
 
-# Custom, hardcoded streamers
-
-abstract type CustomROOTStruct end
-
 # KM3NeT
-
 struct KM3NETDAQHit <: CustomROOTStruct
     dom_id::Int32
     channel_id::UInt8

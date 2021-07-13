@@ -182,15 +182,17 @@ function _normalize_ftype(fType)
     end
 end
 
-function interp_jaggT(branch, leaf)
+function interp_jaggT(branch)
 # @memoize LRU(;maxsize=10^3) function interp_jaggT(branch, leaf)
+    leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
-        if classname == "TLorentzVector" 
-            _type = LorentzVector
-            _jaggtype = Nooffsetjagg
+        try
+            # this will call a customize routine if defined by user
+            return interp_jaggT(branch, eval(Symbol(classname)))
+        catch
         end
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
