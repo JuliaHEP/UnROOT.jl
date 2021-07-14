@@ -4,14 +4,26 @@
 Given the `offsets` and `data` return by `array(...; raw = true)`, reconstructed the actual
 array (with custome struct, can be jagged as well).
 """
-function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
+function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, jagged=true)
     packedsize = packedsizeof(T)
-    out = sizehint!(Vector{Vector{T}}(), length(offsets))
+
+    if jagged
+        out = Vector{Vector{T}}()
+    else
+        out = Vector{T}()
+    end
+    sizehint!(out, length(offsets))
+
     io = IOBuffer(data)
     for l in diff(offsets)
         skip(io, skipbytes)
-        n = (l - skipbytes) / packedsize
-        push!(out, [readtype(io, T) for _ in 1:n])
+        if jagged
+            n = (l - skipbytes) / packedsize
+            push!(out, [readtype(io, T) for _ in 1:n])
+        else
+            # n != 1 && warning("The packed size of the entry does not match the data size.")
+            push!(out, readtype(io, T))
+        end
     end
     out
 end
@@ -78,6 +90,7 @@ struct KM3NETDAQEventHeader
     trigger_mask::UInt64
     overlays::UInt32
 end
+packedsizeof(::Type{KM3NETDAQEventHeader}) = 76
 
 function readtype(io::IO, T::Type{KM3NETDAQEventHeader})
     skip(io, 18)
