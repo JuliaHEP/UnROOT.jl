@@ -26,7 +26,7 @@ documentation on uproot's issue page.
 ## Status
 We support reading all scalar branch and jagged branch of "basic" types, provide
 indexing and iteration interface with per branch basket-cache. As
-a metric, UnROOT can read all branches (~1800) of CMS NanoAOD.
+a metric, UnROOT can read all branches (~1800) of CMS NanoAOD including jagged `TLorentzVector` branch.
 
 ## Quick Start
 The most easy way to access data is through `LazyTree`, which is `<: AbstractDataFrame` and
@@ -77,38 +77,19 @@ Only one basket per branch will be cached so you don't have to worry about runni
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
 is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
 
-If you only care about a few branches, you can directly use `LazyBranch` which can be constructed
-when you index a `ROOTFile` with `"treename/branchname"`. It acts just like an array --
-you can index it, iterate through it, `map` over it efficiently. Or even dump the entire branch, by `collect()` them!
-``` julia
-julia> LB = t["Events/Electron_dxy"]
+## Branch of custom struct
 
-# this pattern, `t["tree"]["branch"]`, will give you the branch object itself
-julia> rf["Events"]["Electron_dxy"]
-UnROOT.TBranch_13
-  ...
-  
-# reading branch is also thread-safe, although may not be much faster depending to disk I/O and cache
-julia> using ThreadsX
+We provide an experimental interface for hooking up UnROOT with your custom types
+that only takes 2 steps, as explained [here](https://github.com/tamasgal/UnROOT.jl/wiki/CustomBranch).
+As a show case for this functionality, the `TLorentzVector` support in UnROOT is implemented
+with the said plug-in system.
 
-julia> branch_names = keys(t["Events"])
-
-julia> all(
-       map(bn->UnROOT.array(rf, "Events/$bn"; raw=true), branch_names) .== 
-       ThreadsX.map(bn->UnROOT.array(rf, "Events/$bn"; raw=true), branch_names)
-       )
-true
-```
-
-
-If you have custom C++ struct inside you branch, reading raw data is also possible
+Alternatively, reading raw data is also possible
 using the `UnROOT.array(f::ROOTFile, path; raw=true)` method. The output can
 be then reinterpreted using a custom type with the method
-`UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`.
-
-You can then define suitable Julia `type` and `readtype` method for parsing these data.
+`UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`. This provides more fine grain control in case
+your branch is highly irregular. You can then define suitable Julia `type` and `readtype` method for parsing these data.
 Here is it in action, with the help of the `type`s from `custom.jl`, and some data from the KM3NeT experiment:
-
 ``` julia
 julia> using UnROOT
 

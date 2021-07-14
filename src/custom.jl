@@ -28,12 +28,34 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, jagged=true
     out
 end
 
-# Custom, hardcoded streamers
-
+# Custom struct interpretation
 abstract type CustomROOTStruct end
 
-# KM3NeT
 
+# TLorentzVector
+const LVF64 = LorentzVector{Float64}
+Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
+function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
+    # x,y,z,t in ROOT
+    v4 = ntoh.(reinterpret(Float64, v[1+32:end]))
+    # t,x,y,z in LorentzVectors.jl
+    LVF64(v4[4], v4[1], v4[2], v4[3])
+end
+function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offsetjagg})
+    @views map(1:length(rawoffsets)-1) do idx
+        idxrange = rawoffsets[idx]+10+1 : rawoffsets[idx+1]
+        interped_data(rawdata[idxrange], rawoffsets[idx], LVF64, Nojagg)
+    end
+end
+function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where {T, J <: JaggType}
+    # even with rawoffsets, we know each TLV is destinied to be 64 bytes
+    [
+     reinterpret(LVF64, x) for x in Base.Iterators.partition(rawdata, 64)
+    ]
+end
+# TLorentzVector ends
+
+# KM3NeT
 struct KM3NETDAQHit <: CustomROOTStruct
     dom_id::Int32
     channel_id::UInt8

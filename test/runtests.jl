@@ -1,5 +1,5 @@
 using Test
-using UnROOT
+using UnROOT, LorentzVectors
 using StaticArrays
 using MD5
 
@@ -201,6 +201,19 @@ end
     @test [row.int32_array for row in table] == BA
 end
 
+@testset "TLorentzVector" begin
+    # 64bits T
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TLorentzVector.root"))
+    branch = rootfile["t1/LV"]
+    tree = LazyTree(rootfile, "t1")
+
+    @test branch[1].x == 1.0
+    @test branch[1].t == 4.0
+    @test eltype(branch) === LorentzVectors.LorentzVector{Float64}
+    @test tree[1].LV.x == 1.0
+    @test tree[1].LV.t == 4.0
+end
+
 @testset "TNtuple" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TNtuple.root"))
     arrs = [collect(rootfile["n1/$c"]) for c in "xyz"]
@@ -239,17 +252,6 @@ end
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
-
-
-    if VERSION > v"1.3.0"
-        branch_names = keys(rootfile["Events"])
-        # thread-safety test
-        @test all(
-           map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names) .== 
-           ThreadsX.map(bn->UnROOT.array(rootfile, "Events/$bn"; raw=true), branch_names)
-           )
-    end
-
 end
 
 @testset "Displaying" begin

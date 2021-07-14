@@ -45,9 +45,7 @@ function _make_header(t)
     (header, subheader)
 end
 function _treeformat(val, trunc)
-    s = if isempty(val)
-        "[]"
-    elseif val isa Vector{T} where T<:Integer
+    s = if val isa Vector{T} where T<:Integer
         string(Int.(val))
     elseif val isa Vector{T} where T<:AbstractFloat
         string(round.(Float64.(val); sigdigits=3))
