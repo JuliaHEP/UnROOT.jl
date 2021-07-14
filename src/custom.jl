@@ -25,7 +25,7 @@ const LVF64 = LorentzVector{Float64}
 Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
 function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
     # x,y,z,t in ROOT
-    v4 = ntoh.(reinterpret(T, v[1+32:end]))
+    v4 = ntoh.(reinterpret(Float64, v[1+32:end]))
     # t,x,y,z in LorentzVectors.jl
     LVF64(v4[4], v4[1], v4[2], v4[3])
 end

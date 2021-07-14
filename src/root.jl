@@ -208,8 +208,9 @@ This is also where you may want to "redirect" classname -> Julia struct name,
 for example `"TLorentzVector" => LorentzVector` here and you can focus on `LorentzVectors.LorentzVector`
 methods from here on.
 """
-@memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
-# function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+# TODO Why is this broken on 1.8?
+# @memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+function auto_T_JaggT(branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(leaf)
@@ -291,7 +292,7 @@ readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketS
 
 @memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
-    f::ROOTFile, branch, seek_pos
+f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 )::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
     lock(f)
     seek(f.fobj, seek_pos)
