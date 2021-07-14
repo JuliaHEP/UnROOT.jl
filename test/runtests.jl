@@ -278,6 +278,30 @@ end
     @test event_hits[3][1].tdc == 63512204
     @test event_hits[3][end].dom_id == 809544061
     @test event_hits[3][end].tdc == 63512892
+
+    data, offsets = UnROOT.array(f, "KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"; raw=true)
+    headers = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQEventHeader; jagged=false)
+    @test length(headers) == 3
+    for header in headers
+        @test header.run == 6633
+        @test header.detector_id == 44
+        @test header.UTC_seconds == 0x5dc6018c
+    end
+    @test headers[1].frame_index == 127
+    @test headers[2].frame_index == 127
+    @test headers[3].frame_index == 129
+    @test headers[1].UTC_16nanosecondcycles == 0x029b9270
+    @test headers[2].UTC_16nanosecondcycles == 0x029b9270
+    @test headers[3].UTC_16nanosecondcycles == 0x035a4e90
+    @test headers[1].trigger_counter == 0
+    @test headers[2].trigger_counter == 1
+    @test headers[3].trigger_counter == 0
+    @test headers[1].trigger_mask == 22
+    @test headers[2].trigger_mask == 22
+    @test headers[3].trigger_mask == 4
+    @test headers[1].overlays == 6
+    @test headers[2].overlays == 21
+    @test headers[3].overlays == 0
 end
 
 
