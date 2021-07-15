@@ -17,6 +17,9 @@ struct ROOTFile
 end
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
+function Base.hash(rf::ROOTFile, h::UInt)
+    hash(rf.fobj, h)
+end
 
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = Base.open(filename)
