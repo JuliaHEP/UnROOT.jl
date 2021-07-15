@@ -117,10 +117,10 @@ function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     if idx ∉ br
         seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
-        br = ba.fEntry[seek_idx] : ba.fEntry[seek_idx+1] - 1
+        br = ba.fEntry[seek_idx] + 1 : ba.fEntry[seek_idx+1] - 1 
         ba.buffer_range = br
     end
-    localidx = idx - br.start
+    localidx = idx - br.start + 1
     return ba.buffer[localidx]
 end
 
