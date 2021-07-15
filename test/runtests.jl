@@ -252,6 +252,23 @@ end
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
+    tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
+    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
+    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+end
+
+@testset "Branch filtering" begin
+    # Branch selection behavior: if not regex, require exact name match
+    treebranches = ["Muon_pt", "Muon_eta", "Muon_phi", "Muon_charge", "Muon_ptErr",
+                   "Muon_", "_pt", "Muon.pt"]
+    _m(s::AbstractString) = isequal(s)
+    _m(r::Regex) = Base.Fix1(occursin, r)
+    filter_branches(selected) = Set(mapreduce(b->filter(_m(b), treebranches), ∪, selected))
+    @test (filter_branches([r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"]) ==
+           Set(["Muon_pt", "Muon_eta", "Muon_phi", "Muon_charge"]))
+    @test filter_branches(["Muon_pt"]) == Set(["Muon_pt"])
+    @test filter_branches(["Muon.pt"]) == Set(["Muon.pt"])
 end
 
 @testset "Displaying" begin

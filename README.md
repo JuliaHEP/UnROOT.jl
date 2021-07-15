@@ -35,7 +35,7 @@ the loved `DataFrames` eco-system.
 ```julia
 julia> using UnROOT
 
-julia> t = ROOTFile("test/samples/NanoAODv5_sample.root")
+julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile with 2 entries and 21 streamers.
 test/samples/NanoAODv5_sample.root
 └─ Events
@@ -46,15 +46,15 @@ test/samples/NanoAODv5_sample.root
    ├─ "HTXS_Higgs_y"
    └─ "⋮"
 
-julia> mytree = LazyTree(t, "Events", ["nMuon", "Electron_dxy"])
- Row │ nMuon   Electron_dxy                      
-     │ UInt32  Vector{Float32}                   
-─────┼───────────────────────────────────────────
- 1   │ 0       [0.000371]
- 2   │ 2       [-0.00982]
- 3   │ 0       []
- 4   │ 0       [-0.00157]
- ⋮   │ ⋮           ⋮
+julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$"])
+ Row │ Electron_dxy     nMuon   Muon_eta         Muon_pt
+     │ Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
+─────┼───────────────────────────────────────────────────────────
+ 1   │ [0.000371]       0       []               []
+ 2   │ [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
+ 3   │ []               0       []               []
+ 4   │ [-0.00157]       0       []               []
+ ⋮   │     ⋮            ⋮             ⋮                ⋮
  
  
 julia> mytree[1:3, :nMuon]

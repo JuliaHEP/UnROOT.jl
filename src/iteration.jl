@@ -166,6 +166,9 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree isa TTree || error("$s is not a tree name.")
     d = Dict{Symbol, LazyBranch}()
     d_colidx = Dict{Symbol, Int}()
+    _m(s::AbstractString) = isequal(s)
+    _m(r::Regex) = Base.Fix1(occursin, r)
+    branches = mapreduce(b->filter(_m(b), keys(f[s])), ∪, branches)
     SB = Symbol.(branches)
     for (i,b) in enumerate(SB)
         d[b] = f["$s/$b"]
@@ -180,6 +183,8 @@ end
 function LazyTree(f::ROOTFile, s::AbstractString)
     LazyTree(f, s, keys(f[s]))
 end
+
+LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString, Regex}) = LazyTree(f, s, [branch])
 
 struct LazyEvent{T<:LazyTree}
     tree::T
