@@ -370,6 +370,11 @@ end
 
 abstract type TBranch <: ROOTStreamedObject end
 abstract type TBranchElement <: ROOTStreamedObject end
+function Base.hash(b::Union{TBranch, TBranchElement}, h::UInt)
+    h = hash(b.fFileName, h)
+    h = hash(b.fName, h)
+    h = hash(b.fEntries, h)
+end
 Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
 function Base.eltype(b::Union{TBranch, TBranchElement})
