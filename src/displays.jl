@@ -13,7 +13,13 @@ function children(f::ROOTFile)
 end
 function children(t::TTree)
     ks = keys(t)
-    [ first(ks, 5); ifelse(length(ks)>5,"⋮","") ]
+    if length(ks) < 2
+        return ks
+    elseif length(ks) > 7
+        return vcat(first(ks, 3), "⋮", last(ks, 3))
+    else
+        return ks
+    end
 end
 printnode(io::IO, t::TTree) = print(io, t.fName)
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
