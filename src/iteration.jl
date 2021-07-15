@@ -90,7 +90,7 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
 end
 
 function Base.hash(lb::LazyBranch, h::UInt)
-    h = hash(lb.f.filename, h)
+    h = hash(lb.f, h)
     h = hash(lb.b.fClassName, h)
     h = hash(lb.L, h)
     h = hash(lb.buffer_range, h)
