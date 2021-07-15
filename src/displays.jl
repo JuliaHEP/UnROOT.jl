@@ -16,7 +16,7 @@ function children(t::TTree)
     if length(ks) < 2
         return ks
     elseif length(ks) > 7
-        return vcat(first(ks, 3), "⋮", last(ks, 3))
+        return vcat(first(ks, 3), "⋮", ks[end-2:end])
     else
         return ks
     end
