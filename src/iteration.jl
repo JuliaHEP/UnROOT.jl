@@ -80,16 +80,22 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
     b::Union{TBranch, TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer_seek::Int64
     buffer::Vector{T}
     buffer_range::UnitRange{Int64}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T, J = auto_T_JaggT(b; customstructs = f.customstructs)
-        new{T, J}(f, b, length(b), b.fBasketEntry, -1, T[], 0:0)
+        new{T, J}(f, b, length(b), b.fBasketEntry, T[], 0:0)
     end
 end
 
+function Base.hash(lb::LazyBranch, h::UInt)
+    h = hash(lb.f.filename, h)
+    h = hash(lb.b.fClassName, h)
+    h = hash(lb.L, h)
+    h = hash(lb.buffer_range, h)
+    h
+end
 Base.size(ba::LazyBranch) = (ba.L,)
 Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
