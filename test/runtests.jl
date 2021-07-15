@@ -252,6 +252,8 @@ end
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
+    tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
+    @test Set(propertynames(tree)) == Set([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
 end
 
 @testset "Displaying" begin
