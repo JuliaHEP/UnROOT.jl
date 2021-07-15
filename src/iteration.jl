@@ -184,6 +184,8 @@ function LazyTree(f::ROOTFile, s::AbstractString)
     LazyTree(f, s, keys(f[s]))
 end
 
+LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString, Regex}) = LazyTree(f, s, [branch])
+
 struct LazyEvent{T<:LazyTree}
     tree::T
     idx::Int64
