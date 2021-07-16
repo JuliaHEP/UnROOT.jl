@@ -31,6 +31,7 @@ to intepret them, see [`interped_data`](@ref).
 See also: [`LazyTree`](@ref), [`LazyBranch`](@ref)
 
 # Example
+```julia
 julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile with 2 entries and 21 streamers.
 test/samples/NanoAODv5_sample.root
@@ -41,6 +42,7 @@ test/samples/NanoAODv5_sample.root
    ├─ "HTXS_Higgs_pt"
    ├─ "HTXS_Higgs_y"
    └─ "⋮"
+```
 """
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = Base.open(filename)
@@ -323,8 +325,6 @@ end
 #           │                                                     │
 #           │←                       fObjlen                     →│
 # 3GB cache for baskets
-readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
-
 """
     readbasket(f::ROOTFile, branch, ith)
     readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
@@ -335,6 +335,8 @@ processed by [`interped_data`](@ref).
 
 See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
+readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
+
 @memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int

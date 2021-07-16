@@ -8,7 +8,8 @@ makedocs(;
     ),
     pages=[
         "Introduction" => "index.md",
-        "API" => "api.md",
+        "Quick Start" => "quickstart.md",
+        "Internals" => "internals.md",
     ],
     repo="https://github.com/tamasgal/UnROOT.jl/blob/{commit}{path}#L{line}",
     sitename="UnROOT.jl",

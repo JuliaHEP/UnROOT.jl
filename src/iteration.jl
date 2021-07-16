@@ -195,7 +195,8 @@ This means that at any given time only `N` baskets are cached, where `N` is the 
     Accessing with `[start:stop]` will return a `LazyTree` with concrete internal table.
 
 # Example
-julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$"])
+```julia
+julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\$"])
  Row │ Electron_dxy     nMuon   Muon_eta         Muon_pt
      │ Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
 ─────┼───────────────────────────────────────────────────────────
@@ -204,6 +205,7 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
  3   │ []               0       []               []
  4   │ [-0.00157]       0       []               []
  ⋮   │     ⋮            ⋮             ⋮                ⋮
+```
 """
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
