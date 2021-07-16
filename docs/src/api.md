@@ -3,8 +3,6 @@
 ```@index
 ```
 
-Yep.
-
 ```@autodocs
 Modules = [UnROOT]
 ```

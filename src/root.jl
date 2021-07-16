@@ -21,6 +21,27 @@ function Base.hash(rf::ROOTFile, h::UInt)
     hash(rf.fobj, h)
 end
 
+"""
+    ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
+
+`ROOTFile`'s constructor from a file. The `customstructs` dictionary can be used to pass user-defined
+struct as value and its corresponding `fClassName` (in Branch) as key such that `UnROOT` will know
+to intepret them, see [`interped_data`](@ref).
+
+See also: [`LazyTree`](@ref), [`LazyBranch`](@ref)
+
+# Example
+julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
+ROOTFile with 2 entries and 21 streamers.
+test/samples/NanoAODv5_sample.root
+└─ Events
+   ├─ "run"
+   ├─ "luminosityBlock"
+   ├─ "event"
+   ├─ "HTXS_Higgs_pt"
+   ├─ "HTXS_Higgs_y"
+   └─ "⋮"
+"""
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = Base.open(filename)
     preamble = unpack(fobj, FilePreamble)
@@ -149,6 +170,15 @@ end
 
 reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
+"""
+    interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
+
+The function thats interpret raw bytes (from a basket) into corresponding Julia data, based
+on type `T` and jagg type `J`.
+
+In order to retrieve data from custom branches, user should defined more speialized
+method of this function with specific `T` and `J`. See `TLorentzVector` example.
+"""
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -210,10 +240,12 @@ are carried with the parent `ROOTFile`.
 This is also where you may want to "redirect" classname -> Julia struct name,
 for example `"TLorentzVector" => LorentzVector` here and you can focus on `LorentzVectors.LorentzVector`
 methods from here on.
+
+See also: [`ROOTFile`](@ref), [`interped_data`](@ref)
 """
+function auto_T_JaggT(branch; customstructs::Dict{String, Type})
 # TODO Why is this broken on 1.8?
 # @memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
-function auto_T_JaggT(branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(leaf)
@@ -293,6 +325,16 @@ end
 # 3GB cache for baskets
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
+"""
+    readbasket(f::ROOTFile, branch, ith)
+    readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
+
+The fundamental building block of reading read data from a .root file. Read read one
+basket's raw bytes and offsets at a time. These raw bytes and offsets then (potentially) get
+processed by [`interped_data`](@ref).
+
+See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
+"""
 @memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int

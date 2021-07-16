@@ -1,5 +1,12 @@
-# by putting Cursor inside the branch/tree struct, we don't need to
-# seek to and read the Directory everytime we access a branch
+"""
+The `Cursor` type is embeded into Branches of a TTree such that when
+we need to read the content of a Branch, we don't need to go through
+the Directory and find the TKey and then seek to where the Branch is.
+
+!!! note
+    The `io` inside a `Cursor` is in fact only a buffer, it is NOT
+    a `io` that refers to the whole file's stream.
+"""
 struct Cursor
     start::Int64
     io::IO
@@ -17,6 +24,8 @@ packedsizeof(T::Type) = sum(sizeof.(fieldtypes(T)))
 @inline readtype(io, ::Type{T}) where T<:Bool = read(io, T)
 @inline readtype(io, v::Type{T}) where T<:AbstractVector{UInt8} = read(io, length(v))
 
+# Non-C strings in .root are preceeded by 1 or more bytes signifying the length
+# of the string that follows.
 function readtype(io, ::Type{T}) where T<:AbstractString
     length = readtype(io, UInt8)
 
