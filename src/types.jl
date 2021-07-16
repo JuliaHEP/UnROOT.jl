@@ -92,7 +92,14 @@ seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.f
 
 datastream(io, tkey::TKey) = IOBuffer(decompress_datastreambytes(compressed_datastream(io, tkey), tkey))
 
-# extract all [compressionheader][rawbytes]... first so we can release IO lock earlier
+"""
+    compressed_datastream(io, tkey)
+
+Extract all [compressionheader][rawbytes] from a `TKey`. This is an isolated function
+because we want to compartmentalize disk I/O as much as possible.
+
+See also: [`decompress_datastreambytes`](@ref)
+"""
 function compressed_datastream(io, tkey)
     if !iscompressed(tkey)
         @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
@@ -104,6 +111,13 @@ function compressed_datastream(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end
 
+"""
+    decompress_datastreambytes(compbytes, tkey)
+
+Process the compressed bytes `compbytes` which was read out by `compressed_datastream` and
+pointed to from `tkey`. This function simply return uncompressed bytes according to
+the compression algorithm detected (or the lack of).
+"""
 function decompress_datastreambytes(compbytes, tkey)
     # not compressed
     iscompressed(tkey) || return compbytes

@@ -59,8 +59,9 @@ jobs:
             Pkg.instantiate()'
       - run: |
           julia --project=docs -e '
-            using Documenter: doctest
+            using Documenter: DocMeta, doctest
             using UnROOT
+            DocMeta.setdocmeta!(UnROOT, :DocTestSetup, :(using UnROOT); recursive=true)
             doctest(UnROOT)'
       - run: julia --project=docs docs/make.jl
         env:

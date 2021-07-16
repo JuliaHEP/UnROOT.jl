@@ -1,3 +1,8 @@
+#=
+These functions are used to display a ROOTFile is a tree-like fashion
+by using `AbstractTrees` printing functions. We customize what the children
+of ROOTFile and a TTree is, and how to print the final `node`.
+=#
 function children(f::ROOTFile)
     ch = Vector{TTree}()
     for k in keys(f)
