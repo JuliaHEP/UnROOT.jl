@@ -43,6 +43,66 @@ function readfields!(io, fields, T::Type{TAttMarker_2})
     fields[:fMarkerSize] = readtype(io, Float32)
 end
 
+abstract type TAttAxis <: ROOTStreamedObject end
+struct TAttAxis_4 <: TAttAxis end
+function readfields!(io, fields, T::Type{TAttAxis_4})
+    fields[:fNdivisions] = readtype(io, Int32)
+    fields[:fAxisColor] = readtype(io, Int16)
+    fields[:fLabelColor] = readtype(io, Int16)
+    fields[:fLabelFont] = readtype(io, Int16)
+    fields[:fLabelOffset] = readtype(io, Float32)
+    fields[:fLabelSize] = readtype(io, Float32)
+    fields[:fTickLength] = readtype(io, Float32)
+    fields[:fTitleOffset] = readtype(io, Float32)
+    fields[:fTitleSize] = readtype(io, Float32)
+    fields[:fTitleColor] = readtype(io, Int16)
+    fields[:fTitleFont] = readtype(io, Int16)
+end
+
+abstract type TAxis <: ROOTStreamedObject end
+struct TAxis_10 <: TAxis end
+function readfields!(io, fields, T::Type{TAxis_10})
+    # overrides things like fName,... that were set from the parent TH1 :(
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttAxis)
+    fields[:fNbins] = readtype(io, Int32)
+    fields[:fXmin] = readtype(io, Float64)
+    fields[:fXmax] = readtype(io, Float64)
+    fields[:fXbins] = readtype(io, TArrayD)
+    fields[:fFirst] = readtype(io, Int16)
+    fields[:fLast] = readtype(io, Int16)
+    fields[:fBits2] = readtype(io, UInt16)
+    fields[:fTimeDisplay] = readtype(io, Bool)
+    fields[:fTimeFormat] = readtype(io, String)
+
+    @show fields
+
+    # FIXME next is THashList (just a TList?) of axis labels
+    # then TList of modified labels
+    preamble = Preamble(io, TList)
+    skiptobj(io)
+    # skiptobj(io)
+    name = readtype(io, String)
+    size = readtype(io, Int32)
+    @show name, size
+
+end
+
+abstract type TH1 <: ROOTStreamedObject end
+struct TH1_8 <: TH1 end
+function readfields!(io, fields, T::Type{TH1_8})
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttLine)
+    stream!(io, fields, TAttFill)
+    stream!(io, fields, TAttMarker)
+    fields[:fNcells] = readtype(io, Int32)
+    # FIXME, actually need to prepend fXaxis/fYaxis/fZaxis to the `fields` keys to keep them distinct
+    stream!(io, fields, TAxis)
+    stream!(io, fields, TAxis)
+    stream!(io, fields, TAxis)
+    #  then some more fields
+end
+
 
 @with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
