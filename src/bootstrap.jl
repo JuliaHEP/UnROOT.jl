@@ -80,6 +80,10 @@ abstract type TH1 <: ROOTStreamedObject end
 struct TH1_8 <: TH1 end
 function readfields!(io, fields, T::Type{TH1_8}) end
 
+abstract type TH2 <: ROOTStreamedObject end
+struct TH2_4 <: TH2 end
+function readfields!(io, fields, T::Type{TH2_4}) end
+
 
 @with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
@@ -759,12 +763,38 @@ end
     fFriends
 end
 
-function TH1D(io, tkey::TKey, refs)
-    @initparse
+function TH2(io, tkey::TKey, refs)
+    fields = Dict{Symbol, Any}()
+
     io = datastream(io, tkey)
     preamble = Preamble(io, Missing)
 
+    # could also just use `skiptobj(io)`?
+    stream!(io, fields, TH2, check=false)
+
+    fields = TH1(io, tkey, refs; top=false)
+
+    # we didn't seek through the full TH1 part, so the remaining keys
+    # won't be right, but they don't get used anyway?
+
+    for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
+        fields[symb] = readtype(io, Float64)
+    end
+    # and then another TArrayD field
+
+    fields
+end
+
+function TH1(io, tkey::TKey, refs; top=true)
+    fields = Dict{Symbol, Any}()
+
+    if top
+        io = datastream(io, tkey)
+        preamble = Preamble(io, Missing)
+    end
+
     stream!(io, fields, TH1, check=false)
+
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttLine)
     stream!(io, fields, TAttFill)
@@ -815,9 +845,12 @@ function TH1D(io, tkey::TKey, refs)
     # fields[:fBuffer] = readtype(io, TArrayD)
     # fields[:fBinStatErrOpt] = readtype(io, Int32) # TH1::EBinErrorOpt?
     # fields[:fStatOverflows] = readtype(io, Int32) # TH1::EStatOverflows?
+    
+    # and then a TArrayD which I don't think is used
 
     fields
 end
+
 
 # FIXME idk what is going on but this just looks like a TTree.....
 function TNtuple(io, tkey::TKey, refs)
