@@ -763,6 +763,11 @@ end
     fFriends
 end
 
+TH1F(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH2F(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH1D(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH2D(io, tkey::TKey, refs) = TH(io, tkey, refs)
+
 function TH(io, tkey::TKey, refs)
     fields = Dict{Symbol, Any}()
 
