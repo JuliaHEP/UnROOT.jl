@@ -17,6 +17,18 @@
         "data",
         "test"
       ]
+    },
+    {
+      "login": "Moelf",
+      "name": "Jerry Ling",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5306213?v=4",
+      "profile": "https://github.com/Moelf",
+      "contributions": [
+        "code",
+        "test",
+        "data",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
