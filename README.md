@@ -2,13 +2,12 @@
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
-
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tamasgal.github.io/UnROOT.jl/dev)
 [![Build Status](https://github.com/tamasgal/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/tamasgal/UnROOT.jl/actions)
 [![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
 UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
-written entirely in pure Julia, without no dependence on ROOT or Python.
+written entirely in pure Julia, without any dependence on ROOT or Python.
 
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
@@ -19,20 +18,21 @@ binary structure, the format can be triangulated by other packages like
 - [Laurelin](https://github.com/spark-root/laurelin) (Java)
 
 Here's a detailed [from-scratch walk through](https://jiling.web.cern.ch/jiling/dump/ROOT_Fileformat.pdf) 
-on reading a jagged branch from .root file, recommdned for first time contributors or just want to learn
-about .root file format.
+on reading a jagged branch from a ROOT file, recommended for first time contributors or those who just want to learn
+about ROOT file format.
 
 Three's also a [discussion](https://github.com/scikit-hep/uproot/issues/401) reagarding the ROOT binary format
 documentation on uproot's issue page.
 
 ## Status
-We support reading all scalar branch and jagged branch of "basic" types, provide
-indexing and iteration interface with per branch basket-cache. As
-a metric, UnROOT can read all branches (~1800) of CMS NanoAOD including jagged `TLorentzVector` branch.
+We support reading all scalar and jagged branches of "basic" types, provide
+indexing and iteration interface with a "per branch" basket-cache. There is a low level
+API to provide interpretation functionalities for custom types and classes.
+As a metric, UnROOT can read all branches (~1800) of CMS NanoAOD including jagged `TLorentzVector` branch.
 
 ## Quick Start
-The most easy way to access data is through `LazyTree`, which is `<: AbstractDataFrame` and
-a thin-wrap around `TypedTable` under the hood. It supports most accessing pattern from
+The easiest way to access data is through `LazyTree`, which is `<: AbstractDataFrame` and
+a thin-wrap around `TypedTable` under the hood. It supports most accessing patterns from
 the loved `DataFrames` eco-system.
 ```julia
 julia> using UnROOT
@@ -75,7 +75,7 @@ julia> for event in mytree
 event.Electron_dxy = Float32[0.00037050247]
 ```
 
-Only one basket per branch will be cached so you don't have to worry about running out or RAM.
+Only one basket per branch will be cached so you don't have to worry about running out of RAM.
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
 is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
 
@@ -89,8 +89,9 @@ with the said plug-in system.
 Alternatively, reading raw data is also possible
 using the `UnROOT.array(f::ROOTFile, path; raw=true)` method. The output can
 be then reinterpreted using a custom type with the method
-`UnROOT.splitup(data, offsets, T::Type; skipbytes=0)`. This provides more fine grain control in case
+`UnROOT.splitup(data, offsets, T::Type; skipbytes=0, jagged=true)`. This provides more fine grain control in case
 your branch is highly irregular. You can then define suitable Julia `type` and `readtype` method for parsing these data.
+Alternatively, you can of course parse the `data` and `offsets` entirely manually.
 Here is it in action, with the help of the `type`s from `custom.jl`, and some data from the KM3NeT experiment:
 ``` julia
 julia> using UnROOT
