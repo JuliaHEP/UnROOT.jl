@@ -68,7 +68,7 @@ function readfields!(io, fields, T::Type{TAxis_10})
     fields[:fNbins] = readtype(io, Int32)
     fields[:fXmin] = readtype(io, Float64)
     fields[:fXmax] = readtype(io, Float64)
-    fields[:fXbins] = readtype(io, TArrayD)
+    fields[:fXbins] = readtype_intsize(io, TArrayD)
     fields[:fFirst] = readtype(io, Int16)
     fields[:fLast] = readtype(io, Int16)
     fields[:fBits2] = readtype(io, UInt16)
@@ -763,56 +763,36 @@ end
     fFriends
 end
 
-function TH2(io, tkey::TKey, refs)
+function TH(io, tkey::TKey, refs)
     fields = Dict{Symbol, Any}()
 
     io = datastream(io, tkey)
     preamble = Preamble(io, Missing)
 
-    # could also just use `skiptobj(io)`?
-    stream!(io, fields, TH2, check=false)
-
-    fields = TH1(io, tkey, refs; top=false)
-
-    # we didn't seek through the full TH1 part, so the remaining keys
-    # won't be right, but they don't get used anyway?
-
-    for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
-        fields[symb] = readtype(io, Float64)
-    end
-    # and then another TArrayD field
-
-    fields
-end
-
-function TH1(io, tkey::TKey, refs; top=true)
-    fields = Dict{Symbol, Any}()
-
-    if top
-        io = datastream(io, tkey)
-        preamble = Preamble(io, Missing)
+    is2d = startswith(tkey.fClassName, "TH2")
+    if is2d
+        stream!(io, fields, TH2, check=false)
     end
 
     stream!(io, fields, TH1, check=false)
-
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttLine)
     stream!(io, fields, TAttFill)
     stream!(io, fields, TAttMarker)
     fields[:fNcells] = readtype(io, Int32)
 
+
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
         stream!(io, subfields, TAxis, check=false)
         labels = readobjany!(io, tkey, refs)
-        if labels isa TList
-            labels = String.(labels.objects)
-        end
-        fields[Symbol(axis, :fLabels)] = labels
+        fields[Symbol(axis, :fLabels)] = labels isa TList ? String.(labels.objects) : labels
         fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
         for (k,v) in subfields
             fields[Symbol(axis, k)] = v
         end
+        # FIXME this line makes non-uniform binned histograms work, but not sure why
+        readtype(io, Int32)
     end
 
     fields[:fBarOffset] = readtype(io, Int16)
@@ -821,33 +801,25 @@ function TH1(io, tkey::TKey, refs; top=true)
         fields[symb] = readtype(io, Float64)
     end
 
-    # This line is supposed to be 
-    #     fields[:fContour] = readtype(io, TArrayD)
-    # but that apparently reads 4 bytes too much
-    # because
-    #   size = readtype(io, eltype(T))
-    #   [readtype(io, eltype(T)) for _ in 1:size]
-    # reads a eltype(T)=Float64 at the beginning as the `size` when it should
-    # be reading an Int32?
-    size = readtype(io, Int32)
-    fields[:fContour] = [readtype(io, eltype(TArrayD)) for _ in 1:size]
-    
-    # same comment as above
-    size = readtype(io, Int32)
-    fields[:fSumw2] = [readtype(io, eltype(TArrayD)) for _ in 1:size]
-
+    fields[:fContour] = readtype_intsize(io, TArrayD)
+    fields[:fSumw2] = readtype_intsize(io, TArrayD)
     fields[:fOption] = readtype(io, String)
-    
-    # Matches uproot3 right up to here. Rest are not needed(?)
-    
-    # fields[:fFunctions] = readobjany!(io, tkey, refs)
-    # fields[:fBufferSize] = readtype(io, Int32)
-    # fields[:fBuffer] = readtype(io, TArrayD)
-    # fields[:fBinStatErrOpt] = readtype(io, Int32) # TH1::EBinErrorOpt?
-    # fields[:fStatOverflows] = readtype(io, Int32) # TH1::EStatOverflows?
-    
-    # and then a TArrayD which I don't think is used
+    # if user saved after calling h.Fit() with a TF1, then this will error
+    fields[:fFunctions] = unpack(io, tkey, refs, TList)
+    fields[:fBufferSize] = readtype(io, Int32)
+    skip(io, 1) # speedbump
+    fields[:fBuffer] = readtype_intsize(io, TArrayD)
+    fields[:fBinStatErrOpt] = readtype(io, Int16)
+    fields[:fStatOverflows] = readtype(io, Int16)
 
+    if is2d
+        for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
+            fields[symb] = readtype(io, Float64)
+        end
+    end
+
+    arraytype = endswith(tkey.fClassName, 'F') ? TArrayF : TArrayD
+    fields[:fN] = readtype_intsize(io, arraytype)
     fields
 end
 

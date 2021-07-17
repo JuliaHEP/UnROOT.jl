@@ -229,7 +229,6 @@ function TArrayC end
 function TArrayS end
 function TArrayL end
 function TArrayL64 end
-function TArrayF end
 function TRefArray end
 
 function aliasfor(classname)

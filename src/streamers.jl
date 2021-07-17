@@ -615,10 +615,17 @@ unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{TString}) = readtype(io, S
 # end
 
 const TArrayD = Vector{Float64}
+const TArrayF = Vector{Float32}
 const TArrayI = Vector{Int32}
 
 function readtype(io, T::Type{Vector{U}}) where U <: Union{Integer, AbstractFloat}
     size = readtype(io, eltype(T))
+    [readtype(io, eltype(T)) for _ in 1:size]
+end
+
+
+function readtype_intsize(io, T::Type{Vector{U}}) where U <: Union{Integer, AbstractFloat}
+    size = readtype(io, Int32)
     [readtype(io, eltype(T)) for _ in 1:size]
 end
 
