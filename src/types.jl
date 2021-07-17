@@ -236,14 +236,13 @@ end
 
 
 # Built-in types
-function THashList end
+# function THashList end
 function TRef end
 function TArray end
 function TArrayC end
 function TArrayS end
 function TArrayL end
 function TArrayL64 end
-function TArrayF end
 function TRefArray end
 
 function aliasfor(classname)

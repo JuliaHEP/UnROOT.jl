@@ -323,6 +323,50 @@ end
     @test headers[3].overlays == 0
 end
 
+# Histograms
+@testset "histograms" begin
+    f = ROOTFile(joinpath(SAMPLES_DIR, "histograms1d2d.root"))
+    for k in ["myTH1F", "myTH1D"]
+        @test f[k][:fName] == k
+        @test f[k][:fEntries] == 4.0
+        @test f[k][:fSumw2] == [0.0, 800.0, 2.0, 0.0]
+        @test f[k][:fXaxis_fXmin] == -2.0
+        @test f[k][:fXaxis_fXmax] == 2.0
+        @test f[k][:fXaxis_fXbins] == []
+        @test f[k][:fXaxis_fNbins] == 2
+        @test f[k][:fN] == [0.0, 40.0, 2.0, 0.0]
+    end
+
+    k = "myTH1D_nonuniform"
+    @test f[k][:fName] == k
+    @test f[k][:fEntries] == 4.0
+    @test f[k][:fSumw2] == [0.0, 800.0, 2.0, 0.0]
+    @test f[k][:fXaxis_fXmin] == -2.0
+    @test f[k][:fXaxis_fXmax] == 2.0
+    @test f[k][:fXaxis_fXbins] == [-2, 1, 2]
+    @test f[k][:fXaxis_fNbins] == 2
+    @test f[k][:fN] == [0.0, 40.0, 2.0, 0.0]
+
+    for k in ["myTH2F", "myTH2D"]
+        @test f[k][:fName] == k
+        @test f[k][:fEntries] == 4.0
+        @test f[k][:fSumw2] == [0.0, 0.0, 0.0, 0.0, 0.0, 400.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 400.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        @test f[k][:fXaxis_fXmin] == -2.0
+        @test f[k][:fXaxis_fXmax] == 2.0
+        @test f[k][:fXaxis_fXbins] == []
+        @test f[k][:fXaxis_fNbins] == 2
+        @test f[k][:fYaxis_fXmin] == -2.0
+        @test f[k][:fYaxis_fXmax] == 2.0
+        @test f[k][:fYaxis_fXbins] == []
+        @test f[k][:fYaxis_fNbins] == 4
+        @test f[k][:fN] == [0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    end
+
+    f = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
+    binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
+    @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
+end
+
 
 # Issues
 

@@ -43,6 +43,47 @@ function readfields!(io, fields, T::Type{TAttMarker_2})
     fields[:fMarkerSize] = readtype(io, Float32)
 end
 
+abstract type TAttAxis <: ROOTStreamedObject end
+struct TAttAxis_4 <: TAttAxis end
+function readfields!(io, fields, T::Type{TAttAxis_4})
+    fields[:fNdivisions] = readtype(io, Int32)
+    fields[:fAxisColor] = readtype(io, Int16)
+    fields[:fLabelColor] = readtype(io, Int16)
+    fields[:fLabelFont] = readtype(io, Int16)
+    fields[:fLabelOffset] = readtype(io, Float32)
+    fields[:fLabelSize] = readtype(io, Float32)
+    fields[:fTickLength] = readtype(io, Float32)
+    fields[:fTitleOffset] = readtype(io, Float32)
+    fields[:fTitleSize] = readtype(io, Float32)
+    fields[:fTitleColor] = readtype(io, Int16)
+    fields[:fTitleFont] = readtype(io, Int16)
+end
+
+abstract type TAxis <: ROOTStreamedObject end
+struct TAxis_10 <: TAxis end
+function readfields!(io, fields, T::Type{TAxis_10})
+    # overrides things like fName,... that were set from the parent TH1 :(
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttAxis)
+    fields[:fNbins] = readtype(io, Int32)
+    fields[:fXmin] = readtype(io, Float64)
+    fields[:fXmax] = readtype(io, Float64)
+    fields[:fXbins] = readtype(io, TArrayD)
+    fields[:fFirst] = readtype(io, Int16)
+    fields[:fLast] = readtype(io, Int16)
+    fields[:fBits2] = readtype(io, UInt16)
+    fields[:fTimeDisplay] = readtype(io, Bool)
+    fields[:fTimeFormat] = readtype(io, String)
+end
+
+abstract type TH1 <: ROOTStreamedObject end
+struct TH1_8 <: TH1 end
+function readfields!(io, fields, T::Type{TH1_8}) end
+
+abstract type TH2 <: ROOTStreamedObject end
+struct TH2_4 <: TH2 end
+function readfields!(io, fields, T::Type{TH2_4}) end
+
 
 @with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
@@ -722,12 +763,78 @@ end
     fFriends
 end
 
+TH1F(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH2F(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH1D(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH2D(io, tkey::TKey, refs) = TH(io, tkey, refs)
+
+function TH(io, tkey::TKey, refs)
+    fields = Dict{Symbol, Any}()
+
+    io = datastream(io, tkey)
+    preamble = Preamble(io, Missing)
+
+    is2d = startswith(tkey.fClassName, "TH2")
+    if is2d
+        stream!(io, fields, TH2, check=false)
+    end
+
+    stream!(io, fields, TH1, check=false)
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttLine)
+    stream!(io, fields, TAttFill)
+    stream!(io, fields, TAttMarker)
+    fields[:fNcells] = readtype(io, Int32)
+
+
+    for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
+        subfields = Dict{Symbol, Any}()
+        stream!(io, subfields, TAxis, check=false)
+        fields[Symbol(axis, :fLabels)] = readobjany!(io, tkey, refs)
+        fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
+        for (k,v) in subfields
+            fields[Symbol(axis, k)] = v
+        end
+        # FIXME this line makes non-uniform binned histograms work, but not sure why
+        readtype(io, Int32)
+    end
+
+    fields[:fBarOffset] = readtype(io, Int16)
+    fields[:fBarWidth] = readtype(io, Int16)
+    for symb in [:fEntries, :fTsumw, :fTsumw2, :fTsumwx, :fTsumwx2, :fMaximum, :fMinimum, :fNormFactor]
+        fields[symb] = readtype(io, Float64)
+    end
+
+    fields[:fContour] = readtype(io, TArrayD)
+    fields[:fSumw2] = readtype(io, TArrayD)
+    fields[:fOption] = readtype(io, String)
+    # if user saved after calling h.Fit() with a TF1, then this will error
+    fields[:fFunctions] = unpack(io, tkey, refs, TList)
+    fields[:fBufferSize] = readtype(io, Int32)
+    skip(io, 1) # speedbump
+    fields[:fBuffer] = readtype(io, TArrayD)
+    fields[:fBinStatErrOpt] = readtype(io, Int16)
+    fields[:fStatOverflows] = readtype(io, Int16)
+
+    if is2d
+        for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
+            fields[symb] = readtype(io, Float64)
+        end
+    end
+
+    arraytype = endswith(tkey.fClassName, 'F') ? TArrayF : TArrayD
+    fields[:fN] = readtype(io, arraytype)
+    fields
+end
+
+
 # FIXME idk what is going on but this just looks like a TTree.....
 function TNtuple(io, tkey::TKey, refs)
     io = datastream(io, tkey)
     preamble = Preamble(io, Missing)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
+
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
