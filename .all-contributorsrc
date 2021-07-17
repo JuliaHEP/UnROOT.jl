@@ -1,0 +1,27 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "Moelf",
+      "name": "Jerry Ling",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5306213?v=4",
+      "profile": "https://github.com/Moelf",
+      "contributions": [
+        "code",
+        "test",
+        "data",
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "UnROOT.jl",
+  "projectOwner": "tamasgal",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
