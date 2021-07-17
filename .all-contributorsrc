@@ -40,6 +40,17 @@
         "test",
         "data"
       ]
+    },
+    {
+      "login": "aminnj",
+      "name": "Nick Amin",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5760027?v=4",
+      "profile": "https://github.com/aminnj",
+      "contributions": [
+        "code",
+        "test",
+        "data"
+      ]
     }
   ],
   "contributorsPerLine": 7,
