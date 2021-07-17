@@ -1,0 +1,28 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "tamasgal",
+      "name": "Tamas Gal",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1730350?v=4",
+      "profile": "http://www.tamasgal.com",
+      "contributions": [
+        "code",
+        "doc",
+        "infra",
+        "data",
+        "test"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "UnROOT.jl",
+  "projectOwner": "tamasgal",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
