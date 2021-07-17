@@ -774,8 +774,12 @@ function TH1D(io, tkey::TKey, refs)
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
         stream!(io, subfields, TAxis, check=false)
-        fields[:fLabels] = readobjany!(io, tkey, refs)
-        fields[:fModLabs] = readobjany!(io, tkey, refs)
+        labels = readobjany!(io, tkey, refs)
+        if labels isa TList
+            labels = String.(labels.objects)
+        end
+        fields[Symbol(axis, :fLabels)] = labels
+        fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
         for (k,v) in subfields
             fields[Symbol(axis, k)] = v
         end
