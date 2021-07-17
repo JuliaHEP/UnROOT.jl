@@ -68,7 +68,7 @@ function readfields!(io, fields, T::Type{TAxis_10})
     fields[:fNbins] = readtype(io, Int32)
     fields[:fXmin] = readtype(io, Float64)
     fields[:fXmax] = readtype(io, Float64)
-    fields[:fXbins] = readtype_intsize(io, TArrayD)
+    fields[:fXbins] = readtype(io, TArrayD)
     fields[:fFirst] = readtype(io, Int16)
     fields[:fLast] = readtype(io, Int16)
     fields[:fBits2] = readtype(io, UInt16)
@@ -790,8 +790,7 @@ function TH(io, tkey::TKey, refs)
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
         stream!(io, subfields, TAxis, check=false)
-        labels = readobjany!(io, tkey, refs)
-        fields[Symbol(axis, :fLabels)] = labels isa TList ? String.(labels.objects) : labels
+        fields[Symbol(axis, :fLabels)] = readobjany!(io, tkey, refs)
         fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
         for (k,v) in subfields
             fields[Symbol(axis, k)] = v
@@ -806,14 +805,14 @@ function TH(io, tkey::TKey, refs)
         fields[symb] = readtype(io, Float64)
     end
 
-    fields[:fContour] = readtype_intsize(io, TArrayD)
-    fields[:fSumw2] = readtype_intsize(io, TArrayD)
+    fields[:fContour] = readtype(io, TArrayD)
+    fields[:fSumw2] = readtype(io, TArrayD)
     fields[:fOption] = readtype(io, String)
     # if user saved after calling h.Fit() with a TF1, then this will error
     fields[:fFunctions] = unpack(io, tkey, refs, TList)
     fields[:fBufferSize] = readtype(io, Int32)
     skip(io, 1) # speedbump
-    fields[:fBuffer] = readtype_intsize(io, TArrayD)
+    fields[:fBuffer] = readtype(io, TArrayD)
     fields[:fBinStatErrOpt] = readtype(io, Int16)
     fields[:fStatOverflows] = readtype(io, Int16)
 
@@ -824,7 +823,7 @@ function TH(io, tkey::TKey, refs)
     end
 
     arraytype = endswith(tkey.fClassName, 'F') ? TArrayF : TArrayD
-    fields[:fN] = readtype_intsize(io, arraytype)
+    fields[:fN] = readtype(io, arraytype)
     fields
 end
 

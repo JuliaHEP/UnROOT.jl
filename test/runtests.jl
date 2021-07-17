@@ -344,6 +344,10 @@ end
         @test f[k][:fYaxis_fNbins] == 4
         @test f[k][:fN] == [0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     end
+
+    f = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
+    binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
+    @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
 end
 
 
