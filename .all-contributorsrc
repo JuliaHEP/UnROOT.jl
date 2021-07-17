@@ -14,7 +14,8 @@
         "code",
         "test",
         "data",
-        "doc"
+        "doc",
+        "infra"
       ]
     }
   ],
