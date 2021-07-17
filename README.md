@@ -130,6 +130,11 @@ Pick one ;)
 - [x] Prettier `show` for `Lazy*`s
 - [ ] Clean up `Cursor` use
 - [x] Reading `TNtuple` #27
+- [x] Reading histograms (`TH1D`, `TH1F`, `TH2D`, `TH2F`, etc.) #48
+- [ ] Clean up the `readtype`, `unpack`, `stream!` and `readobjany` construct
+- [ ] Refactor the code and add more docs
+- [ ] Class name detection of sub-branches
+- [ ] High-level histogram interface
 
 ## Acknowledgements
 
