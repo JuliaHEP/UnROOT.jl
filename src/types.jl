@@ -222,7 +222,7 @@ end
 
 
 # Built-in types
-function THashList end
+# function THashList end
 function TRef end
 function TArray end
 function TArrayC end

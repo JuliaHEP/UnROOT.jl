@@ -267,10 +267,17 @@ struct TList
     objects
 end
 
+struct THashList
+    preamble::Preamble
+    name::String
+    size::Int32
+    objects
+end
+
 Base.length(l::TList) = length(l.objects)
 
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TList})
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Union{Type{TList},Type{THashList}})
     preamble = Preamble(io, T)
     skiptobj(io)
 
@@ -285,7 +292,6 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TList})
     endcheck(io, preamble)
     TList(preamble, name, size, objects)
 end
-
 
 struct TObjArray
     name::String
@@ -554,7 +560,7 @@ abstract type ROOTStreamedObject end
 #     T(fields)
 # end
 
-function stream!(io, fields, ::Type{T}) where {T<:ROOTStreamedObject}
+function stream!(io, fields, ::Type{T}; check=true) where {T<:ROOTStreamedObject}
     preamble = Preamble(io, T)
     streamer_name = Symbol(T, "_$(preamble.version)")
     # @show streamer_name
@@ -563,7 +569,9 @@ function stream!(io, fields, ::Type{T}) where {T<:ROOTStreamedObject}
     streamer = getfield(@__MODULE__, Symbol(typename))
     # @show streamer
     readfields!(io, fields, streamer)
-    endcheck(io, preamble)
+    if check
+        endcheck(io, preamble)
+    end
 end
 
 

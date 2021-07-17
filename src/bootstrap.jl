@@ -74,34 +74,11 @@ function readfields!(io, fields, T::Type{TAxis_10})
     fields[:fBits2] = readtype(io, UInt16)
     fields[:fTimeDisplay] = readtype(io, Bool)
     fields[:fTimeFormat] = readtype(io, String)
-
-    @show fields
-
-    # FIXME next is THashList (just a TList?) of axis labels
-    # then TList of modified labels
-    preamble = Preamble(io, TList)
-    skiptobj(io)
-    # skiptobj(io)
-    name = readtype(io, String)
-    size = readtype(io, Int32)
-    @show name, size
-
 end
 
 abstract type TH1 <: ROOTStreamedObject end
 struct TH1_8 <: TH1 end
-function readfields!(io, fields, T::Type{TH1_8})
-    stream!(io, fields, TNamed)
-    stream!(io, fields, TAttLine)
-    stream!(io, fields, TAttFill)
-    stream!(io, fields, TAttMarker)
-    fields[:fNcells] = readtype(io, Int32)
-    # FIXME, actually need to prepend fXaxis/fYaxis/fZaxis to the `fields` keys to keep them distinct
-    stream!(io, fields, TAxis)
-    stream!(io, fields, TAxis)
-    stream!(io, fields, TAxis)
-    #  then some more fields
-end
+function readfields!(io, fields, T::Type{TH1_8}) end
 
 
 @with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
@@ -782,12 +759,69 @@ end
     fFriends
 end
 
+function TH1D(io, tkey::TKey, refs)
+    @initparse
+    io = datastream(io, tkey)
+    preamble = Preamble(io, Missing)
+
+    stream!(io, fields, TH1, check=false)
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttLine)
+    stream!(io, fields, TAttFill)
+    stream!(io, fields, TAttMarker)
+    fields[:fNcells] = readtype(io, Int32)
+
+    for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
+        subfields = Dict{Symbol, Any}()
+        stream!(io, subfields, TAxis, check=false)
+        fields[:fLabels] = readobjany!(io, tkey, refs)
+        fields[:fModLabs] = readobjany!(io, tkey, refs)
+        for (k,v) in subfields
+            fields[Symbol(axis, k)] = v
+        end
+    end
+
+    fields[:fBarOffset] = readtype(io, Int16)
+    fields[:fBarWidth] = readtype(io, Int16)
+    for symb in [:fEntries, :fTsumw, :fTsumw2, :fTsumwx, :fTsumwx2, :fMaximum, :fMinimum, :fNormFactor]
+        fields[symb] = readtype(io, Float64)
+    end
+
+    # This line is supposed to be 
+    #     fields[:fContour] = readtype(io, TArrayD)
+    # but that apparently reads 4 bytes too much
+    # because
+    #   size = readtype(io, eltype(T))
+    #   [readtype(io, eltype(T)) for _ in 1:size]
+    # reads a eltype(T)=Float64 at the beginning as the `size` when it should
+    # be reading an Int32?
+    size = readtype(io, Int32)
+    fields[:fContour] = [readtype(io, eltype(TArrayD)) for _ in 1:size]
+    
+    # same comment as above
+    size = readtype(io, Int32)
+    fields[:fSumw2] = [readtype(io, eltype(TArrayD)) for _ in 1:size]
+
+    fields[:fOption] = readtype(io, String)
+    
+    # Matches uproot3 right up to here. Rest are not needed(?)
+    
+    # fields[:fFunctions] = readobjany!(io, tkey, refs)
+    # fields[:fBufferSize] = readtype(io, Int32)
+    # fields[:fBuffer] = readtype(io, TArrayD)
+    # fields[:fBinStatErrOpt] = readtype(io, Int32) # TH1::EBinErrorOpt?
+    # fields[:fStatOverflows] = readtype(io, Int32) # TH1::EStatOverflows?
+
+    fields
+end
+
 # FIXME idk what is going on but this just looks like a TTree.....
 function TNtuple(io, tkey::TKey, refs)
     io = datastream(io, tkey)
     preamble = Preamble(io, Missing)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
+
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
