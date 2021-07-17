@@ -51,6 +51,15 @@
         "test",
         "data"
       ]
+    },
+    {
+      "login": "giordano",
+      "name": "Mosè Giordano",
+      "avatar_url": "https://avatars.githubusercontent.com/u/765740?v=4",
+      "profile": "https://giordano.github.io",
+      "contributions": [
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
