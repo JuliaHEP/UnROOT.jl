@@ -375,6 +375,12 @@ end
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
+
+    # issue 55
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
+    pts = UnROOT.array(rootfile, "variable/met_p4/fCoordinates/fCoordinates.fPt"; raw=false)
+    @test 24 == length(pts)
+    @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts[1:4]
 end
 
 @testset "jagged subbranch type by leaf" begin
