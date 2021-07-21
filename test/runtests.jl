@@ -227,7 +227,7 @@ end
     @test arrs[3] ≈ arrs[1] .+ arrs[1] ./ 17
 end
 
-@testset "Jagged branches" begin
+@testset "Singly jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
     data = rootfile["t1/int32_array"]
@@ -244,6 +244,18 @@ end
     @test data[1] == T[]
     @test data[1:2] == [T[], T[0]]
     @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
+end
+
+@testset "Doubly jagged branches" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_doubly_jagged.root"))
+    vvi = [[[2], [3, 5]], [[7, 9, 11], [13]], [[17], [19], []], [], [[]]]
+    vvf = [[[2.5], [3.5, 5.5]], [[7.5, 9.5, 11.5], [13.5]], [[17.5], [19.5], []], [], [[]]]
+    @test UnROOT.array(rootfile, "t1/bi") == vvi
+    @test rootfile["t1/bi"] == vvi
+    @test eltype(eltype(eltype(rootfile["t1/bi"]))) === Int32
+    @test UnROOT.array(rootfile, "t1/bf") == vvf
+    @test rootfile["t1/bf"] == vvf
+    @test eltype(eltype(eltype(rootfile["t1/bf"]))) === Float32
 end
 
 @testset "NanoAOD" begin

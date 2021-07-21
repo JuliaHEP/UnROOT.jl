@@ -188,7 +188,27 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the jaggedness comes from having "[]" in TLeaf's title
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
-    if J !== Nojagg
+    if J == Nojagg
+        return ntoh.(reinterpret(T, rawdata))
+    elseif J == Offsetjaggjagg # the branch is doubly jagged
+        jagg_offset = 10
+        subT = eltype(eltype(T))
+        out = Vector{Vector{Vector{subT}}}()
+        @views for i in 1:(length(rawoffsets)-1)
+            flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
+            row = Vector{Vector{subT}}()
+            cursor = 1
+            while cursor < length(flat)
+                n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
+                cursor += sizeof(Int32)
+                b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
+                cursor += n*sizeof(subT)
+                push!(row, b)
+            end
+            push!(out, row)
+        end
+        return out
+    else # the branch is singly jagged
         jagg_offset = J===Offsetjagg ? 10 : 0
 
         # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
@@ -200,8 +220,6 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
                                   T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
                                  )) for i in 1:(length(rawoffsets) - 1)
                ]
-    else # the branch is not jagged
-        return ntoh.(reinterpret(T, rawdata))
     end
 
 end
@@ -264,6 +282,13 @@ function auto_T_JaggT(branch; customstructs::Dict{String, Type})
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
             elname = m[1]
+
+            minner = match(r"vector<(.*)>", elname)
+            if minner != nothing
+                elname = minner[1]
+                _jaggtype = Offsetjaggjagg
+            end
+
             try
                 _custom = customstructs[elname]
                 return Vector{_custom}, _jaggtype
@@ -281,6 +306,7 @@ function auto_T_JaggT(branch; customstructs::Dict{String, Type})
             catch
                 error("Cannot convert element of $elname to a native Julia type")
             end
+            _type = _jaggtype === Offsetjaggjagg ? Vector{_type} : _type
         # Try to interpret by leaf type
         else
             leaftype = _normalize_ftype(leaf.fType)
