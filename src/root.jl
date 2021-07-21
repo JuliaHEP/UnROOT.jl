@@ -199,7 +199,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             row = Vector{Vector{subT}}()
             cursor = 1
             while cursor < length(flat)
-                n = ntoh(only(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])))
+                n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
                 cursor += sizeof(Int32)
                 b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
                 cursor += n*sizeof(subT)
