@@ -312,7 +312,7 @@ function readbranchraw(f::ROOTFile, branch)
         # FIXME: assuming offset has always 0 or at least 2 elements ;)
         append!(offsets, (@view offset[2:end]) .+ position)
         if length(offset) > 0
-            position = offset[end]
+            position = offsets[end]
         end
     end
     datas, offsets

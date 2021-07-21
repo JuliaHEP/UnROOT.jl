@@ -139,6 +139,10 @@ end
     @test data isa Vector{UInt8}
     @test offsets isa Vector{Int32}
     @test data[1:3] == UInt8[0x40, 0x00, 0x00]
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_vector_multiple_baskets.root"))
+    data, offsets = UnROOT.array(rootfile, "t1/b1"; raw=true)
+    @test unique(diff(offsets)) == [18]
 end
 
 @testset "No (basket) compression" begin
