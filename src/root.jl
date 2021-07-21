@@ -194,7 +194,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         jagg_offset = 10
         subT = eltype(eltype(T))
         out = Vector{Vector{Vector{subT}}}()
-        for i in 1:(length(rawoffsets)-1)
+        @views for i in 1:(length(rawoffsets)-1)
             flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
             row = Vector{Vector{subT}}()
             cursor = 1
