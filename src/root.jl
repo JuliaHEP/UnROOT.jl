@@ -296,10 +296,15 @@ function auto_T_JaggT(branch; customstructs::Dict{String, Type})
             end
             elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
             try
-                _type = elname == "bool" ?          Bool : _type #Cbool doesn't exist
-                _type = elname == "unsigned int" ?  UInt32 : _type #Cunsigned doesn't exist
-                _type = elname == "unsigned char" ? Char   : _type
-                _type = getfield(Base, Symbol(:C, elname))
+                _type = if elname == "bool" 
+                    Bool 
+                elseif elname == "unsigned int" 
+                    UInt32
+                elseif elname == "unsigned char" 
+                    Char
+                else
+                    _type = getfield(Base, Symbol(:C, elname))
+                end
 
                 # we know it's a vector because we saw vector<>
                 _type = Vector{_type}
