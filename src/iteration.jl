@@ -243,17 +243,17 @@ end
 
 LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString, Regex}) = LazyTree(f, s, [branch])
 
-struct LazyEvent{T<:LazyTree}
+struct LazyEvent{T<:TypedTables.Table}
     tree::T
     idx::Int64
 end
 Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
-Base.getproperty(evt::LazyEvent, s::Symbol) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx), s]
+Base.getproperty(evt::LazyEvent, s::Symbol) = @inbounds getproperty(Core.getfield(evt, :tree),s)[Core.getfield(evt, :idx)]
 Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
 function Base.iterate(tree::T, idx=1) where T <: LazyTree
     idx > length(tree) && return nothing
-    LazyEvent{T}(tree, idx), idx+1
+    LazyEvent(Core.getfield(tree, :treetable), idx), idx+1
 end
 
 # TODO this is not terribly slow, but we can get faster implementation still ;)
