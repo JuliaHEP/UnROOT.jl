@@ -1,6 +1,7 @@
 using Test
 using UnROOT, LorentzVectors
 using StaticArrays
+using InteractiveUtils
 using MD5
 
 @static if VERSION > v"1.3.0"
@@ -412,4 +413,28 @@ end
     ids_jagged = UnROOT.array(rootfile, "E/Evt/trks/trks.id")
     @test all(ids_jagged[1] .== collect(1:56))
     @test all(ids_jagged[9] .== collect(1:54))
+end
+
+@testset "Type stability" begin
+    function isfullystable(func)
+        io = IOBuffer()
+        print(io, (@code_typed func()).first);
+        typed = String(take!(io))
+        return !occursin("::Any", typed)
+    end
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    t = LazyTree(rootfile, "Events", ["MET_pt"])[1:10]
+
+    function f1()
+        s = 0.0f0
+        for evt in t
+            s += evt.MET_pt
+        end
+        s
+    end
+    f2() = sum(t.MET_pt)
+
+    @test isfullystable(f1)
+    @test isfullystable(f2)
 end
