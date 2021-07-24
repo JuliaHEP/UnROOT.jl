@@ -401,6 +401,10 @@ end
     @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts1[1:4]
     @test pts1 == pts2
     @test pts3[1:2] == [[454.0, 217.5, 89.5, 30.640625], [184.375, 33.28125, 32.28125, 28.46875]]
+
+    # issue 61
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
+    @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
 end
 
 @testset "jagged subbranch type by leaf" begin
