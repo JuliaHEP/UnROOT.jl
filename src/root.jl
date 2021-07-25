@@ -215,11 +215,16 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         # this is why we need to append `rawoffsets` in the `readbranchraw()` call
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
-        @views [
-                ntoh.(reinterpret(
-                                  T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
-                                 )) for i in 1:(length(rawoffsets) - 1)
-               ]
+        _size = sizeof(eltype(T))
+        data = UInt8[]
+        offset = Int64[0] # god damn 0-based index
+        @views @inbounds for i in 1:(length(rawoffsets) - 1)
+            rg = (rawoffsets[i]+jagg_offset+1) : rawoffsets[i+1]
+            append!(data, rawdata[rg])
+            push!(offset, last(offset) + length(rg))
+        end
+        real_data = ntoh.(reinterpret(T, data))
+        VectorOfVectors(real_data, offset .÷ _size .+ 1)
     end
 
 end
@@ -372,7 +377,7 @@ See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-@memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
+@memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 )::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful

@@ -42,7 +42,7 @@ to obtain raw bytes and offsets of a basket, then calls [`auto_T_JaggT`](@ref) f
 by [`interped_data`](@ref) to translate raw bytes into actual data.
 """
 basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[path], ithbasket)
-@memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
+@memoize LRU(; maxsize=1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
 # function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
@@ -88,12 +88,12 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
     b::Union{TBranch, TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::Vector{T}
+    buffer::Ref{AbstractVector{T}}
     buffer_range::UnitRange{Int64}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T, J = auto_T_JaggT(b; customstructs = f.customstructs)
-        new{T, J}(f, b, length(b), b.fBasketEntry, T[], 0:0)
+        new{T, J}(f, b, length(b), b.fBasketEntry, Ref{AbstractVector{T}}(), 0:0)
     end
 end
 
@@ -137,12 +137,12 @@ function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     br = ba.buffer_range
     if idx ∉ br
         seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
-        ba.buffer = basketarray(ba.f, ba.b, seek_idx)
+        ba.buffer[] = basketarray(ba.f, ba.b, seek_idx)
         br = ba.fEntry[seek_idx] + 1 : ba.fEntry[seek_idx+1] - 1 
         ba.buffer_range = br
     end
     localidx = idx - br.start + 1
-    return ba.buffer[localidx]
+    return ba.buffer[][localidx]
 end
 
 function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}

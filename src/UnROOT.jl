@@ -6,9 +6,8 @@ import Base: keys, get, getindex, getproperty, show, length, iterate, position, 
 ntoh(b::Bool) = b
 
 import AbstractTrees: children, printnode, print_tree
-using Base.Threads: SpinLock
 
-using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors
+using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
 
 import Tables, TypedTables, PrettyTables, DataFrames

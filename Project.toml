@@ -5,6 +5,7 @@ version = "0.3.4"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
 CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
 CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
@@ -39,10 +40,10 @@ TypedTables = "^1.0.0"
 julia = "^1.3"
 
 [extras]
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 MD5 = "6ac74813-4b46-53a4-afec-0b5dc9d7885c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
-InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [targets]
 test = ["Test", "ThreadsX", "MD5", "InteractiveUtils"]
