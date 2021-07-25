@@ -88,12 +88,13 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
     b::Union{TBranch, TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::Ref{AbstractVector{T}}
+    buffer::AbstractVector{T}
     buffer_range::UnitRange{Int64}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T, J = auto_T_JaggT(b; customstructs = f.customstructs)
-        new{T, J}(f, b, length(b), b.fBasketEntry, Ref{AbstractVector{T}}(), 0:0)
+        _buffer = J === Nojagg ? T[] : VectorOfVectors{T}()
+        new{T, J}(f, b, length(b), b.fBasketEntry, _buffer, 0:0)
     end
 end
 
@@ -137,12 +138,12 @@ function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     br = ba.buffer_range
     if idx ∉ br
         seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
-        ba.buffer[] = basketarray(ba.f, ba.b, seek_idx)
+        ba.buffer = basketarray(ba.f, ba.b, seek_idx)
         br = ba.fEntry[seek_idx] + 1 : ba.fEntry[seek_idx+1] - 1 
         ba.buffer_range = br
     end
     localidx = idx - br.start + 1
-    return ba.buffer[][localidx]
+    return ba.buffer[localidx]
 end
 
 function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
