@@ -281,7 +281,7 @@ function auto_T_JaggT(branch; customstructs::Dict{String, Type})
             # this will call a customize routine if defined by user
             # see custom.jl
             _custom = customstructs[classname]
-            return _custom, _jaggtype
+            return _custom, Nojagg
         catch
         end
         m = match(r"vector<(.*)>", classname)

@@ -83,18 +83,18 @@ julia> ab[begin:end]
 ...
 ```
 """
-mutable struct LazyBranch{T, J} <: AbstractVector{T}
+mutable struct LazyBranch{T, J, B} <: AbstractVector{T}
     f::ROOTFile
     b::Union{TBranch, TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::AbstractVector{T}
+    buffer::B
     buffer_range::UnitRange{Int64}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
         T, J = auto_T_JaggT(b; customstructs = f.customstructs)
-        _buffer = J === Nojagg ? T[] : VectorOfVectors{T}()
-        new{T, J}(f, b, length(b), b.fBasketEntry, _buffer, 0:0)
+        _buffer = J === Nojagg ? T[] : VectorOfVectors{eltype(T)}()
+        new{T, J, typeof(_buffer)}(f, b, length(b), b.fBasketEntry, _buffer, 0:0)
     end
 end
 
@@ -109,7 +109,7 @@ Base.size(ba::LazyBranch) = (ba.L,)
 Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
-Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
+Base.eltype(ba::LazyBranch{T,J, B}) where {T,J, B} = T
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
@@ -134,10 +134,12 @@ and update buffer and buffer range accordingly.
     moment, access a `LazyBranch` from different threads at the same time can cause
     performance issue and incorrect event result.
 """
-function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
+function Base.getindex(ba::LazyBranch{T, J, B}, idx::Integer) where {T, J, B}
     br = ba.buffer_range
     if idx ∉ br
         seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
+        bb = basketarray(ba.f, ba.b, seek_idx)
+        @assert typeof(bb) === typeof(ba.buffer)
         ba.buffer = basketarray(ba.f, ba.b, seek_idx)
         br = ba.fEntry[seek_idx] + 1 : ba.fEntry[seek_idx+1] - 1 
         ba.buffer_range = br
@@ -146,7 +148,7 @@ function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
     return ba.buffer[localidx]
 end
 
-function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
+function Base.iterate(ba::LazyBranch{T, J, B}, idx=1) where {T, J, B}
     idx>ba.L && return nothing
     return (ba[idx], idx+1)
 end
@@ -258,6 +260,6 @@ function Base.iterate(tree::T, idx=1) where T <: LazyTree
 end
 
 # TODO this is not terribly slow, but we can get faster implementation still ;)
-function Base.getindex(ba::LazyBranch{T, J}, rang::UnitRange) where {T, J}
+function Base.getindex(ba::LazyBranch{T, J, B}, rang::UnitRange) where {T, J, B}
     [ba[i] for i in rang]
 end
