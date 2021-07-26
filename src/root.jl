@@ -253,9 +253,9 @@ const _leaftypeconstlookup = Dict(
                             )
 
 """
-    auto_T_JaggT(branch; customstructs::Dict{String, Type})
+    auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
 
-Given a branch, automatically return (eltype, Jaggtype). This function is aware of custom structs that
+Given a file and branch, automatically return (eltype, Jaggtype). This function is aware of custom structs that
 are carried with the parent `ROOTFile`.
 
 This is also where you may want to "redirect" classname -> Julia struct name,
@@ -264,12 +264,12 @@ methods from here on.
 
 See also: [`ROOTFile`](@ref), [`interped_data`](@ref)
 """
-function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
 # TODO Why is this broken on 1.8?
-# @memoize LRU(;maxsize=10^3) function auto_T_JaggT(branch; customstructs::Dict{String, Type})
+# @memoize LRU(;maxsize=10^3) function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
-    _jaggtype = JaggType(leaf)
+    _jaggtype = JaggType(f, branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         try

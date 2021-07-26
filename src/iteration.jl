@@ -29,7 +29,7 @@ function array(f::ROOTFile, branch; raw=false)
     if raw
         return rawdata, rawoffsets
     end
-    T, J = auto_T_JaggT(branch; customstructs = f.customstructs)
+    T, J = auto_T_JaggT(f, branch; customstructs = f.customstructs)
     interped_data(rawdata, rawoffsets, T, J)
 end
 
@@ -49,7 +49,7 @@ basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[pat
             "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
-    T, J = auto_T_JaggT(branch; customstructs = f.customstructs)
+    T, J = auto_T_JaggT(f, branch; customstructs = f.customstructs)
     interped_data(rawdata, rawoffsets, T, J)
 end
 
@@ -92,7 +92,7 @@ mutable struct LazyBranch{T, J} <: AbstractVector{T}
     buffer_range::UnitRange{Int64}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
-        T, J = auto_T_JaggT(b; customstructs = f.customstructs)
+        T, J = auto_T_JaggT(f, b; customstructs = f.customstructs)
         new{T, J}(f, b, length(b), b.fBasketEntry, T[], 0:0)
     end
 end
