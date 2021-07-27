@@ -50,10 +50,16 @@ The `interped_data` method specialized for `LorentzVector`. This method will get
 [`basketarray`](@ref) instead of the default method for `TLorentzVector` branch.
 """
 function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offsetjagg})
-    @views map(1:length(rawoffsets)-1) do idx
-        idxrange = rawoffsets[idx]+10+1 : rawoffsets[idx+1]
-        interped_data(rawdata[idxrange], rawoffsets[idx], LVF64, Nojagg)
+    _size = 64 # needs to account for 32 bytes header
+    data = UInt8[]
+    offset = Int64[0]
+    @views @inbounds for i in 1:(length(rawoffsets) - 1)
+        rg = (rawoffsets[i]+10+1) : rawoffsets[i+1]
+        append!(data, rawdata[rg])
+        push!(offset, last(offset) + length(rg))
     end
+    real_data = interped_data(data, offset, LVF64, Nojagg)
+    VectorOfVectors(real_data, offset .÷ _size .+ 1)
 end
 function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where {T, J <: JaggType}
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes

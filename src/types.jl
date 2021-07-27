@@ -46,8 +46,8 @@ end
     fDatime::UInt32
     fKeylen::Int16
     fCycle::Int16
-    fSeekKey::Integer
-    fSeekPdir::Integer
+    fSeekKey::Int64
+    fSeekPdir::Int64
     fClassName::String
     fName::String
     fTitle::String

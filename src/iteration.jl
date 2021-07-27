@@ -9,28 +9,30 @@ function arrays(f::ROOTFile, treename)
     Threads.@threads for i in eachindex(names)
         res[i] = array(f, "$treename/$(names[i])")
     end
-    res
+    return res
 end
-
 
 """
     array(f::ROOTFile, path; raw=false)
 
 Reads an array from a branch. Set `raw=true` to return raw data and correct offsets.
 """
-array(f::ROOTFile, path::AbstractString; raw=false) = array(f::ROOTFile, _getindex(f, path); raw=raw)
+function array(f::ROOTFile, path::AbstractString; raw=false)
+    return array(f::ROOTFile, _getindex(f, path); raw=raw)
+end
 
 function array(f::ROOTFile, branch; raw=false)
     ismissing(branch) && error("No branch found at $path")
     (!raw && length(branch.fLeaves.elements) > 1) && error(
-            "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
+        "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
+    )
 
     rawdata, rawoffsets = readbranchraw(f, branch)
     if raw
         return rawdata, rawoffsets
     end
-    T, J = auto_T_JaggT(f, branch; customstructs = f.customstructs)
-    interped_data(rawdata, rawoffsets, T, J)
+    T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
+    return interped_data(rawdata, rawoffsets, T, J)
 end
 
 """
@@ -38,19 +40,24 @@ end
     basketarray(f::ROOTFile, branch::Union{TBranch, TBranchElement}, ith)
 
 Reads actual data from ith basket of a branch. This function first calls [`readbasket`](@ref)
-to obtain raw bytes and offsets of a basket, then calls [`auto_T_JaggT`](@ref) followed 
+to obtain raw bytes and offsets of a basket, then calls [`auto_T_JaggT`](@ref) followed
 by [`interped_data`](@ref) to translate raw bytes into actual data.
 """
-basketarray(f::ROOTFile, path::AbstractString, ithbasket) = basketarray(f, f[path], ithbasket)
-@memoize LRU(; maxsize=1 * 1024^3, by=x->sum(sizeof, x)) function basketarray(f::ROOTFile, branch, ithbasket)
-# function basketarray(f::ROOTFile, branch, ithbasket)
+function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
+    return basketarray(f, f[path], ithbasket)
+end
+@memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function basketarray(
+    f::ROOTFile, branch, ithbasket
+)
+    # function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
-            "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.")
+        "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
+    )
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
-    T, J = auto_T_JaggT(f, branch; customstructs = f.customstructs)
-    interped_data(rawdata, rawoffsets, T, J)
+    T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
+    return interped_data(rawdata, rawoffsets, T, J)
 end
 
 # function barrior to make getting individual index faster
@@ -83,17 +90,18 @@ julia> ab[begin:end]
 ...
 ```
 """
-mutable struct LazyBranch{T, J} <: AbstractVector{T}
+mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     f::ROOTFile
-    b::Union{TBranch, TBranchElement}
+    b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::Vector{T}
+    buffer::B
     buffer_range::UnitRange{Int64}
 
-    function LazyBranch(f::ROOTFile, b::Union{TBranch, TBranchElement})
-        T, J = auto_T_JaggT(f, b; customstructs = f.customstructs)
-        new{T, J}(f, b, length(b), b.fBasketEntry, T[], 0:0)
+    function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
+        T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
+        _buffer = J === Nojagg ? T[] : VectorOfVectors{eltype(T)}()
+        return new{T,J,typeof(_buffer)}(f, b, length(b), b.fBasketEntry, _buffer, 0:0)
     end
 end
 
@@ -102,13 +110,13 @@ function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.b.fClassName, h)
     h = hash(lb.L, h)
     h = hash(lb.buffer_range, h)
-    h
+    return h
 end
 Base.size(ba::LazyBranch) = (ba.L,)
 Base.length(ba::LazyBranch) = ba.L
 Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
-Base.eltype(ba::LazyBranch{T,J}) where {T,J} = T
+Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
@@ -118,6 +126,7 @@ function Base.show(io::IO, lb::LazyBranch)
     println("  Description: $(lb.b.fTitle)")
     println("  NumEntry: $(lb.L)")
     print("  Entry Type: $(eltype(lb))")
+    nothing
 end
 
 """
@@ -133,24 +142,27 @@ and update buffer and buffer range accordingly.
     moment, access a `LazyBranch` from different threads at the same time can cause
     performance issue and incorrect event result.
 """
-function Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
+function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     br = ba.buffer_range
     if idx ∉ br
-        seek_idx = findfirst(x -> x>(idx-1), ba.fEntry) - 1 #support 1.0 syntax
-        ba.buffer = basketarray(ba.f, ba.b, seek_idx)
-        br = ba.fEntry[seek_idx] + 1 : ba.fEntry[seek_idx+1] - 1 
+        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
+        bb = basketarray(ba.f, ba.b, seek_idx)
+        @assert typeof(bb) === B
+        ba.buffer = bb
+        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1] - 1)
         ba.buffer_range = br
     end
     localidx = idx - br.start + 1
     return ba.buffer[localidx]
 end
 
-function Base.iterate(ba::LazyBranch{T, J}, idx=1) where {T, J}
-    idx>ba.L && return nothing
-    return (ba[idx], idx+1)
+function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
+    idx > ba.L && return nothing
+    return (ba[idx], idx + 1)
 end
 
-const _LazyTreeType = TypedTables.Table{<:NamedTuple, 1, NamedTuple{S, N}} where {S, N <: Tuple{Vararg{LazyBranch}}}
+const _LazyTreeType =
+    TypedTables.Table{<:NamedTuple,1,NamedTuple{S,N}} where {S,N<:Tuple{Vararg{LazyBranch}}}
 
 struct LazyTree{T} <: DataFrames.AbstractDataFrame
     treetable::T
@@ -160,7 +172,9 @@ end
 
 # a specific branch
 Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
-Base.getindex(lt::LazyTree, rang::UnitRange) = LazyTree(innertable(lt)[rang], Core.getfield(lt, :colidx))
+function Base.getindex(lt::LazyTree, rang::UnitRange)
+    return LazyTree(innertable(lt)[rang], Core.getfield(lt, :colidx))
+end
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, i::Int) = lt[:, propertynames(lt)[i]]
 Base.getindex(lt::LazyTree, ::typeof(!), i::Int) = lt[:, propertynames(lt)[i]]
@@ -187,7 +201,7 @@ function getbranchnamesrecursive(obj)
     for b in obj.fBranches.elements
         push!(out, b.fName)
         for subname in getbranchnamesrecursive(b)
-            push!(out,"$(b.fName)/$(subname)")
+            push!(out, "$(b.fName)/$(subname)")
         end
     end
     return out
@@ -224,39 +238,43 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     if length(branches) > 30
         @warn "Your tree is quite wide, with $(length(branches)) branches, this will take compiler a moment."
     end
-    d = Dict{Symbol, LazyBranch}()
-    d_colidx = Dict{Symbol, Int}()
+    d = Dict{Symbol,LazyBranch}()
+    d_colidx = Dict{Symbol,Int}()
     _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
-    branches = mapreduce(b->filter(_m(b), getbranchnamesrecursive(tree)), ∪, branches)
+    branches = mapreduce(b -> filter(_m(b), getbranchnamesrecursive(tree)), ∪, branches)
     SB = Symbol.(branches)
-    for (i,b) in enumerate(SB)
+    for (i, b) in enumerate(SB)
         d[b] = f["$s/$b"]
         d_colidx[b] = i
     end
-    LazyTree( TypedTables.Table(d), DataFrames.Index(d_colidx, SB) )
+    return LazyTree(TypedTables.Table(d), DataFrames.Index(d_colidx, SB))
 end
 
 function LazyTree(f::ROOTFile, s::AbstractString)
-    LazyTree(f, s, keys(f[s]))
+    return LazyTree(f, s, keys(f[s]))
 end
 
-LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString, Regex}) = LazyTree(f, s, [branch])
+function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex})
+    return LazyTree(f, s, [branch])
+end
 
 struct LazyEvent{T<:TypedTables.Table}
     tree::T
     idx::Int64
 end
 Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
-Base.getproperty(evt::LazyEvent, s::Symbol) = @inbounds getproperty(Core.getfield(evt, :tree),s)[Core.getfield(evt, :idx)]
+function Base.getproperty(evt::LazyEvent, s::Symbol)
+    @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
+end
 Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
-function Base.iterate(tree::T, idx=1) where T <: LazyTree
+function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
-    LazyEvent(Core.getfield(tree, :treetable), idx), idx+1
+    return LazyEvent(Core.getfield(tree, :treetable), idx), idx + 1
 end
 
 # TODO this is not terribly slow, but we can get faster implementation still ;)
-function Base.getindex(ba::LazyBranch{T, J}, rang::UnitRange) where {T, J}
-    [ba[i] for i in rang]
+function Base.getindex(ba::LazyBranch{T,J,B}, rang::UnitRange) where {T,J,B}
+    return [ba[i] for i in rang]
 end

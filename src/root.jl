@@ -189,19 +189,19 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
     if J == Nojagg
-        return ntoh.(reinterpret(T, rawdata))
+        return map(ntoh, reinterpret(T, rawdata))
     elseif J == Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
-        out = Vector{Vector{Vector{subT}}}()
+        out = VectorOfVectors{Vector{subT}}()
         @views for i in 1:(length(rawoffsets)-1)
             flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
-            row = Vector{Vector{subT}}()
+            row = VectorOfVectors{subT}()
             cursor = 1
             while cursor < length(flat)
                 n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
                 cursor += sizeof(Int32)
-                b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
+                b = map(ntoh, reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
                 cursor += n*sizeof(subT)
                 push!(row, b)
             end
@@ -215,13 +215,17 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         # this is why we need to append `rawoffsets` in the `readbranchraw()` call
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
-        @views [
-                ntoh.(reinterpret(
-                                  T, rawdata[ (rawoffsets[i]+jagg_offset+1):rawoffsets[i+1] ]
-                                 )) for i in 1:(length(rawoffsets) - 1)
-               ]
+        _size = sizeof(eltype(T))
+        data = UInt8[]
+        offset = Int64[0] # god damn 0-based index
+        @views @inbounds for i in 1:(length(rawoffsets) - 1)
+            rg = (rawoffsets[i]+jagg_offset+1) : rawoffsets[i+1]
+            append!(data, rawdata[rg])
+            push!(offset, last(offset) + length(rg))
+        end
+        real_data = map(ntoh, reinterpret(T, data))
+        return VectorOfVectors(real_data, offset .÷ _size .+ 1)
     end
-
 end
 
 function _normalize_ftype(fType)
@@ -276,7 +280,7 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
             # this will call a customize routine if defined by user
             # see custom.jl
             _custom = customstructs[classname]
-            return _custom, _jaggtype
+            return _custom, Nojagg
         catch
         end
         m = match(r"vector<(.*)>", classname)
@@ -372,7 +376,7 @@ See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-@memoize LRU(; maxsize=3 * 1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
+@memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 )::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
