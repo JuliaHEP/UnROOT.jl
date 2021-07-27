@@ -224,9 +224,8 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             push!(offset, last(offset) + length(rg))
         end
         real_data = map(ntoh, reinterpret(T, data))
-        VectorOfVectors(real_data, offset .÷ _size .+ 1)
+        return VectorOfVectors(real_data, offset .÷ _size .+ 1)
     end
-
 end
 
 function _normalize_ftype(fType)
