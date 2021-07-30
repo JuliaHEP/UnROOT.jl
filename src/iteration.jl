@@ -46,7 +46,7 @@ by [`interped_data`](@ref) to translate raw bytes into actual data.
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     return basketarray(f, f[path], ithbasket)
 end
-@memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function basketarray(
+function basketarray(
     f::ROOTFile, branch, ithbasket
 )
     # function basketarray(f::ROOTFile, branch, ithbasket)

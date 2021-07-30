@@ -38,7 +38,7 @@ Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(l
 function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
-    v4 = ntoh.(reinterpret(Float64, v[1+32:end]))
+    v4 = ntoh.(reinterpret(Float64, @view v[1+32:end]))
     # t,x,y,z in LorentzVectors.jl
     LVF64(v4[4], v4[1], v4[2], v4[3])
 end
@@ -51,15 +51,27 @@ The `interped_data` method specialized for `LorentzVector`. This method will get
 """
 function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offsetjagg})
     _size = 64 # needs to account for 32 bytes header
-    data = UInt8[]
-    offset = Int64[0]
-    @views @inbounds for i in 1:(length(rawoffsets) - 1)
-        rg = (rawoffsets[i]+10+1) : rawoffsets[i+1]
-        append!(data, rawdata[rg])
-        push!(offset, last(offset) + length(rg))
+    dp = 0 # book keeping for copy_to!
+    lr = length(rawoffsets)
+    offset = Vector{Int64}(undef, lr)
+    offset[1] = 0
+    @views @inbounds for i in 1:lr-1
+        start = rawoffsets[i]+10+1
+        stop = rawoffsets[i+1]
+        l = stop-start+1
+        if l > 0
+            unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
+            dp += l
+            offset[i+1] = offset[i] + l
+        else
+            offset[i+1] = offset[i]
+        end
     end
-    real_data = interped_data(data, offset, LVF64, Nojagg)
-    VectorOfVectors(real_data, offset .÷ _size .+ 1)
+    resize!(rawdata, dp)
+    real_data = interped_data(rawdata, offset, LVF64, Nojagg)
+    offset .÷= _size
+    offset .+= 1
+    VectorOfVectors(real_data, offset)
 end
 function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where {T, J <: JaggType}
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes

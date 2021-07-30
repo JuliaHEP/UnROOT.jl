@@ -216,15 +216,29 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         _size = sizeof(eltype(T))
-        data = UInt8[]
-        offset = Int64[0] # god damn 0-based index
-        @views @inbounds for i in 1:(length(rawoffsets) - 1)
-            rg = (rawoffsets[i]+jagg_offset+1) : rawoffsets[i+1]
-            append!(data, rawdata[rg])
-            push!(offset, last(offset) + length(rg))
+
+        dp = 0 # book keeping for copy_to!
+        lr = length(rawoffsets)
+        offset = Vector{Int64}(undef, lr)
+        offset[1] = 0
+        @views @inbounds for i in 1:lr-1
+            start = rawoffsets[i]+jagg_offset+1
+            stop = rawoffsets[i+1]
+            l = stop-start+1
+            if l > 0
+                unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
+                dp += l
+                offset[i+1] = offset[i] + l
+            else
+                # when we have an empty [] in jagged basket
+                offset[i+1] = offset[i]
+            end
         end
-        real_data = map(ntoh, reinterpret(T, data))
-        return VectorOfVectors(real_data, offset .÷ _size .+ 1)
+        resize!(rawdata, dp)
+        real_data = map(ntoh, reinterpret(T, rawdata))
+        offset .÷= _size
+        offset .+= 1
+        VectorOfVectors(real_data, offset)
     end
 end
 
@@ -379,7 +393,7 @@ readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketS
 @memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
 # function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
-)::Tuple{Vector{UInt8},Vector{Int32},Int32}  # just being extra careful
+)::Tuple{Vector{UInt8},Vector{Int32}}  # just being extra careful
     lock(f)
     seek(f.fobj, seek_pos)
     basketkey = unpack(f.fobj, TBasketKey)
@@ -409,8 +423,8 @@ f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
         # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
         offset = ntoh.(reinterpret(Int32, offbytes)) .- Keylen
         push!(offset, contentsize)
-        data, offset, contentsize
+        data, offset
     else
-        data, Int32[], contentsize
+        data, Int32[]
     end
 end
