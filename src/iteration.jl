@@ -46,10 +46,7 @@ by [`interped_data`](@ref) to translate raw bytes into actual data.
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     return basketarray(f, f[path], ithbasket)
 end
-function basketarray(
-    f::ROOTFile, branch, ithbasket
-)
-    # function basketarray(f::ROOTFile, branch, ithbasket)
+function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
