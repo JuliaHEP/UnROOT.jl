@@ -46,10 +46,7 @@ by [`interped_data`](@ref) to translate raw bytes into actual data.
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     return basketarray(f, f[path], ithbasket)
 end
-function basketarray(
-    f::ROOTFile, branch, ithbasket
-)
-    # function basketarray(f::ROOTFile, branch, ithbasket)
+function basketarray(f::ROOTFile, branch, ithbasket)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
@@ -147,7 +144,9 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     if idx ∉ br
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
         bb = basketarray(ba.f, ba.b, seek_idx)
-        @assert typeof(bb) === B
+        if typeof(bb) !== B
+            error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
+        end
         ba.buffer = bb
         br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1] - 1)
         ba.buffer_range = br

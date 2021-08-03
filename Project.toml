@@ -1,7 +1,7 @@
 name = "UnROOT"
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
-version = "0.3.6"
+version = "0.3.7"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"

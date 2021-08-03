@@ -91,6 +91,11 @@ end
 function readtype(io::IO, T::Type{KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
+function interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQHit, skipbytes=10)
+end
+
+
 # Experimental implementation for maximum performance (using reinterpret)
 primitive type DAQHit 80 end
 function Base.getproperty(hit::DAQHit, s::Symbol)
@@ -128,6 +133,10 @@ function readtype(io::IO, T::Type{KM3NETDAQTriggeredHit})
     T(dom_id, channel_id, tdc, tot, trigger_mask)
 end
 
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQTriggeredHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQTriggeredHit, skipbytes=10)
+end
+
 struct KM3NETDAQEventHeader
     detector_id::Int32
     run::Int32
@@ -154,4 +163,8 @@ function readtype(io::IO, T::Type{KM3NETDAQEventHeader})
     trigger_mask = readtype(io, UInt64)
     overlays = readtype(io, UInt32)
     T(detector_id, run, frame_index, UTC_seconds, UTC_16nanosecondcycles, trigger_counter, trigger_mask, overlays)
+end
+
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{KM3NETDAQEventHeader}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQEventHeader, jagged=false)
 end
