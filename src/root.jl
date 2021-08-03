@@ -15,6 +15,18 @@ struct ROOTFile
     customstructs::Dict{String, Type}
     lk::ReentrantLock
 end
+function close(f::ROOTFile)
+    # TODO: should we take care of the lock?
+    close(f.fobj)
+end
+function ROOTFile(f::Function, args...; pv...)
+    rootfile = ROOTFile(args...; pv...)
+    try
+        f(rootfile)
+    finally
+        close(rootfile)
+    end
+end
 lock(f::ROOTFile) = lock(f.lk)
 unlock(f::ROOTFile) = unlock(f.lk)
 function Base.hash(rf::ROOTFile, h::UInt)
