@@ -105,11 +105,13 @@ end
     for key in keys(rootfile)
         rootfile[key]
     end
+    close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "histograms.root"))
     for branch in ["one", "two", "three"]
         @test branch in keys(rootfile)
     end
+    close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     @test 100 == rootfile.header.fBEGIN
@@ -127,6 +129,7 @@ end
     # for key in keys(rootfile)
     #     @test !ismissing(rootfile[key])
     # end
+    close(rootfile)
 end
 
 @testset "readbasketsraw()" begin
@@ -134,6 +137,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     data, offsets = UnROOT.array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
     @test array_md5 == md5(data)
+    close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
     data, offsets = UnROOT.array(rootfile, "t1/int32_array"; raw=true)
@@ -145,6 +149,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_vector_multiple_baskets.root"))
     data, offsets = UnROOT.array(rootfile, "t1/b1"; raw=true)
     @test unique(diff(offsets)) == [18]
+    close(rootfile)
 end
 
 @testset "No (basket) compression" begin
@@ -152,6 +157,7 @@ end
     arr = UnROOT.array(rootfile, "t1/int32_array")
     @test length(arr) == 3
     @test all(arr .== [[1,2], [], [3]])
+    close(rootfile)
 end
 
 @testset "Compressions" begin
@@ -160,10 +166,13 @@ end
     arr = UnROOT.array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
+    close(rootfile)
+
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lz4.root"))
     arr = collect(rootfile["t1/float_array"])
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
+    close(rootfile)
 end
 
 @testset "ROOTDirectoryHeader" begin
@@ -177,6 +186,7 @@ end
     @test 100 == header.fSeekDir
     @test 0 == header.fSeekParent
     @test 1398 == header.fSeekKeys
+    close(rootfile)
 
     # rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
     # header = rootfile.directory.header
@@ -188,6 +198,7 @@ end
     # @test 100 == header.fSeekDir
     # @test 0 == header.fSeekParent
     # @test 1619244 == header.fSeekKeys
+    # close(rootfile)
 end
 
 @testset "LazyBranch and LazyTree" begin
@@ -205,6 +216,7 @@ end
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
+    close(rootfile)
 end
 
 @testset "TLorentzVector" begin
@@ -218,6 +230,7 @@ end
     @test eltype(branch) === LorentzVectors.LorentzVector{Float64}
     @test tree[1].LV.x == 1.0
     @test tree[1].LV.t == 4.0
+    close(rootfile)
 end
 
 @testset "TNtuple" begin
@@ -227,6 +240,7 @@ end
     @test arrs[1] ≈ 0:99
     @test arrs[2] ≈ arrs[1] .+ arrs[1] ./ 13
     @test arrs[3] ≈ arrs[1] .+ arrs[1] ./ 17
+    close(rootfile)
 end
 
 @testset "Singly jagged branches" begin
@@ -236,6 +250,7 @@ end
     @test data[1] == Int32[]
     @test data[1:2] == [Int32[], Int32[0]]
     @test data[end] == Int32[90, 91, 92, 93, 94, 95, 96, 97, 98]
+    close(rootfile)
 
     # 64bits T
     T = Float64
@@ -246,6 +261,7 @@ end
     @test data[1] == T[]
     @test data[1:2] == [T[], T[0]]
     @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
+    close(rootfile)
 end
 
 @testset "Doubly jagged branches" begin
@@ -258,6 +274,7 @@ end
     @test UnROOT.array(rootfile, "t1/bf") == vvf
     @test rootfile["t1/bf"] == vvf
     @test eltype(eltype(eltype(rootfile["t1/bf"]))) === Float32
+    close(rootfile)
 end
 
 @testset "NanoAOD" begin
@@ -274,6 +291,7 @@ end
     @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+    close(rootfile)
 end
 
 @testset "Branch filtering" begin
@@ -295,6 +313,7 @@ end
     for f in files
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
         show(_io, r)
+        close(r)
     end
 end
 # Custom bootstrap things
@@ -339,6 +358,7 @@ end
     @test headers[1].overlays == 6
     @test headers[2].overlays == 21
     @test headers[3].overlays == 0
+    close(f)
 end
 
 # Histograms
@@ -380,9 +400,12 @@ end
         @test f[k][:fN] == [0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     end
 
+    close(f)
+
     f = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
     binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
     @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
+    close(f)
 end
 
 
@@ -393,6 +416,7 @@ end
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
+    close(rootfile)
 
     # issue 55
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
@@ -403,10 +427,12 @@ end
     @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts1[1:4]
     @test pts1 == pts2
     @test pts3[1:2] == [[454.0, 217.5, 89.5, 30.640625], [184.375, 33.28125, 32.28125, 28.46875]]
+    close(rootfile)
 
     # issue 61
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
+    close(rootfile)
 end
 
 @testset "jagged subbranch type by leaf" begin
@@ -418,6 +444,8 @@ end
     ids_jagged = UnROOT.array(rootfile, "E/Evt/trks/trks.id")
     @test all(ids_jagged[1] .== collect(1:56))
     @test all(ids_jagged[9] .== collect(1:54))
+
+    close(rootfile)
 end
 
 @testset "Type stability" begin
@@ -442,4 +470,6 @@ end
 
     @test isfullystable(f1)
     @test isfullystable(f2)
+
+    close(rootfile)
 end
