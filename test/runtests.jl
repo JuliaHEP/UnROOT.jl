@@ -89,12 +89,13 @@ end
 
 
 @testset "ROOTFile" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root"))
-    @test 100 == rootfile.header.fBEGIN
-    @test 1 == length(rootfile.directory.keys)
-    @test "t1" ∈ keys(rootfile)
-    for key in keys(rootfile)
-        rootfile[key]
+    ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root")) do rootfile
+        @test 100 == rootfile.header.fBEGIN
+        @test 1 == length(rootfile.directory.keys)
+        @test "t1" ∈ keys(rootfile)
+        for key in keys(rootfile)
+            rootfile[key]
+        end
     end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_custom_struct.root"))
