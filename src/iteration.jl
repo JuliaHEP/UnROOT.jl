@@ -144,7 +144,9 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     if idx ∉ br
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
         bb = basketarray(ba.f, ba.b, seek_idx)
-        @assert typeof(bb) === B
+        if typeof(bb) !== B
+            error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
+        end
         ba.buffer = bb
         br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1] - 1)
         ba.buffer_range = br
