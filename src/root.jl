@@ -302,10 +302,22 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     _jaggtype = JaggType(f, branch, leaf)
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
+        parentname = branch.fParentName  # assuming it has a parent ;)
         try
             # this will call a customize routine if defined by user
             # see custom.jl
-            _custom = customstructs[classname]
+            #
+            # TODO to be verified: fields of custom classes have the same classname and parentname,
+            # the fieldname is the fTitle. Here, we use the dot-separator, so that the
+            # user can provide e.g. `KM3NETDAQ::JDAQEvent.snapshotHits`, where `KM3NETDAQ::JDAQEvent`
+            # is the class name and `snapshotHits` the field name. The provided type will be used
+            # to parse the data
+            if classname == parentname
+                identifier = join([classname, branch.fTitle], '.')
+            else
+                identifier = classname
+            end
+            _custom = customstructs[identifier]
             return _custom, Nojagg
         catch
         end
