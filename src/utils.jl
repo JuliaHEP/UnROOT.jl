@@ -69,3 +69,33 @@ function JaggType(f, branch, leaf)
 
     return Nojagg
 end
+
+"""
+    parseTH(th::Dict{Symbol, Any})
+
+Parse the output of [`TH`](@ref) into a tuple of `counts`, `edges`, and `sumw2`.
+A `StatsBase.Histogram` can then be constructed with `Histogram(edges, counts)`.
+TH1 and TH2 inputs are supported.
+"""
+function parseTH(th::Dict{Symbol, Any})
+    xmin = th[:fXaxis_fXmin]
+    xmax = th[:fXaxis_fXmax]
+    xnbins = th[:fXaxis_fNbins]
+    xbins = isempty(th[:fXaxis_fXbins]) ? range(xmin, xmax, length=xnbins+1) : th[:fXaxis_fXbins];
+    counts = th[:fN]
+    sumw2 = th[:fSumw2]
+    if th[:fYaxis_fNbins] > 1
+        ymin = th[:fYaxis_fXmin]
+        ymax = th[:fYaxis_fXmax]
+        ynbins = th[:fYaxis_fNbins]
+        ybins = isempty(th[:fYaxis_fXbins]) ? range(ymin, ymax, length=ynbins+1) : th[:fYaxis_fXbins];
+        counts = reshape(counts, (xnbins+2, ynbins+2))[begin+1:end-1, begin+1:end-1]
+        sumw2 = reshape(sumw2, (xnbins+2, ynbins+2))[begin+1:end-1, begin+1:end-1]
+        edges = (xbins, ybins)
+    else
+        counts = counts[begin+1:end-1]
+        sumw2 = sumw2[begin+1:end-1]
+        edges = (xbins,)
+    end
+    return counts, edges, sumw2
+end
