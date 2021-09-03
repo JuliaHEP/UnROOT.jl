@@ -194,9 +194,9 @@ Base.firstindex(lt::LazyTree) = 1
 Base.lastindex(lt::LazyTree) = length(lt)
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
-Base.firstindex(e::Iterators.Enumerate) = firstindex(e.itr)
-Base.lastindex(e::Iterators.Enumerate) = lastindex(e.itr)
-Base.getindex(e::Iterators.Enumerate, row::Int) = (row, first(iterate(e.itr, row)))
+Base.firstindex(e::Iterators.Enumerate{LazyTree{T}}) where T = firstindex(e.itr)
+Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
+Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, first(iterate(e.itr, row)))
 
 # interfacing AbstractDataFrame
 DataFrames._check_consistency(lt::LazyTree) = nothing #we're read-only
