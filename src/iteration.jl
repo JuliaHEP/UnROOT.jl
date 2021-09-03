@@ -100,8 +100,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
         _buffer = J === Nojagg ? T[] : VectorOfVectors{eltype(T)}()
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
-                                        [_buffer for _ in 1:nthreads()],
-                                        [0:0 for _ in 1:nthreads()])
+                                        [_buffer for _ in 1:Threads.nthreads()],
+                                        [0:0 for _ in 1:Threads.nthreads()])
     end
 end
 
@@ -145,7 +145,7 @@ and update buffer and buffer range accordingly.
     performance issue and incorrect event result.
 """
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
-    tid = threadid()
+    tid = Threads.threadid()
     br = ba.buffer_range[tid]
     if idx ∉ br
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
