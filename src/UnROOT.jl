@@ -9,8 +9,10 @@ import AbstractTrees: children, printnode, print_tree
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
+using Base.Threads
 
 import Tables, TypedTables, PrettyTables, DataFrames
+
 
 @static if VERSION < v"1.4"
     Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]

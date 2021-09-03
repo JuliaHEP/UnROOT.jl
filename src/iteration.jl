@@ -92,13 +92,16 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::B
-    buffer_range::UnitRange{Int64}
+    buffer::Vector{B}
+    buffer_range::Vector{UnitRange{Int64}}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
         _buffer = J === Nojagg ? T[] : VectorOfVectors{eltype(T)}()
-        return new{T,J,typeof(_buffer)}(f, b, length(b), b.fBasketEntry, _buffer, 0:0)
+        return new{T,J,typeof(_buffer)}(f, b, length(b),
+                                        b.fBasketEntry,
+                                        [_buffer for _ in 1:nthreads()],
+                                        [0:0 for _ in 1:nthreads()])
     end
 end
 
@@ -106,7 +109,9 @@ function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
     h = hash(lb.b.fClassName, h)
     h = hash(lb.L, h)
-    h = hash(lb.buffer_range, h)
+    for br in lb.buffer_range
+        h = hash(br, h)
+    end
     return h
 end
 Base.size(ba::LazyBranch) = (ba.L,)
@@ -140,19 +145,20 @@ and update buffer and buffer range accordingly.
     performance issue and incorrect event result.
 """
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
-    br = ba.buffer_range
+    tid = threadid()
+    br = ba.buffer_range[tid]
     if idx ∉ br
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
         bb = basketarray(ba.f, ba.b, seek_idx)
         if typeof(bb) !== B
             error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
         end
-        ba.buffer = bb
+        ba.buffer[tid] = bb
         br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1] - 1)
-        ba.buffer_range = br
+        ba.buffer_range[tid] = br
     end
     localidx = idx - br.start + 1
-    return ba.buffer[localidx]
+    return ba.buffer[tid][localidx]
 end
 
 function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
