@@ -193,6 +193,11 @@ Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
 Base.lastindex(lt::LazyTree) = length(lt)
 
+# allow enumerate() to be chunkable (eg with Threads.@threads)
+Base.firstindex(e::Iterators.Enumerate) = firstindex(e.itr)
+Base.lastindex(e::Iterators.Enumerate) = lastindex(e.itr)
+Base.getindex(e::Iterators.Enumerate, row::Int) = (row - firstindex(e) + 1, getindex(e.itr, row))
+
 # interfacing AbstractDataFrame
 DataFrames._check_consistency(lt::LazyTree) = nothing #we're read-only
 Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
