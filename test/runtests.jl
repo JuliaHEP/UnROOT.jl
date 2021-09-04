@@ -464,11 +464,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     arr = LazyTree(rootfile,"Events").Jet_pt;
     _ = length.(arr);
-    if length(arr.buffer) == Threads.nthreads()
-        @test length(arr.buffer[1]) == length(arr.buffer_range[1])
-    else
-        @test length(arr.buffer) == length(arr.buffer_range)
-    end
+    @test length(arr.buffer[1]) == length(arr.buffer_range[1])
     close(rootfile)
 end
 
