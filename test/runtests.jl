@@ -499,3 +499,48 @@ end
 
     close(rootfile)
 end
+
+@testset "Enumerate interface" begin
+    t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    nmu = 0
+    for evt in t
+        nmu += length(evt.Muon_pt)
+    end
+    @test nmu == 878
+
+    nmu = 0
+    for (i,evt) in enumerate(t)
+        nmu += length(evt.Muon_pt)
+    end
+    @test nmu == 878
+
+
+    nmus = [0]
+    Threads.@threads for i in 1:length(t)
+        nmus[1] += length(t.Muon_pt[i])
+    end
+    @test nmus == [878]
+
+
+    @static if VERSION > v"1.3.1"
+        nmus = [0]
+        Threads.@threads for (i,evt) in enumerate(t)
+            nmus[1] += length(t.Muon_pt[i])
+        end
+        @test nmus == [878]
+
+        nmus = [0]
+        Threads.@threads for evt in t
+            nmus[1] += length(evt.Muon_pt)
+        end
+        @test nmus == [878]
+    end
+
+    et = enumerate(t)
+    @test firstindex(et) == firstindex(t)
+    @test lastindex(et) == lastindex(t)
+    i,evt = et[2]
+    @test i == 2
+    @test evt isa UnROOT.LazyEvent
+    @test !isempty(hash(t.Muon_pt.b))
+end
