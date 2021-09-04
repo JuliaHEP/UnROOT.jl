@@ -522,6 +522,9 @@ end
     @test nmu == 878
 
 
+    if get(ENV, "CI", "false") == "true"
+        @test Threads.nthreads() > 1
+    end
     nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
