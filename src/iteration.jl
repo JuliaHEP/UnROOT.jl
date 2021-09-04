@@ -101,7 +101,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
                                         [_buffer for _ in 1:Threads.nthreads()],
-                                        [0:0 for _ in 1:Threads.nthreads()])
+                                        [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
 

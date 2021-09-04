@@ -464,7 +464,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     arr = LazyTree(rootfile,"Events").Jet_pt;
     _ = length.(arr);
-    @test length(arr.buffer[1]) == length(arr.buffer_range[1])
+    @test length.(arr.buffer) == length.(arr.buffer_range)
     close(rootfile)
 end
 
@@ -522,6 +522,9 @@ end
     @test nmu == 878
 
 
+    if get(ENV, "CI", "false") == "true"
+        @test Threads.nthreads() > 1
+    end
     nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
