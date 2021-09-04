@@ -522,25 +522,25 @@ end
     @test nmu == 878
 
 
-    nmus = [0]
+    nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
-        nmus[1] += length(t.Muon_pt[i])
+        nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
-    @test nmus == [878]
+    @test sum(nmus) == 878
 
 
     @static if VERSION > v"1.3.1"
-        nmus = [0]
+        nmus = zeros(Int, Threads.nthreads())
         Threads.@threads for (i,evt) in enumerate(t)
-            nmus[1] += length(t.Muon_pt[i])
+            nmus[Threads.threadid()] += length(t.Muon_pt[i])
         end
-        @test nmus == [878]
+        @test sum(nmus) == 878
 
-        nmus = [0]
+        nmus = zeros(Int, Threads.nthreads())
         Threads.@threads for evt in t
-            nmus[1] += length(evt.Muon_pt)
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test nmus == [878]
+        @test sum(nmus) == 878
     end
 
     et = enumerate(t)
