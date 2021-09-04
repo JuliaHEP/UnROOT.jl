@@ -455,6 +455,17 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
+
+    # issue 78
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
+    arr = LazyTree(rootfile,"Events").Jet_pt;
+    _ = length.(arr);
+    if length(arr.buffer) == Threads.nthreads()
+        @test length(arr.buffer[1]) == length(arr.buffer_range[1])
+    else
+        @test length(arr.buffer) == length(arr.buffer_range)
+    end
+    close(rootfile)
 end
 
 @testset "jagged subbranch type by leaf" begin
