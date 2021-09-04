@@ -12,9 +12,9 @@ using Mixers, Parameters, Memoization, LRUCache
 
 import Tables, TypedTables, PrettyTables, DataFrames
 
-@static if VERSION < v"1.4"
+@static if VERSION < v"1.6"
     Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
-    Base.first(a::S, n::Integer) where S<: AbstractString = a[1:n]
+    Base.first(a::S, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
 end
 
 include("constants.jl")
