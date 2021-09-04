@@ -69,5 +69,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-          JULIA_NUM_THREADS: "3"
+          JULIA_NUM_THREADS: "2"
           CI: "true"
