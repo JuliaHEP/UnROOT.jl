@@ -528,7 +528,11 @@ end
     end
     @test nmus == [878]
 
-    i,evt = enumerate(t)[2]
+    et = enumerate(t)
+    @test firstindex(et) == firstindex(t)
+    @test lastindex(et) == lastindex(t)
+    i,evt = et[2]
     @test i == 2
     @test evt isa UnROOT.LazyEvent
+    @test !isempty(hash(t.Muon_pt.b))
 end
