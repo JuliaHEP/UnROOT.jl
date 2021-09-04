@@ -510,11 +510,6 @@ end
     end
     @test nmu == 878
 
-    nmus = [0]
-    Threads.@threads for (i,evt) in enumerate(t)
-        nmus[1] += length(t.Muon_pt[i])
-    end
-    @test nmus == [878]
 
     nmus = [0]
     Threads.@threads for i in 1:length(t)
@@ -522,11 +517,20 @@ end
     end
     @test nmus == [878]
 
-    nmus = [0]
-    Threads.@threads for evt in t
-        nmus[1] += length(evt.Muon_pt)
+
+    @static if VERSION > v"1.3.1"
+        nmus = [0]
+        Threads.@threads for (i,evt) in enumerate(t)
+            nmus[1] += length(t.Muon_pt[i])
+        end
+        @test nmus == [878]
+
+        nmus = [0]
+        Threads.@threads for evt in t
+            nmus[1] += length(evt.Muon_pt)
+        end
+        @test nmus == [878]
     end
-    @test nmus == [878]
 
     et = enumerate(t)
     @test firstindex(et) == firstindex(t)
