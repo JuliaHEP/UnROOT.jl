@@ -154,7 +154,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
             error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
         end
         ba.buffer[tid] = bb
-        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1] - 1)
+        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
         ba.buffer_range[tid] = br
     end
     localidx = idx - br.start + 1

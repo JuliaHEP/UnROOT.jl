@@ -459,6 +459,13 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
+
+    # issue 78
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
+    arr = LazyTree(rootfile,"Events").Jet_pt;
+    _ = length.(arr);
+    @test length(arr.buffer[1]) == length(arr.buffer_range[1])
+    close(rootfile)
 end
 
 @testset "jagged subbranch type by leaf" begin
@@ -515,25 +522,25 @@ end
     @test nmu == 878
 
 
-    nmus = [0]
+    nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
-        nmus[1] += length(t.Muon_pt[i])
+        nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
-    @test nmus == [878]
+    @test sum(nmus) == 878
 
 
     @static if VERSION > v"1.3.1"
-        nmus = [0]
+        nmus = zeros(Int, Threads.nthreads())
         Threads.@threads for (i,evt) in enumerate(t)
-            nmus[1] += length(t.Muon_pt[i])
+            nmus[Threads.threadid()] += length(t.Muon_pt[i])
         end
-        @test nmus == [878]
+        @test sum(nmus) == 878
 
-        nmus = [0]
+        nmus = zeros(Int, Threads.nthreads())
         Threads.@threads for evt in t
-            nmus[1] += length(evt.Muon_pt)
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test nmus == [878]
+        @test sum(nmus) == 878
     end
 
     et = enumerate(t)
