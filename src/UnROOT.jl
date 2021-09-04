@@ -14,6 +14,7 @@ import Tables, TypedTables, PrettyTables, DataFrames
 
 @static if VERSION < v"1.4"
     Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
+    Base.first(a::S, n::Integer) where S<: AbstractString = a[1:n]
 end
 
 include("constants.jl")
