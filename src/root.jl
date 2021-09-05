@@ -414,8 +414,8 @@ See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-@memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
-# function readbasketseek(
+# @memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
+function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 )::Tuple{Vector{UInt8},Vector{Int32}}  # just being extra careful
     lock(f)
