@@ -419,36 +419,40 @@ function readbasketseek(
 f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 )::Tuple{Vector{UInt8},Vector{Int32}}  # just being extra careful
     lock(f)
-    seek(f.fobj, seek_pos)
-    basketkey = unpack(f.fobj, TBasketKey)
-    compressedbytes = compressed_datastream(f.fobj, basketkey)
-    unlock(f)
+    try
+        seek(f.fobj, seek_pos)
+        basketkey = unpack(f.fobj, TBasketKey)
+        compressedbytes = compressed_datastream(f.fobj, basketkey)
 
-    basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
+        basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
 
-    @debug begin
-        ibasket = findfirst(==(seek_pos), branch.fBasketSeek)
-        mbcompressed = length(compressedbytes)/1024^2
-        mbuncompressed = length(basketrawbytes)/1024^2
-        "Read branch $(branch.fName), basket $(ibasket), $(mbcompressed) MB compressed, $(mbuncompressed) MB uncompressed"
-    end
+        @debug begin
+            ibasket = findfirst(==(seek_pos), branch.fBasketSeek)
+            mbcompressed = length(compressedbytes)/1024^2
+            mbuncompressed = length(basketrawbytes)/1024^2
+            "Read branch $(branch.fName), basket $(ibasket), $(mbcompressed) MB compressed, $(mbuncompressed) MB uncompressed"
+        end
 
-    Keylen = basketkey.fKeylen
-    contentsize = Int32(basketkey.fLast - Keylen)
+        Keylen = basketkey.fKeylen
+        contentsize = Int32(basketkey.fLast - Keylen)
 
-    offsetbytesize = basketkey.fObjlen - contentsize - 8
+        offsetbytesize = basketkey.fObjlen - contentsize - 8
 
-    data = @view basketrawbytes[1:contentsize]
-    if offsetbytesize > 0
+        data = @view basketrawbytes[1:contentsize]
+        if offsetbytesize > 0
 
-        #indexing is inclusive on both ends
-        offbytes = @view basketrawbytes[(contentsize + 4 + 1):(end - 4)]
+            #indexing is inclusive on both ends
+            offbytes = @view basketrawbytes[(contentsize + 4 + 1):(end - 4)]
 
-        # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
-        offset = ntoh.(reinterpret(Int32, offbytes)) .- Keylen
-        push!(offset, contentsize)
-        data, offset
-    else
-        data, Int32[]
+            # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
+            offset = ntoh.(reinterpret(Int32, offbytes)) .- Keylen
+            push!(offset, contentsize)
+            return data, offset
+        else
+            return data, Int32[]
+        end
+    catch
+        finally
+        unlock(f)
     end
 end
