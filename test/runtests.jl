@@ -553,6 +553,13 @@ end
         @test any(>(0), nmus) # test @batch is actually threading
         @test sum(nmus) == 878
 
+        event_nums = zeros(Int, Threads.nthreads())
+        @batch for (i,evt) in enumerate(t)
+            event_nums[Threads.threadid()] += 1
+        end
+        @test any(>(0), event_nums)
+        @test sum(event_nums) == length(t)
+
         nmus .= 0
         @batch for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
