@@ -7,34 +7,10 @@
 [![Build Status](https://github.com/tamasgal/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/tamasgal/UnROOT.jl/actions)
 [![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
 
-UnROOT.jl is a (WIP) reader for the [CERN ROOT](https://root.cern) file format
-written entirely in pure Julia, without any dependence on ROOT or Python.
-
-While the ROOT documentation does not contain a detailed description of the
-binary structure, the format can be triangulated by other packages like
-
-- [uproot3](https://github.com/scikit-hep/uproot) (Python), see also [UpROOT.jl](https://github.com/JuliaHEP/UpROOT.jl/)
-- [groot](https://godoc.org/go-hep.org/x/hep/groot#hdr-File_layout) (Go)
-- [root-io](https://github.com/cbourjau/alice-rs/tree/master/root-io) (Rust)
-- [Laurelin](https://github.com/spark-root/laurelin) (Java)
-
-Here's a detailed [from-scratch walk through](https://jiling.web.cern.ch/jiling/dump/ROOT_Fileformat.pdf) 
-on reading a jagged branch from a ROOT file, recommended for first time contributors or those who just want to learn
-about ROOT file format.
-
-Three's also a [discussion](https://github.com/scikit-hep/uproot/issues/401) reagarding the ROOT binary format
-documentation on uproot's issue page.
-
-## Status
-We support reading all scalar and jagged branches of "basic" types, provide
-indexing and iteration interface with a "per branch" basket-cache. There is a low level
-API to provide interpretation functionalities for custom types and classes.
-As a metric, UnROOT can read all branches (~1800) of CMS NanoAOD including jagged `TLorentzVector` branch.
+UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
+written entirely in Julia, without any dependence on ROOT or Python.
 
 ## Quick Start
-The easiest way to access data is through `LazyTree`, which is `<: AbstractDataFrame` and
-a thin-wrap around `TypedTable` under the hood. It supports most accessing patterns from
-the loved `DataFrames` eco-system.
 ```julia
 julia> using UnROOT
 
@@ -74,6 +50,12 @@ julia> for event in mytree
            break
        end
 event.Electron_dxy = Float32[0.00037050247]
+
+julia> using Polyester #optional dependency
+
+julia> @batch for event in mytree # multi-threading
+           ...
+       end
 ```
 
 Only one basket per branch will be cached so you don't have to worry about running out of RAM.
@@ -87,32 +69,7 @@ that only takes 2 steps, as explained [here](https://github.com/tamasgal/UnROOT.
 As a show case for this functionality, the `TLorentzVector` support in UnROOT is implemented
 with the said plug-in system.
 
-Alternatively, reading raw data is also possible
-using the `UnROOT.array(f::ROOTFile, path; raw=true)` method. The output can
-be then reinterpreted using a custom type with the method
-`UnROOT.splitup(data, offsets, T::Type; skipbytes=0, jagged=true)`. This provides more fine grain control in case
-your branch is highly irregular. You can then define suitable Julia `type` and `readtype` method for parsing these data.
-Alternatively, you can of course parse the `data` and `offsets` entirely manually.
-Here is it in action, with the help of the `type`s from `custom.jl`, and some data from the KM3NeT experiment:
-``` julia
-julia> using UnROOT
-
-julia> f = ROOTFile("test/samples/km3net_online.root")
-ROOTFile("test/samples/km3net_online.root") with 10 entries and 41 streamers.
-
-julia> data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-2058-element Array{UInt8,1}:
- 0x00
- 0x03
-   ⋮
-   
-julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
-4-element Vector{Vector{UnROOT.KM3NETDAQHit}}:
- [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
-```
-
 ## Main challenges
-
 - ROOT data is generally stored as big endian and is a
   self-descriptive format, i.e. so-called streamers are stored in the files
   which describe the actual structure of the data in the corresponding branches.
@@ -121,9 +78,7 @@ julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
 - Performance is very important for a low level I/O library.
 
 
-## Low hanging fruits
-
-Pick one ;)
+## TODOs
 
 - [x] Parsing the file header
 - [x] Read the `TKey`s of the top level dictionary
