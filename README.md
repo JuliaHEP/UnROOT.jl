@@ -10,7 +10,7 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
-## Quick Start
+## Quick Start (see [docs](https://tamasgal.github.io/UnROOT.jl/dev/) for more)
 ```julia
 julia> using UnROOT
 
@@ -35,12 +35,6 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
  4   │ [-0.00157]       0       []               []
  ⋮   │     ⋮            ⋮             ⋮                ⋮
  
- 
-julia> mytree[1:3, :nMuon]
-3-element Vector{UInt32}:
- 0x00000000
- 0x00000002
- 0x00000000
 ```
 
 You can iterate through a `LazyTree`:
@@ -65,7 +59,7 @@ is fairly small or you need all of them anyway, you can `collect(event)` first i
 ## Branch of custom struct
 
 We provide an experimental interface for hooking up UnROOT with your custom types
-that only takes 2 steps, as explained [here](https://github.com/tamasgal/UnROOT.jl/wiki/CustomBranch).
+that only takes 2 steps, as explained [in the docs](https://tamasgal.github.io/UnROOT.jl/dev/advanced/custom_branch/).
 As a show case for this functionality, the `TLorentzVector` support in UnROOT is implemented
 with the said plug-in system.
 
