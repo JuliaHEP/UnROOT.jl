@@ -283,7 +283,7 @@ Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
-    return LazyEvent(Core.getfield(tree, :treetable), idx), idx + 1
+    return LazyEvent(innertable(tree), idx), idx + 1
 end
 
 # TODO this is not terribly slow, but we can get faster implementation still ;)

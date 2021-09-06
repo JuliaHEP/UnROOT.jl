@@ -573,8 +573,8 @@ end
     et = enumerate(t)
     @test firstindex(et) == firstindex(t)
     @test lastindex(et) == lastindex(t)
-    i,evt = et[2]
-    @test i == 2
-    @test evt isa UnROOT.LazyEvent
+    test_i, test_evt = et[2]
+    @test test_i == 2
+    @test test_evt isa UnROOT.LazyEvent
     @test !isempty(hash(t.Muon_pt.b))
 end
