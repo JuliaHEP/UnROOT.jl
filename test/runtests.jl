@@ -533,50 +533,6 @@ end
     end
     @test sum(nmus) == 878
 
-
-    @static if VERSION > v"1.5.1"
-        nmus = zeros(Int, Threads.nthreads())
-        Threads.@threads for (i,evt) in enumerate(t)
-            nmus[Threads.threadid()] += length(t.Muon_pt[i])
-        end
-        @test sum(nmus) == 878
-
-        nmus = zeros(Int, Threads.nthreads())
-        Threads.@threads for evt in t
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        @test count(>(0), nmus) > 1 # test @threads is actually threading
-        @test sum(nmus) == 878
-
-        nmus .= 0
-        @batch for (i,evt) in enumerate(t)
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        @test count(>(0), nmus) > 1 # test @batch is actually threading
-        @test sum(nmus) == 878
-
-        event_nums = zeros(Int, Threads.nthreads())
-        @batch for (i,evt) in enumerate(t)
-            event_nums[Threads.threadid()] += 1
-        end
-        @test count(>(0), event_nums) > 1 # test @batch is actually threading
-        @test sum(event_nums) == length(t)
-
-        nmus .= 0
-        @batch for evt in t
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        @test count(>(0), nmus) > 1 # test @batch is actually threading
-        @test sum(nmus) == 878
-        for i in 1:3
-            inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
-            @batch for (i,evt) in enumerate(t)
-                push!(inds[Threads.threadid()], i)
-            end
-            @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
-        end
-    end
-
     et = enumerate(t)
     @test firstindex(et) == firstindex(t)
     @test lastindex(et) == lastindex(t)
@@ -584,4 +540,50 @@ end
     @test test_i == 2
     @test test_evt isa UnROOT.LazyEvent
     @test !isempty(hash(t.Muon_pt.b))
+end
+
+@static if VERSION > v"1.5.1"
+    t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    @testset "Multi threading" begin
+        nmus = zeros(Int, Threads.nthreads())
+        Threads.@threads for (i1 ,evt1) in enumerate(t)
+            nmus[Threads.threadid()] += length(t.Muon_pt[i1])
+        end
+        @test sum(nmus) == 878
+
+        nmus .= 0
+        Threads.@threads for evt2 in t
+            nmus[Threads.threadid()] += length(evt2.Muon_pt)
+        end
+        @test count(>(0), nmus) > 1 # test @threads is actually threading
+        @test sum(nmus) == 878
+
+        nmus .= 0
+        @batch for (i3 ,evt3) in enumerate(t)
+            nmus[Threads.threadid()] += length(evt3.Muon_pt)
+        end
+        @test count(>(0), nmus) > 1 # test @batch is actually threading
+        @test sum(nmus) == 878
+
+        event_nums = zeros(Int, Threads.nthreads())
+        @batch for (i4, evt4) in enumerate(t)
+            event_nums[Threads.threadid()] += 1
+        end
+        @test count(>(0), event_nums) > 1 # test @batch is actually threading
+        @test sum(event_nums) == length(t)
+
+        nmus .= 0
+        @batch for evt5 in t
+            nmus[Threads.threadid()] += length(evt5.Muon_pt)
+        end
+        @test count(>(0), nmus) > 1 # test @batch is actually threading
+        @test sum(nmus) == 878
+        for i5 in 1:3
+            inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
+            @batch for (j, evt6) in enumerate(t)
+                push!(inds[Threads.threadid()], j)
+            end
+            @test sum([length(inds[_i] ∩ inds[_j]) for _i=1:length(inds), _j=1:length(inds) if _j>_i]) == 0
+        end
+    end
 end
