@@ -192,10 +192,12 @@ Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
 Base.lastindex(lt::LazyTree) = length(lt)
+Base.eachindex(lt::LazyTree) = 1:lastindex(lt)
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
 Base.firstindex(e::Iterators.Enumerate{LazyTree{T}}) where T = firstindex(e.itr)
 Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
+Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
 Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, first(iterate(e.itr, row)))
 
 # interfacing AbstractDataFrame
@@ -281,7 +283,7 @@ Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
-    return LazyEvent(Core.getfield(tree, :treetable), idx), idx + 1
+    return LazyEvent(innertable(tree), idx), idx + 1
 end
 
 # TODO this is not terribly slow, but we can get faster implementation still ;)
