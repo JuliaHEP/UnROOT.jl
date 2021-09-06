@@ -17,9 +17,10 @@ end
 ```
 
 ## `Threads.@threads` should go with `enumerate()`
-tl;dr: just use `@batch`.
+tl;dr: just use `@batch` provided by [Polyester.jl](https://github.com/JuliaSIMD/Polyester.jl) since UnROOT
+can customize behavior.
 
-Unlike `@batch` from polyester, there's not much we can do to customize behavior of `@threads`. It is essentially
+Unlike `@batch`, there's not much we can do to customize behavior of `@threads`. It is essentially
 calling `getindex()`, which we want to keep eager for regular use (e.v `mytree[120]` is eager). Thus, if for some
 reason you want to use `@threads` instead of `@batch`, you should use it with `enumerate`:
 ```julia
