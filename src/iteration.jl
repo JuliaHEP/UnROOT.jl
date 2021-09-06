@@ -192,10 +192,12 @@ Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
 Base.lastindex(lt::LazyTree) = length(lt)
+Base.eachindex(lt::LazyTree) = 1:lastindex(lt)
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
 Base.firstindex(e::Iterators.Enumerate{LazyTree{T}}) where T = firstindex(e.itr)
 Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
+Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
 Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, first(iterate(e.itr, row)))
 
 # interfacing AbstractDataFrame
