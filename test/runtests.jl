@@ -4,8 +4,8 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-@static if VERSION > v"1.3.0"
-    using ThreadsX
+@static if VERSION > v"1.5.0"
+    using ThreadsX, Polyester
 end
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
@@ -507,7 +507,7 @@ end
     close(rootfile)
 end
 
-@testset "Enumerate interface" begin
+@testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
     nmu = 0
     for evt in t
@@ -532,7 +532,7 @@ end
     @test sum(nmus) == 878
 
 
-    @static if VERSION > v"1.3.1"
+    @static if VERSION > v"1.5.1"
         nmus = zeros(Int, Threads.nthreads())
         Threads.@threads for (i,evt) in enumerate(t)
             nmus[Threads.threadid()] += length(t.Muon_pt[i])
@@ -543,6 +543,21 @@ end
         Threads.@threads for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
+        @test any(>(0), nmus) # test @threads is actually threading
+        @test sum(nmus) == 878
+
+        nmus .= 0
+        @batch for (i,evt) in enumerate(t)
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
+        end
+        @test any(>(0), nmus) # test @batch is actually threading
+        @test sum(nmus) == 878
+
+        nmus .= 0
+        @batch for evt in t
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
+        end
+        @test any(>(0), nmus)
         @test sum(nmus) == 878
     end
 

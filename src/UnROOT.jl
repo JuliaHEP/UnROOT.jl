@@ -1,5 +1,6 @@
 module UnROOT
 
+using Requires
 export ROOTFile, LazyBranch, LazyTree, @batch
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
@@ -8,7 +9,7 @@ ntoh(b::Bool) = b
 import AbstractTrees: children, printnode, print_tree
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
-using Mixers, Parameters, Memoization, LRUCache, Polyester
+using Mixers, Parameters, Memoization, LRUCache
 
 import Tables, TypedTables, PrettyTables, DataFrames
 
@@ -26,7 +27,10 @@ include("bootstrap.jl")
 include("root.jl")
 include("iteration.jl")
 include("custom.jl")
-include("polyester.jl")
 include("displays.jl")
+
+function __init__()
+    @require Polyester="f517fe37-dbe3-4b94-8317-1923a5111588" include("polyester.jl")
+end
 
 end # module
