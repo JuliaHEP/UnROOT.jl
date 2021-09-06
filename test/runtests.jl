@@ -568,6 +568,13 @@ end
         end
         @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
+        for i in 1:3
+            inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
+            @batch for (i,evt) in enumerate(t)
+                push!(inds[Threads.threadid()], i)
+            end
+            @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
+        end
     end
 
     et = enumerate(t)
