@@ -5,6 +5,8 @@ using InteractiveUtils
 using MD5
 
 @static if VERSION > v"1.5.0"
+    import Pkg
+    Pkg.add("Polyester")
     using ThreadsX, Polyester
 end
 
@@ -543,28 +545,28 @@ end
         Threads.@threads for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test any(>(0), nmus) # test @threads is actually threading
+        @test count(>(0), nmus) > 1 # test @threads is actually threading
         @test sum(nmus) == 878
 
         nmus .= 0
         @batch for (i,evt) in enumerate(t)
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test any(>(0), nmus) # test @batch is actually threading
+        @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
 
         event_nums = zeros(Int, Threads.nthreads())
         @batch for (i,evt) in enumerate(t)
             event_nums[Threads.threadid()] += 1
         end
-        @test any(>(0), event_nums)
+        @test count(>(0), event_nums) > 1 # test @batch is actually threading
         @test sum(event_nums) == length(t)
 
         nmus .= 0
         @batch for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test any(>(0), nmus)
+        @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
     end
 

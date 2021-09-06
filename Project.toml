@@ -49,4 +49,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [targets]
-test = ["Test", "ThreadsX", "MD5", "InteractiveUtils", "Polyester"]
+test = ["Test", "ThreadsX", "MD5", "InteractiveUtils"]
