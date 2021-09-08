@@ -74,7 +74,7 @@ function Streamers(io)
     start = position(io)
     tkey = unpack(io, TKey)
 
-    if iscompressed(tkey)
+    stream = if iscompressed(tkey)
         @debug "Compressed stream at $(start)"
         compression_header = unpack(io, CompressionHeader)
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
@@ -82,7 +82,7 @@ function Streamers(io)
         compressedbytes = read(io, tkey.fNbytes - skipped)
         cname = String(compression_header.algo)
 
-        stream = if cname == "ZL"
+        if cname == "ZL"
             IOBuffer(transcode(ZlibDecompressor, compressedbytes))
         elseif cname == "XZ"
             IOBuffer(transcode(XzDecompressor, compressedbytes))
