@@ -50,3 +50,40 @@ On finer control over `@batch`, such as batch size or per-core/thread, see [Poly
 Only one basket per branch will be cached so you don't have to worry about running out of RAM.
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
 is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
+
+## Laziness in Indexing, Slicing, and Looping
+Laziness (or eagerness) in UnROOT generally refers to if an "event" has read each branches of the tree or not.
+As canonical example of eager event, consider indexing:
+```julia-repl
+julia> const r = LazyTree(ROOTFile("./Run2012BC_DoubleMuParked_Muons.root"), "Events", ["nMuon", "Muon_phi"]);
+
+julia> names(r)
+2-element Vector{String}:
+ "Muon_phi"
+ "nMuon"
+
+julia> r[1]
+(Muon_phi = Float32[-0.034272723, 2.5426154], nMuon = 0x00000002)
+```
+
+Where the `iterate()` over tree is lazy:
+```julia-repl
+julia> const r = LazyTree(ROOTFile("./Run2012BC_DoubleMuParked_Muons.root"), "Events", ["nMuon", "Muon_phi"]);
+
+julia> for (i, evt) in enumerate(r)
+           @show i, evt
+           break
+       end
+(i, evt) = (1, "LazyEvent with: (:tree, :idx)")
+```
+And the reading of actual data is delayed until `evt.nMuon` or `evt.Muon_phi` happens. Which
+means you should be careful about: [Don't-"double-access"](@ref).
+
+The laziness of the main interfaces are summarized below:
+
+|                        | `mytree`    | `enumerate(mytree)` |
+| ---------------------- |:-----------:|:-------------------:|
+| `for X in ...`         | 💤          | 💤                  |
+| `@threads for X in ...`| 🚨          | 💤                  |
+| `@batch for X in ...`  | 💤          | 💤                  |
+| `getindex()`           | 🚨          | 💤                  |
