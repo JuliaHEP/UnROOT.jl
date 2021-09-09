@@ -101,12 +101,6 @@ because we want to compartmentalize disk I/O as much as possible.
 See also: [`decompress_datastreambytes`](@ref)
 """
 function compressed_datastream(io, tkey)
-    if !iscompressed(tkey)
-        @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
-                "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
-        skip(io, 1)   # ???
-        return read(io, tkey.fObjlen)
-    end
     seekstart(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end
