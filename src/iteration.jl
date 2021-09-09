@@ -275,7 +275,13 @@ struct LazyEvent{T<:TypedTables.Table}
     tree::T
     idx::Int64
 end
-Base.show(io::IO, evt::LazyEvent) = show(io, "LazyEvent with: $(propertynames(evt))")
+function Base.show(io::IO, evt::LazyEvent)
+    idx = Core.getfield(evt, :idx)
+    fields = propertynames(Core.getfield(evt, :tree))
+    nfields = length(fields)
+    sfields = nfields < 20 ? ": $(fields)" : ""
+    show(io, "LazyEvent $(idx) with $(nfields) fields$(sfields)")
+end
 function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end

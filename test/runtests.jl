@@ -301,6 +301,7 @@ end
     @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+    @test occursin("LazyEvent", repr(first(iterate(tree))))
     close(rootfile)
 end
 
