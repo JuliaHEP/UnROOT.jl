@@ -247,7 +247,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             end
         end
         resize!(rawdata, dp)
-        real_data = map(ntoh, reinterpret(T, rawdata))
+        real_data = ntoh.(reinterpret(T, rawdata))
         offset .÷= _size
         offset .+= 1
         VectorOfVectors(real_data, offset)

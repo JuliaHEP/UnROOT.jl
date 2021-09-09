@@ -207,6 +207,11 @@ function readobjany!(io, tkey::TKey, refs)
         tag = readtype(io, UInt32)
     end
 
+    if start < 0 && tkey.fClassName == "TTree"
+        start += tkey.fKeylen + tkey.fSeekKey
+        beg += tkey.fKeylen + tkey.fSeekKey
+    end
+
     if Int64(tag) & Const.kClassMask == 0
         # reference object
         if tag == 0

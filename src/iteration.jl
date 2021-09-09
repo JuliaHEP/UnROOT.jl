@@ -158,7 +158,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
         ba.buffer_range[tid] = br
     end
     localidx = idx - br.start + 1
-    return ba.buffer[tid][localidx]
+    return @inbounds ba.buffer[tid][localidx]
 end
 
 function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
