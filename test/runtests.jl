@@ -162,6 +162,14 @@ end
     close(rootfile)
 end
 
+@testset "Uncompressed trees" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue87_uncompressed_a.root"))
+    @test LazyTree(rootfile,"Events").Jet_pt ≈ [[27.3245, 24.8896, 20.8534],Float32[],[5.3306]]
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue87_uncompressed_b.root"))
+    @test LazyTree(rootfile,"Events").myval[2:5] ≈ [[0.1], [0.2, 1.2], [0.3, 1.3, 2.3], [0.4, 1.4, 2.4, 3.4]]
+end
+
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
     @test rootfile isa ROOTFile
