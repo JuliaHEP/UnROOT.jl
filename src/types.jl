@@ -87,7 +87,6 @@ function unpack(io, T::Type{TBasketKey})
 end
 
 iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t.fKeylen
-origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
 seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
 
 datastream(io, tkey::TKey) = IOBuffer(decompress_datastreambytes(compressed_datastream(io, tkey), tkey))
@@ -101,12 +100,6 @@ because we want to compartmentalize disk I/O as much as possible.
 See also: [`decompress_datastreambytes`](@ref)
 """
 function compressed_datastream(io, tkey)
-    if !iscompressed(tkey)
-        @debug ("Uncompressed datastream of $(tkey.fObjlen) bytes " *
-                "at $start (TKey '$(tkey.fName)' ($(tkey.fClassName)))")
-        skip(io, 1)   # ???
-        return read(io, tkey.fObjlen)
-    end
     seekstart(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end

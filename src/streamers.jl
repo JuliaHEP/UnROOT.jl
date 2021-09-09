@@ -193,7 +193,7 @@ The `refs` dictionary holds the streamers or parsed data which are reused
 when already available.
 """
 function readobjany!(io, tkey::TKey, refs)
-    beg = position(io) - origin(tkey)
+    beg = position(io) + tkey.fKeylen
     bcnt = readtype(io, UInt32)
     if Int64(bcnt) & Const.kByteCountMask == 0 || Int64(bcnt) == Const.kNewClassTag
         # New class or 0 bytes
@@ -203,7 +203,7 @@ function readobjany!(io, tkey::TKey, refs)
         bcnt = 0
     else
         version = 1
-        start = position(io) - origin(tkey)
+        start = position(io) + tkey.fKeylen
         tag = readtype(io, UInt32)
     end
 
@@ -215,7 +215,7 @@ function readobjany!(io, tkey::TKey, refs)
             error("Returning parent is not implemented yet")
         elseif !haskey(refs, tag)
             # skipping
-            seek(io, origin(tkey) + beg + bcnt + 4)
+            seek(io, -tkey.fKeylen + beg + bcnt + 4)
             return missing
         else
             return refs[tag]
