@@ -205,7 +205,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     elseif J == Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
-        out = VectorOfVectors{Vector{subT}}()
+        out = VectorOfVectors(T(), Int32[1])
         @views for i in 1:(length(rawoffsets)-1)
             flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
             row = VectorOfVectors{subT}()
