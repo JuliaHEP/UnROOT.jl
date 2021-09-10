@@ -442,17 +442,17 @@ function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, see
 
     offsetbytesize = basketkey.fObjlen - contentsize - 8
 
-    data = basketrawbytes[1:contentsize]
     if offsetbytesize > 0
 
-        #indexing is inclusive on both ends
+        # indexing is inclusive on both ends
+        # Notice: need to delay `resize!` to not destory this @view
         offbytes = @view basketrawbytes[(contentsize + 4 + 1):(end - 4)]
 
         # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop
         offset = ntoh.(reinterpret(Int32, offbytes)) .- Keylen
         push!(offset, contentsize)
-        return data, offset
+        return resize!(basketrawbytes, contentsize), offset
     else
-        return data, Int32[]
+        return resize!(basketrawbytes, contentsize), Int32[]
     end
 end
