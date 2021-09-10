@@ -201,7 +201,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
     if J == Nojagg
-        return map(ntoh, reinterpret(T, rawdata))
+        return ntoh.(reinterpret(T, rawdata))
     elseif J == Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
@@ -213,7 +213,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             while cursor < length(flat)
                 n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
                 cursor += sizeof(Int32)
-                b = map(ntoh, reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
+                b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
                 cursor += n*sizeof(subT)
                 push!(row, b)
             end
@@ -252,7 +252,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         real_data = ntoh.(reinterpret(T, rawdata))
         offset .÷= _size
         offset .+= 1
-        VectorOfVectors(real_data, offset)
+        return VectorOfVectors(real_data, offset)
     end
 end
 
