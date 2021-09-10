@@ -205,7 +205,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     elseif J == Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
-        out = VectorOfVectors{Vector{subT}}()
+        out = VectorOfVectors(T(), Int32[1])
         @views for i in 1:(length(rawoffsets)-1)
             flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
             row = VectorOfVectors{subT}()
@@ -221,32 +221,34 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         end
         return out
     else # the branch is singly jagged
-        jagg_offset = J===Offsetjagg ? 10 : 0
-
         # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
         # this is why we need to append `rawoffsets` in the `readbranchraw()` call
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         _size = sizeof(eltype(T))
-
-        dp = 0 # book keeping for copy_to!
-        lr = length(rawoffsets)
-        offset = Vector{Int64}(undef, lr)
-        offset[1] = 0
-        @views @inbounds for i in 1:lr-1
-            start = rawoffsets[i]+jagg_offset+1
-            stop = rawoffsets[i+1]
-            l = stop-start+1
-            if l > 0
-                unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
-                dp += l
-                offset[i+1] = offset[i] + l
-            else
-                # when we have an empty [] in jagged basket
-                offset[i+1] = offset[i]
+        if J === Offsetjagg
+            jagg_offset = 10
+            dp = 0 # book keeping for copy_to!
+            lr = length(rawoffsets)
+            offset = Vector{Int32}(undef, lr)
+            offset[1] = 0
+            @views @inbounds for i in 1:lr-1
+                start = rawoffsets[i]+jagg_offset+1
+                stop = rawoffsets[i+1]
+                l = stop-start+1
+                if l > 0
+                    unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
+                    dp += l
+                    offset[i+1] = offset[i] + l
+                else
+                    # when we have an empty [] in jagged basket
+                    offset[i+1] = offset[i]
+                end
             end
+            resize!(rawdata, dp)
+        else
+            offset = rawoffsets
         end
-        resize!(rawdata, dp)
         real_data = ntoh.(reinterpret(T, rawdata))
         offset .÷= _size
         offset .+= 1
@@ -414,10 +416,7 @@ See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
 readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
 
-# @memoize LRU(; maxsize=1024^3, by=x -> sum(sizeof, x)) function readbasketseek(
-function readbasketseek(
-f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
-)::Tuple{Vector{UInt8},Vector{Int32}}  # just being extra careful
+function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
     lock(f)
     local basketkey, compressedbytes
     try
@@ -443,7 +442,7 @@ f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int
 
     offsetbytesize = basketkey.fObjlen - contentsize - 8
 
-    data = @view basketrawbytes[1:contentsize]
+    data = basketrawbytes[1:contentsize]
     if offsetbytesize > 0
 
         #indexing is inclusive on both ends
