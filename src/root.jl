@@ -193,67 +193,72 @@ on type `T` and jagg type `J`.
 In order to retrieve data from custom branches, user should defined more speialized
 method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
-    # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
-    # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
-    # only needs when the jaggedness comes from TLeafElements, not needed when
-    # the jaggedness comes from having "[]" in TLeaf's title
-    # the other is where we need to auto detector T bsaed on class name
-    # we want the fundamental type as `reinterpret` will create vector
-    if J == Nojagg
-        return ntoh.(reinterpret(T, rawdata))
-    elseif J == Offsetjaggjagg # the branch is doubly jagged
-        jagg_offset = 10
-        subT = eltype(eltype(T))
-        out = VectorOfVectors(T(), Int32[1])
-        @views for i in 1:(length(rawoffsets)-1)
-            flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
-            row = VectorOfVectors{subT}()
-            cursor = 1
-            while cursor < length(flat)
-                n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
-                cursor += sizeof(Int32)
-                b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
-                cursor += n*sizeof(subT)
-                push!(row, b)
-            end
-            push!(out, row)
-        end
-        return out
-    else # the branch is singly jagged
-        # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
-        # this is why we need to append `rawoffsets` in the `readbranchraw()` call
-        # when you use this range to index `rawdata`, you will get raw bytes belong to each event
-        # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
-        _size = sizeof(eltype(T))
-        if J === Offsetjagg
-            jagg_offset = 10
-            dp = 0 # book keeping for copy_to!
-            lr = length(rawoffsets)
-            offset = Vector{Int32}(undef, lr)
-            offset[1] = 0
-            @views @inbounds for i in 1:lr-1
-                start = rawoffsets[i]+jagg_offset+1
-                stop = rawoffsets[i+1]
-                l = stop-start+1
-                if l > 0
-                    unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
-                    dp += l
-                    offset[i+1] = offset[i] + l
-                else
-                    # when we have an empty [] in jagged basket
-                    offset[i+1] = offset[i]
-                end
-            end
-            resize!(rawdata, dp)
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where T
+    return ntoh.(reinterpret(T, rawdata))
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T<:Bool}
+    return map(ntoh,reinterpret(T, rawdata))
+end
+# there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
+# magic offsets, seems to be common for a lot of types, see auto.py in uproot3
+# only needs when the jaggedness comes from TLeafElements, not needed when
+# the jaggedness comes from having "[]" in TLeaf's title
+# the other is where we need to auto detector T bsaed on class name
+# we want the fundamental type as `reinterpret` will create vector
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nooffsetjagg}) where T
+    real_data = ntoh.(reinterpret(T, rawdata))
+    rawoffsets .÷= sizeof(eltype(T))
+    rawoffsets .+= 1
+    return VectorOfVectors(real_data, rawoffsets)
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Offsetjagg}) where T
+    # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
+    # this is why we need to append `rawoffsets` in the `readbranchraw()` call
+    # when you use this range to index `rawdata`, you will get raw bytes belong to each event
+    # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
+    _size = sizeof(eltype(T))
+    jagg_offset = 10
+    dp = 0 # book keeping for copy_to!
+    lr = length(rawoffsets)
+    offset = Vector{Int32}(undef, lr)
+    offset[1] = 0
+    @views @inbounds for i in 1:lr-1
+        start = rawoffsets[i]+jagg_offset+1
+        stop = rawoffsets[i+1]
+        l = stop-start+1
+        if l > 0
+            unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
+            dp += l
+            offset[i+1] = offset[i] + l
         else
-            offset = rawoffsets
+            # when we have an empty [] in jagged basket
+            offset[i+1] = offset[i]
         end
-        real_data = ntoh.(reinterpret(T, rawdata))
-        offset .÷= _size
-        offset .+= 1
-        return VectorOfVectors(real_data, offset)
     end
+    resize!(rawdata, dp)
+    real_data = ntoh.(reinterpret(T, rawdata))
+    offset .÷= sizeof(eltype(T))
+    offset .+= 1
+    return VectorOfVectors(real_data, offset)
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Offsetjaggjagg}) where T
+    jagg_offset = 10
+    subT = eltype(eltype(T))
+    out = VectorOfVectors(T(), Int32[1])
+    @views for i in 1:(length(rawoffsets)-1)
+        flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
+        row = VectorOfVectors{subT}()
+        cursor = 1
+        while cursor < length(flat)
+            n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
+            cursor += sizeof(Int32)
+            b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
+            cursor += n*sizeof(subT)
+            push!(row, b)
+        end
+        push!(out, row)
+    end
+    return out
 end
 
 function _normalize_ftype(fType)
