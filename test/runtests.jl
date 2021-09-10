@@ -241,6 +241,16 @@ end
     @test tree[1].LV.x == 1.0
     @test tree[1].LV.t == 4.0
     close(rootfile)
+
+
+    # jagged LVs
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "Jagged_TLorentzVector.root"))
+    branch = rootfile["t1/LVs"]
+    tree = LazyTree(rootfile, "t1")
+
+    @test eltype(branch) === Vector{LorentzVectors.LorentzVector{Float64}}
+    @test length.(branch[1:10]) == 0:9
+    close(rootfile)
 end
 
 @testset "TNtuple" begin
