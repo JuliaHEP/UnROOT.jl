@@ -231,7 +231,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
 
         dp = 0 # book keeping for copy_to!
         lr = length(rawoffsets)
-        offset = Vector{Int64}(undef, lr)
+        offset = Vector{Int32}(undef, lr)
         offset[1] = 0
         @views @inbounds for i in 1:lr-1
             start = rawoffsets[i]+jagg_offset+1
