@@ -53,7 +53,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offset
     _size = 64 # needs to account for 32 bytes header
     dp = 0 # book keeping for copy_to!
     lr = length(rawoffsets)
-    offset = Vector{Int64}(undef, lr)
+    offset = Vector{Int32}(undef, lr)
     offset[1] = 0
     @views @inbounds for i in 1:lr-1
         start = rawoffsets[i]+10+1
