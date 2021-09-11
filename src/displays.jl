@@ -53,7 +53,7 @@ function Base.show(io::IO, tree::LazyTree)
         row_number_column_title="Row",
         show_row_number=true,
         compact_printing=false,
-        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(5, length(_hs[1]))),
+        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(8, length(_hs[1]))),
         display_size=(min(_ds[1], 40), min(_ds[2], 160)),
     )
 end
