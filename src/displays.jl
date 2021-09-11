@@ -68,9 +68,9 @@ function _make_header(t)
     (header, subheader)
 end
 function _treeformat(val, trunc)
-    s = if val isa Union{SubArray{T},Vector{T}} where T<:Integer
+    s = if val isa AbstractArray{T} where T<:Integer
         string(Int.(val))
-    elseif val isa Union{SubArray{T},Vector{T}} where T<:AbstractFloat
+    elseif val isa AbstractArray{T} where T<:AbstractFloat
         T = eltype(val)
         replace(string(round.(T.(val); sigdigits=3)), string(T)=>"")
     else

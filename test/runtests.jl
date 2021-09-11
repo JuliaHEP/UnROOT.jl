@@ -342,7 +342,7 @@ end
     f = UnROOT.samplefile("NanoAODv5_sample.root")
     t = LazyTree(f, "Events", ["nMuon","MET_pt","Muon_pt"])[1:10]
     _io = IOBuffer()
-    show(_io, f)
+    show(_io, t)
     close(f)
 end
 
