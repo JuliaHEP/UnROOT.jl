@@ -166,19 +166,19 @@ function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     return (ba[idx], idx + 1)
 end
 
-const _LazyTreeType =
-    TypedTables.Table{<:NamedTuple,1,NamedTuple{S,N}} where {S,N<:Tuple{Vararg{LazyBranch}}}
-
-struct LazyTree{T} <: DataFrames.AbstractDataFrame
+struct LazyTree{T}
     treetable::T
-    colidx::DataFrames.Index
 end
+
 @inline innertable(t::LazyTree) = Core.getfield(t, :treetable)
+
+Base.propertynames(lt::LazyTree) = propertynames(innertable(lt))
+Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(innertable(lt), s)
 
 # a specific branch
 Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
 function Base.getindex(lt::LazyTree, rang::UnitRange)
-    return LazyTree(innertable(lt)[rang], Core.getfield(lt, :colidx))
+    return LazyTree(innertable(lt)[rang])
 end
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, i::Int) = lt[:, propertynames(lt)[i]]
@@ -200,13 +200,9 @@ Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
 Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
 Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, first(iterate(e.itr, row)))
 
-# interfacing AbstractDataFrame
-DataFrames._check_consistency(lt::LazyTree) = nothing #we're read-only
+# interfacing Table
 Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
-DataFrames.index(lt::LazyTree) = Core.getfield(lt, :colidx)
-DataFrames.ncol(lt::LazyTree) = length(DataFrames.index(lt))
 Base.length(lt::LazyTree) = length(innertable(lt))
-DataFrames.nrow(lt::LazyTree) = length(lt)
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
@@ -223,7 +219,7 @@ end
     LazyTree(f::ROOTFile, s::AbstractString, branche::Union{AbstractString, Regex})
     LazyTree(f::ROOTFile, s::AbstractString, branches::Vector{Union{AbstractString, Regex}})
 
-Constructor for `LazyTree`, which is close to an `AbstractDataFrame` (interface wise),
+Constructor for `LazyTree`, which is close to an `DataFrame` (interface wise),
 and a lazy `TypedTables.Table` (speed wise). Looping over a `LazyTree` is fast and type
 stable. Internally, `LazyTree` contains a typed table whose branch are [`LazyBranch`](@ref).
 This means that at any given time only `N` baskets are cached, where `N` is the number of branches.
@@ -251,16 +247,14 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         @warn "Your tree is quite wide, with $(length(branches)) branches, this will take compiler a moment."
     end
     d = Dict{Symbol,LazyBranch}()
-    d_colidx = Dict{Symbol,Int}()
     _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
     branches = mapreduce(b -> filter(_m(b), getbranchnamesrecursive(tree)), ∪, branches)
     SB = Symbol.(branches)
-    for (i, b) in enumerate(SB)
+    for b in SB
         d[b] = f["$s/$b"]
-        d_colidx[b] = i
     end
-    return LazyTree(TypedTables.Table(d), DataFrames.Index(d_colidx, SB))
+    return LazyTree(TypedTables.Table(d))
 end
 
 function LazyTree(f::ROOTFile, s::AbstractString)

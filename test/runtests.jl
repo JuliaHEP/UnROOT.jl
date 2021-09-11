@@ -308,9 +308,9 @@ end
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
     tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
     close(rootfile)
 end

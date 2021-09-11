@@ -46,7 +46,7 @@ function Base.show(io::IO, tree::LazyTree)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
         io,
-        tree;
+        innertable(tree);
         header=_hs,
         alignment=:l,
         vlines=[1],
@@ -64,7 +64,7 @@ _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
     header = _symtup2str(pn)
-    subheader = _symtup2str(Tables.columntype.(Ref(t), pn))
+    subheader = _symtup2str(Tables.columntype.(Ref(innertable(t)), pn))
     (header, subheader)
 end
 function _treeformat(val, trunc)

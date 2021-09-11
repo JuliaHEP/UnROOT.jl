@@ -11,7 +11,7 @@ import AbstractTrees: children, printnode, print_tree
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
 
-import Tables, TypedTables, PrettyTables, DataFrames
+import Tables, TypedTables, PrettyTables
 
 @static if VERSION < v"1.6"
     Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
