@@ -4,8 +4,8 @@ by using `AbstractTrees` printing functions. We customize what the children
 of ROOTFile and a TTree is, and how to print the final `node`.
 =#
 struct TKeyNode
-    name
-    classname
+    name::AbstractString
+    classname::AbstractString
 end
 function children(f::ROOTFile)
     # display TTrees recursively
@@ -13,8 +13,11 @@ function children(f::ROOTFile)
     ch = Vector{Union{TTree,TKeyNode}}()
     lock(f)
     for k in keys(f)
-        f[k] isa TTree || continue
-        push!(ch, f[k])
+        try
+            f[k] isa TTree || continue
+            push!(ch, f[k])
+        catch
+        end
     end
     for tkey in f.directory.keys
         kn = TKeyNode(tkey.fName, tkey.fClassName)
