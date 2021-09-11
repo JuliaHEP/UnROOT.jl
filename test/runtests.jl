@@ -340,9 +340,12 @@ end
 
 @testset "Displaying trees" begin
     f = UnROOT.samplefile("NanoAODv5_sample.root")
-    t = LazyTree(f, "Events", ["nMuon","MET_pt","Muon_pt"])[1:10]
+    t = LazyTree(f, "Events", ["nMuon","MET_pt","Muon_pt"])
     _io = IOBuffer()
     show(_io, t)
+    show(_io, t[1:10])
+    show(_io, t.Muon_pt)
+    show(_io, t.Muon_pt[1:10])
     close(f)
 end
 
