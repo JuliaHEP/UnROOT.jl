@@ -329,7 +329,7 @@ end
 end
 
 @testset "Displaying files" begin
-    files = filter(endswith(".root"), readdir(SAMPLES_DIR))
+    files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
