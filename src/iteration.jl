@@ -5,7 +5,7 @@ Reads all branches from a tree.
 """
 function arrays(f::ROOTFile, treename)
     names = keys(f[treename])
-    res = Vector{Any}(undef, length(names))
+    res = Vector{Vector}(undef, length(names))
     Threads.@threads for i in eachindex(names)
         res[i] = array(f, "$treename/$(names[i])")
     end
