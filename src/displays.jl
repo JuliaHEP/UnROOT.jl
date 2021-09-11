@@ -3,17 +3,28 @@ These functions are used to display a ROOTFile is a tree-like fashion
 by using `AbstractTrees` printing functions. We customize what the children
 of ROOTFile and a TTree is, and how to print the final `node`.
 =#
+struct TKeyNode
+    name::AbstractString
+    classname::AbstractString
+end
 function children(f::ROOTFile)
-    ch = Vector{TTree}()
+    # display TTrees recursively
+    # then all TKeys in the file which are not for a TTree
+    ch = Vector{Union{TTree,TKeyNode}}()
+    lock(f)
     for k in keys(f)
-        lock(f.fobj)
         try
+            f[k] isa TTree || continue
             push!(ch, f[k])
         catch
-        finally
-            unlock(f.fobj)
         end
     end
+    for tkey in f.directory.keys
+        kn = TKeyNode(tkey.fName, tkey.fClassName)
+        kn.classname == "TTree" && continue
+        push!(ch, kn)
+    end
+    unlock(f)
     ch
 end
 function children(t::TTree)
@@ -26,8 +37,9 @@ function children(t::TTree)
         return ks
     end
 end
-printnode(io::IO, t::TTree) = print(io, t.fName)
+printnode(io::IO, t::TTree) = print(io, "$(t.fName) (TTree)")
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
+printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
 function Base.show(io::IO, tree::LazyTree)
     _hs = _make_header(tree)
@@ -44,7 +56,7 @@ function Base.show(io::IO, tree::LazyTree)
         row_number_column_title="Row",
         show_row_number=true,
         compact_printing=false,
-        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(5, length(_hs[1]))),
+        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(8, length(_hs[1]))),
         display_size=(min(_ds[1], 40), min(_ds[2], 160)),
     )
 end
@@ -56,10 +68,11 @@ function _make_header(t)
     (header, subheader)
 end
 function _treeformat(val, trunc)
-    s = if val isa Vector{T} where T<:Integer
+    s = if val isa AbstractArray{T} where T<:Integer
         string(Int.(val))
-    elseif val isa Vector{T} where T<:AbstractFloat
-        string(round.(Float64.(val); sigdigits=3))
+    elseif val isa AbstractArray{T} where T<:AbstractFloat
+        T = eltype(val)
+        replace(string(round.(T.(val); sigdigits=3)), string(T)=>"")
     else
         string(val)
     end
