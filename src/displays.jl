@@ -71,7 +71,8 @@ function _treeformat(val, trunc)
     s = if val isa Union{SubArray{T},Vector{T}} where T<:Integer
         string(Int.(val))
     elseif val isa Union{SubArray{T},Vector{T}} where T<:AbstractFloat
-        string(round.(Float64.(val); sigdigits=3))
+        T = eltype(val)
+        replace(string(round.(T.(val); sigdigits=3)), string(T)=>"")
     else
         string(val)
     end

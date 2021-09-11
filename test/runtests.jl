@@ -328,7 +328,7 @@ end
     @test filter_branches(["Muon.pt"]) == Set(["Muon.pt"])
 end
 
-@testset "Displaying" begin
+@testset "Displaying files" begin
     files = filter(endswith(".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
@@ -337,6 +337,15 @@ end
         close(r)
     end
 end
+
+@testset "Displaying trees" begin
+    f = UnROOT.samplefile("NanoAODv5_sample.root")
+    t = LazyTree(f, "Events", ["nMuon","MET_pt","Muon_pt"])[1:10]
+    _io = IOBuffer()
+    show(_io, f)
+    close(f)
+end
+
 # Custom bootstrap things
 
 @testset "custom boostrapping" begin
