@@ -223,6 +223,10 @@ end
     @test BA[20:30] == arr[20:30]
     @test BA[1:end] == arr
     @test table.int32_array[20:30] == BA[20:30]
+    @test table[:, :int32_array][20:30] == BA[20:30]
+    @test table[23, :int32_array] == BA[23]
+    @test table[20:30, :int32_array] == BA[20:30]
+    @test table[:].int32_array[20:30] == BA[20:30]
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
@@ -542,6 +546,7 @@ end
 
 @testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    @test eachindex(enumerate(t)) == eachindex(t)
     nmu = 0
     for evt in t
         nmu += length(evt.Muon_pt)

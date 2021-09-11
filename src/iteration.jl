@@ -181,12 +181,9 @@ function Base.getindex(lt::LazyTree, rang::UnitRange)
     return LazyTree(innertable(lt)[rang])
 end
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
-Base.getindex(lt::LazyTree, ::Colon, i::Int) = lt[:, propertynames(lt)[i]]
-Base.getindex(lt::LazyTree, ::typeof(!), i::Int) = lt[:, propertynames(lt)[i]]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 
 # a specific event
-Base.getindex(lt::LazyTree, row::Int, col::Int) = lt[:, col][row]
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
@@ -279,7 +276,7 @@ end
 function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end
-Base.collect(evt::LazyEvent) = Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
+Base.collect(evt::LazyEvent) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
