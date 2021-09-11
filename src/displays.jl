@@ -3,17 +3,25 @@ These functions are used to display a ROOTFile is a tree-like fashion
 by using `AbstractTrees` printing functions. We customize what the children
 of ROOTFile and a TTree is, and how to print the final `node`.
 =#
+struct TKeyNode
+    name
+    classname
+end
 function children(f::ROOTFile)
-    ch = Vector{TTree}()
+    # display TTrees recursively
+    # then all TKeys in the file which are not for a TTree
+    ch = Vector{Union{TTree,TKeyNode}}()
+    lock(f)
     for k in keys(f)
-        lock(f.fobj)
-        try
-            push!(ch, f[k])
-        catch
-        finally
-            unlock(f.fobj)
-        end
+        f[k] isa TTree || continue
+        push!(ch, f[k])
     end
+    for tkey in f.directory.keys
+        kn = TKeyNode(tkey.fName, tkey.fClassName)
+        kn.classname == "TTree" && continue
+        push!(ch, kn)
+    end
+    unlock(f)
     ch
 end
 function children(t::TTree)
@@ -26,8 +34,9 @@ function children(t::TTree)
         return ks
     end
 end
-printnode(io::IO, t::TTree) = print(io, t.fName)
+printnode(io::IO, t::TTree) = print(io, "$(t.fName) (TTree)")
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
+printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
 function Base.show(io::IO, tree::LazyTree)
     _hs = _make_header(tree)
@@ -56,9 +65,9 @@ function _make_header(t)
     (header, subheader)
 end
 function _treeformat(val, trunc)
-    s = if val isa Vector{T} where T<:Integer
+    s = if val isa Union{SubArray{T},Vector{T}} where T<:Integer
         string(Int.(val))
-    elseif val isa Vector{T} where T<:AbstractFloat
+    elseif val isa Union{SubArray{T},Vector{T}} where T<:AbstractFloat
         string(round.(Float64.(val); sigdigits=3))
     else
         string(val)
