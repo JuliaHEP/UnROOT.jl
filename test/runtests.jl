@@ -215,6 +215,12 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1"]["int32_array"]
     arr = UnROOT.array(rootfile, branch)
+    arr2 = UnROOT.arrays(rootfile, "t1")[1]
+    
+    @test hash(branch) == hash(rootfile["t1"]["int32_array"])
+    @test hash(branch) != hash(rootfile["t1"]["float_array"])
+    @test arr == arr2
+
     table = LazyTree(rootfile, "t1")
     BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
@@ -223,6 +229,10 @@ end
     @test BA[20:30] == arr[20:30]
     @test BA[1:end] == arr
     @test table.int32_array[20:30] == BA[20:30]
+    @test table[:, :int32_array][20:30] == BA[20:30]
+    @test table[23, :int32_array] == BA[23]
+    @test table[20:30, :int32_array] == BA[20:30]
+    @test table[:].int32_array[20:30] == BA[20:30]
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
@@ -308,9 +318,9 @@ end
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
     tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
     close(rootfile)
 end
@@ -329,7 +339,7 @@ end
 end
 
 @testset "Displaying files" begin
-    files = filter(endswith(".root"), readdir(SAMPLES_DIR))
+    files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
@@ -551,6 +561,7 @@ end
 
 @testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    @test eachindex(enumerate(t)) == eachindex(t)
     nmu = 0
     for evt in t
         nmu += length(evt.Muon_pt)
