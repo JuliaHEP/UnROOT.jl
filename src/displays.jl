@@ -12,7 +12,7 @@ function children(f::ROOTFile)
     # subsequent TTrees with duplicate fName will be skipped
     # since TKey cycle number is guaranteed to be decreasing
     # then all TKeys in the file which are not for a TTree
-    seen = Set{AbstractString}()
+    seen = Set{String}()
     ch = Vector{Union{TTree,TKeyNode}}()
     lock(f)
     for k in keys(f)
