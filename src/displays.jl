@@ -9,13 +9,19 @@ struct TKeyNode
 end
 function children(f::ROOTFile)
     # display TTrees recursively
+    # subsequent TTrees with duplicate fName will be skipped
+    # since TKey cycle number is guaranteed to be decreasing
     # then all TKeys in the file which are not for a TTree
+    seen = Set{AbstractString}()
     ch = Vector{Union{TTree,TKeyNode}}()
     lock(f)
     for k in keys(f)
         try
-            f[k] isa TTree || continue
-            push!(ch, f[k])
+            obj = f[k]
+            obj isa TTree || continue
+            obj.fName ∈ seen && continue
+            push!(ch, obj)
+            push!(seen, obj.fName)
         catch
         end
     end

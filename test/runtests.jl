@@ -336,6 +336,13 @@ end
         show(_io, r)
         close(r)
     end
+
+    # test that duplicate trees (but different cycle numbers)
+    # are only displayed once, and that histograms show up
+    f = UnROOT.samplefile("tree_cycles_hist.root")
+    @test length(collect(eachmatch(r"Events", repr(f)))) == 1
+    @test length(collect(eachmatch(r"myTH2F", repr(f)))) == 1
+    close(f)
 end
 
 @testset "Displaying trees" begin
@@ -346,6 +353,8 @@ end
     show(_io, t[1:10])
     show(_io, t.Muon_pt)
     show(_io, t.Muon_pt[1:10])
+    s = repr(t[1:10])
+    @test length(collect(eachmatch(r"Float32\[", s))) == 0
     close(f)
 end
 
