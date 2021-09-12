@@ -122,12 +122,12 @@ Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
-    println(":")
-    println("  File: $(lb.f.filename)")
-    println("  Branch: $(lb.b.fName)")
-    println("  Description: $(lb.b.fTitle)")
-    println("  NumEntry: $(lb.L)")
-    print("  Entry Type: $(eltype(lb))")
+    println(io, ":")
+    println(io, "  File: $(lb.f.filename)")
+    println(io, "  Branch: $(lb.b.fName)")
+    println(io, "  Description: $(lb.b.fTitle)")
+    println(io, "  NumEntry: $(lb.L)")
+    print(io, "  Entry Type: $(eltype(lb))")
     nothing
 end
 
