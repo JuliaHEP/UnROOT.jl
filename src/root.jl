@@ -250,9 +250,8 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             offset = rawoffsets
         end
         real_data = ntoh.(reinterpret(T, rawdata))
-        offset .÷= _size
-        offset .+= 1
-        return VectorOfVectors(real_data, offset)
+        offset .= (offset .÷ _size) .+ 1
+        return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
     end
 end
 
