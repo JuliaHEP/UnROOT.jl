@@ -226,6 +226,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
         _size = sizeof(eltype(T))
+        dp = length(rawdata)
         if J === Offsetjagg
             jagg_offset = 10
             dp = 0 # book keeping for copy_to!
@@ -249,12 +250,16 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         else
             offset = rawoffsets
         end
-        real_data = ntoh.(reinterpret(T, rawdata))
-        offset .÷= _size
-        offset .+= 1
-        return VectorOfVectors(real_data, offset)
+        @. offset = offset ÷ _size + 1
+        ϖ = convert(Ptr{eltype(T)}, pointer(rawdata))
+        w = unsafe_wrap(Array, ϖ, dp ÷ _size)
+        @turbo for i in eachindex(w)
+            w[i] = ntoh(w[i])
+        end
+        return VectorOfVectors(w, offset, ArraysOfArrays.no_consistency_checks)
     end
 end
+
 
 function _normalize_ftype(fType)
     # Taken from uproot4; thanks Jim ;)

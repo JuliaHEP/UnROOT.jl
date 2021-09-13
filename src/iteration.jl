@@ -53,8 +53,9 @@ function basketarray(f::ROOTFile, branch, ithbasket)
     )
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
+    ref = Ref(rawdata)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
-    return interped_data(rawdata, rawoffsets, T, J)
+    return interped_data(rawdata, rawoffsets, T, J), ref
 end
 
 # function barrior to make getting individual index faster
@@ -94,24 +95,24 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     fEntry::Vector{Int64}
     buffer::Vector{B}
     buffer_range::Vector{UnitRange{Int64}}
+    ref::Vector{Ref{Vector{UInt8}}}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
         _buffer = J === Nojagg ? T[] : VectorOfVectors(T(), Int32[1])
-        return new{T,J,typeof(_buffer)}(f, b, length(b),
-                                        b.fBasketEntry,
-                                        [_buffer for _ in 1:Threads.nthreads()],
-                                        [0:-1 for _ in 1:Threads.nthreads()])
+        return new{T,J,typeof(_buffer)}(
+            f, b, length(b),
+            b.fBasketEntry,
+            [_buffer for _ in 1:Threads.nthreads()],
+            [0:-1 for _ in 1:Threads.nthreads()],
+            [Ref(UInt8[]) for _ in 1:Threads.nthreads()])
+
     end
 end
 
 function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
-    h = hash(lb.b.fClassName, h)
     h = hash(lb.L, h)
-    for br in lb.buffer_range
-        h = hash(br, h)
-    end
     return h
 end
 Base.size(ba::LazyBranch) = (ba.L,)
@@ -149,11 +150,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     br = ba.buffer_range[tid]
     if idx ∉ br
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
-        bb = basketarray(ba.f, ba.b, seek_idx)
-        if typeof(bb) !== B
-            error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
-        end
-        ba.buffer[tid] = bb
+        ba.buffer[tid], ba.ref[tid] = basketarray(ba.f, ba.b, seek_idx)
         br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
         ba.buffer_range[tid] = br
     end

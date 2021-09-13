@@ -9,7 +9,7 @@ ntoh(b::Bool) = b
 import AbstractTrees: children, printnode, print_tree
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
-using Mixers, Parameters, Memoization, LRUCache
+using Mixers, Parameters, Memoization, LRUCache, LoopVectorization
 
 import Tables, TypedTables, PrettyTables
 
