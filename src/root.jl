@@ -200,8 +200,15 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the jaggedness comes from having "[]" in TLeaf's title
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
+    _size = sizeof(eltype(T))
+    dp = length(rawdata)
     if J == Nojagg
-        return ntoh.(reinterpret(T, rawdata))
+        ϖ = convert(Ptr{eltype(T)}, pointer(rawdata))
+        w = unsafe_wrap(Array, ϖ, dp ÷ _size)
+        @inbounds @simd for i in eachindex(w)
+            w[i] = ntoh(w[i])
+        end
+        return w
     elseif J == Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
@@ -225,8 +232,6 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         # this is why we need to append `rawoffsets` in the `readbranchraw()` call
         # when you use this range to index `rawdata`, you will get raw bytes belong to each event
         # Say your real data is Int32 and you see 8 bytes after indexing, then this event has [num1, num2] as real data
-        _size = sizeof(eltype(T))
-        dp = length(rawdata)
         if J === Offsetjagg
             jagg_offset = 10
             dp = 0 # book keeping for copy_to!
@@ -237,14 +242,9 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
                 start = rawoffsets[i]+jagg_offset+1
                 stop = rawoffsets[i+1]
                 l = stop-start+1
-                if l > 0
-                    unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
-                    dp += l
-                    offset[i+1] = offset[i] + l
-                else
-                    # when we have an empty [] in jagged basket
-                    offset[i+1] = offset[i]
-                end
+                unsafe_copyto!(rawdata, dp+1, rawdata, start, l)
+                dp += l
+                offset[i+1] = offset[i] + l
             end
             resize!(rawdata, dp)
         else
@@ -253,7 +253,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         @. offset = offset ÷ _size + 1
         ϖ = convert(Ptr{eltype(T)}, pointer(rawdata))
         w = unsafe_wrap(Array, ϖ, dp ÷ _size)
-        @turbo for i in eachindex(w)
+        @inbounds @simd for i in eachindex(w)
             w[i] = ntoh(w[i])
         end
         return VectorOfVectors(w, offset, ArraysOfArrays.no_consistency_checks)
