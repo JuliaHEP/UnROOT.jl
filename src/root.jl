@@ -193,6 +193,10 @@ on type `T` and jagg type `J`.
 In order to retrieve data from custom branches, user should defined more speialized
 method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T<:Bool}
+    # specialized case to get Vector{Bool} instead of BitVector
+    return map(ntoh,reinterpret(T, rawdata))
+end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -200,9 +204,9 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the jaggedness comes from having "[]" in TLeaf's title
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
-    if J == Nojagg
+    if J === Nojagg
         return ntoh.(reinterpret(T, rawdata))
-    elseif J == Offsetjaggjagg # the branch is doubly jagged
+    elseif J === Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
         out = VectorOfVectors(T(), Int32[1])

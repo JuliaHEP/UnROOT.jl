@@ -322,6 +322,7 @@ end
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
+    @test sum(rootfile["Events/HLT_Mu3_PFJet40"]) == 443
     close(rootfile)
 end
 
