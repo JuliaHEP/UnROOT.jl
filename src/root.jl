@@ -195,7 +195,7 @@ method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
 function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
     # specialized case to get Vector{Bool} instead of BitVector
-    return map(ntoh,reinterpret(T, rawdata))
+    return map(ntoh,reinterpret(Bool, rawdata))
 end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
