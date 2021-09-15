@@ -381,6 +381,9 @@ end
     data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
     event_hits_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQHit; skipbytes=10)
 
+    data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits"; raw=true)
+    event_thits_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQTriggeredHit; skipbytes=10)
+
     close(f_manual)  # we can close, everything is in memory
 
     # automatic interpretation
@@ -407,6 +410,20 @@ end
         @test event_hits[3][1].tdc == 63512204
         @test event_hits[3][end].dom_id == 809544061
         @test event_hits[3][end].tdc == 63512892
+    end
+    for event_thits ∈ [event_thits_manual, event_thits_auto]
+        @test length(event_thits) == 3
+        @test length(event_thits[1]) == 18
+        @test length(event_thits[2]) == 53
+        @test length(event_thits[3]) == 9
+        @test event_thits[1][1].dom_id == 806451572
+        @test event_thits[1][1].tdc == 30733918
+        @test event_thits[1][end].dom_id == 808972598
+        @test event_thits[1][end].tdc == 30733192
+        @test event_thits[3][1].dom_id == 808447186
+        @test event_thits[3][1].tdc == 63511558
+        @test event_thits[3][end].dom_id == 809526097
+        @test event_thits[3][end].tdc == 63511708
     end
 
     for headers ∈ [headers_manual, headers_auto]
