@@ -65,7 +65,7 @@ julia> data, offsets = array(f, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=tr
  0x03
    ⋮
    
-julia> UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit)
-4-element Vector{Vector{UnROOT.KM3NETDAQHit}}:
- [UnROOT.KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
+julia> UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQHit)
+4-element Vector{Vector{UnROOT._KM3NETDAQHit}}:
+ [UnROOT._KM3NETDAQHit(1073742790, 0x00, 9, 0x60)......
 ```
