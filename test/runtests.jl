@@ -376,18 +376,18 @@ end
     f_manual = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
 
     data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"; raw=true)
-    headers_manual = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQEventHeader; jagged=false)
+    headers_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQEventHeader; jagged=false)
 
     data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    event_hits_manual = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit; skipbytes=10)
+    event_hits_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQHit; skipbytes=10)
 
     close(f_manual)  # we can close, everything is in memory
 
     # automatic interpretation
     customstructs = Dict(
-            "KM3NETDAQ::JDAQEvent.snapshotHits" => Vector{UnROOT.KM3NETDAQHit},
-            "KM3NETDAQ::JDAQEvent.triggeredHits" => Vector{UnROOT.KM3NETDAQTriggeredHit},
-            "KM3NETDAQ::JDAQEvent.KM3NETDAQ::JDAQEventHeader" => UnROOT.KM3NETDAQEventHeader
+            "KM3NETDAQ::JDAQEvent.snapshotHits" => Vector{UnROOT._KM3NETDAQHit},
+            "KM3NETDAQ::JDAQEvent.triggeredHits" => Vector{UnROOT._KM3NETDAQTriggeredHit},
+            "KM3NETDAQ::JDAQEvent.KM3NETDAQ::JDAQEventHeader" => UnROOT._KM3NETDAQEventHeader
     )
     f_auto = UnROOT.ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"), customstructs=customstructs)
     headers_auto = f_auto["KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"]
