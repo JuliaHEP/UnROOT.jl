@@ -193,7 +193,7 @@ on type `T` and jagg type `J`.
 In order to retrieve data from custom branches, user should defined more speialized
 method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T<:Bool}
+function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
     # specialized case to get Vector{Bool} instead of BitVector
     return map(ntoh,reinterpret(T, rawdata))
 end
