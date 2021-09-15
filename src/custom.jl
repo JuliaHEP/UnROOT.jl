@@ -103,6 +103,7 @@ struct _KM3NETDAQTriggeredHit
     tot::UInt8
     trigger_mask::UInt64
 end
+packedsizeof(::Type{_KM3NETDAQTriggeredHit}) = 24  # incl. cnt and vers
 function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     dom_id = readtype(io, Int32)
     channel_id = read(io, UInt8)
