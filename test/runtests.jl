@@ -329,7 +329,7 @@ end
 @testset "Branch filtering" begin
     # Branch selection behavior: if not regex, require exact name match
     treebranches = ["Muon_pt", "Muon_eta", "Muon_phi", "Muon_charge", "Muon_ptErr",
-                   "Muon_", "_pt", "Muon.pt"]
+                    "Muon_", "_pt", "Muon.pt"]
     _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
     filter_branches(selected) = Set(mapreduce(b->filter(_m(b), treebranches), ∪, selected))
