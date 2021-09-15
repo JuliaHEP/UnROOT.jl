@@ -96,26 +96,6 @@ function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Typ
 end
 
 
-# Experimental implementation for maximum performance (using reinterpret)
-primitive type DAQHit 80 end
-function Base.getproperty(hit::DAQHit, s::Symbol)
-    r = Ref(hit)
-    GC.@preserve r begin
-        if s === :dom_id
-            return ntoh(unsafe_load(Ptr{Int32}(Base.unsafe_convert(Ptr{Cvoid}, r))))
-        elseif s === :channel_id
-            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+4))
-        elseif s === :tdc
-            return unsafe_load(Ptr{UInt32}(Base.unsafe_convert(Ptr{Cvoid}, r)+5))
-        elseif s === :tot
-            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+9))
-        end
-    end
-    error("unknown field $s of type $(typeof(hit))")
-end
-Base.show(io::IO, h::DAQHit) = print(io, "DAQHit(", h.dom_id, ',', h.channel_id, ',', h.tdc, ',', h.tot, ')')
-
-
 struct _KM3NETDAQTriggeredHit
     dom_id::Int32
     channel_id::UInt8
@@ -123,6 +103,7 @@ struct _KM3NETDAQTriggeredHit
     tot::UInt8
     trigger_mask::UInt64
 end
+packedsizeof(::Type{_KM3NETDAQTriggeredHit}) = 24  # incl. cnt and vers
 function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     dom_id = readtype(io, Int32)
     channel_id = read(io, UInt8)
