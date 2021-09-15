@@ -215,6 +215,12 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1"]["int32_array"]
     arr = UnROOT.array(rootfile, branch)
+    arr2 = UnROOT.arrays(rootfile, "t1")[1]
+    
+    @test hash(branch) == hash(rootfile["t1"]["int32_array"])
+    @test hash(branch) != hash(rootfile["t1"]["float_array"])
+    @test arr == arr2
+
     table = LazyTree(rootfile, "t1")
     BA = LazyBranch(rootfile, branch)
     @test length(arr) == length(BA)
@@ -223,6 +229,10 @@ end
     @test BA[20:30] == arr[20:30]
     @test BA[1:end] == arr
     @test table.int32_array[20:30] == BA[20:30]
+    @test table[:, :int32_array][20:30] == BA[20:30]
+    @test table[23, :int32_array] == BA[23]
+    @test table[20:30, :int32_array] == BA[20:30]
+    @test table[:].int32_array[20:30] == BA[20:30]
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
@@ -308,9 +318,9 @@ end
     @test eltype(HLT_Mu3_PFJet40) == Bool
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
     tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
-    @test sort(propertynames(tree)) == sort([:Muon_pt, :Muon_eta])
+    @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
     @test sum(rootfile["Events/HLT_Mu3_PFJet40"]) == 443
     close(rootfile)
@@ -329,15 +339,36 @@ end
     @test filter_branches(["Muon.pt"]) == Set(["Muon.pt"])
 end
 
-@testset "Displaying" begin
-    files = filter(endswith(".root"), readdir(SAMPLES_DIR))
+@testset "Displaying files" begin
+    files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
         show(_io, r)
         close(r)
     end
+
+    # test that duplicate trees (but different cycle numbers)
+    # are only displayed once, and that histograms show up
+    f = UnROOT.samplefile("tree_cycles_hist.root")
+    @test length(collect(eachmatch(r"Events", repr(f)))) == 1
+    @test length(collect(eachmatch(r"myTH2F", repr(f)))) == 1
+    close(f)
 end
+
+@testset "Displaying trees" begin
+    f = UnROOT.samplefile("NanoAODv5_sample.root")
+    t = LazyTree(f, "Events", ["nMuon","MET_pt","Muon_pt"])
+    _io = IOBuffer()
+    show(_io, t)
+    show(_io, t[1:10])
+    show(_io, t.Muon_pt)
+    show(_io, t.Muon_pt[1:10])
+    s = repr(t[1:10])
+    @test length(collect(eachmatch(r"Float32\[", s))) == 0
+    close(f)
+end
+
 # Custom bootstrap things
 
 @testset "custom boostrapping" begin
@@ -345,18 +376,21 @@ end
     f_manual = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
 
     data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"; raw=true)
-    headers_manual = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQEventHeader; jagged=false)
+    headers_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQEventHeader; jagged=false)
 
     data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    event_hits_manual = UnROOT.splitup(data, offsets, UnROOT.KM3NETDAQHit; skipbytes=10)
+    event_hits_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQHit; skipbytes=10)
+
+    data, offsets = UnROOT.array(f_manual, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits"; raw=true)
+    event_thits_manual = UnROOT.splitup(data, offsets, UnROOT._KM3NETDAQTriggeredHit; skipbytes=10)
 
     close(f_manual)  # we can close, everything is in memory
 
     # automatic interpretation
     customstructs = Dict(
-            "KM3NETDAQ::JDAQEvent.snapshotHits" => Vector{UnROOT.KM3NETDAQHit},
-            "KM3NETDAQ::JDAQEvent.triggeredHits" => Vector{UnROOT.KM3NETDAQTriggeredHit},
-            "KM3NETDAQ::JDAQEvent.KM3NETDAQ::JDAQEventHeader" => UnROOT.KM3NETDAQEventHeader
+            "KM3NETDAQ::JDAQEvent.snapshotHits" => Vector{UnROOT._KM3NETDAQHit},
+            "KM3NETDAQ::JDAQEvent.triggeredHits" => Vector{UnROOT._KM3NETDAQTriggeredHit},
+            "KM3NETDAQ::JDAQEvent.KM3NETDAQ::JDAQEventHeader" => UnROOT._KM3NETDAQEventHeader
     )
     f_auto = UnROOT.ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"), customstructs=customstructs)
     headers_auto = f_auto["KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"]
@@ -376,6 +410,20 @@ end
         @test event_hits[3][1].tdc == 63512204
         @test event_hits[3][end].dom_id == 809544061
         @test event_hits[3][end].tdc == 63512892
+    end
+    for event_thits ∈ [event_thits_manual, event_thits_auto]
+        @test length(event_thits) == 3
+        @test length(event_thits[1]) == 18
+        @test length(event_thits[2]) == 53
+        @test length(event_thits[3]) == 9
+        @test event_thits[1][1].dom_id == 806451572
+        @test event_thits[1][1].tdc == 30733918
+        @test event_thits[1][end].dom_id == 808972598
+        @test event_thits[1][end].tdc == 30733192
+        @test event_thits[3][1].dom_id == 808447186
+        @test event_thits[3][1].tdc == 63511558
+        @test event_thits[3][end].dom_id == 809526097
+        @test event_thits[3][end].tdc == 63511708
     end
 
     for headers ∈ [headers_manual, headers_auto]
@@ -531,6 +579,7 @@ end
 
 @testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    @test eachindex(enumerate(t)) == eachindex(t)
     nmu = 0
     for evt in t
         nmu += length(evt.Muon_pt)

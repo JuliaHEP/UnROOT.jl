@@ -82,51 +82,32 @@ end
 # TLorentzVector ends
 
 # KM3NeT
-struct KM3NETDAQHit <: CustomROOTStruct
+struct _KM3NETDAQHit <: CustomROOTStruct
     dom_id::Int32
     channel_id::UInt8
     tdc::Int32
     tot::UInt8
 end
-function readtype(io::IO, T::Type{KM3NETDAQHit})
+function readtype(io::IO, T::Type{_KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQHit}}, ::Type{Nojagg})
-    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQHit, skipbytes=10)
+function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{Nojagg})
+    UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQHit, skipbytes=10)
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQHit}}, ::Type{Offsetjagg})
-    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQHit, skipbytes=10)
+function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{Offsetjagg})
+    UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQHit, skipbytes=10)
 end
 
 
-# Experimental implementation for maximum performance (using reinterpret)
-primitive type DAQHit 80 end
-function Base.getproperty(hit::DAQHit, s::Symbol)
-    r = Ref(hit)
-    GC.@preserve r begin
-        if s === :dom_id
-            return ntoh(unsafe_load(Ptr{Int32}(Base.unsafe_convert(Ptr{Cvoid}, r))))
-        elseif s === :channel_id
-            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+4))
-        elseif s === :tdc
-            return unsafe_load(Ptr{UInt32}(Base.unsafe_convert(Ptr{Cvoid}, r)+5))
-        elseif s === :tot
-            return unsafe_load(Ptr{UInt8}(Base.unsafe_convert(Ptr{Cvoid}, r)+9))
-        end
-    end
-    error("unknown field $s of type $(typeof(hit))")
-end
-Base.show(io::IO, h::DAQHit) = print(io, "DAQHit(", h.dom_id, ',', h.channel_id, ',', h.tdc, ',', h.tot, ')')
-
-
-struct KM3NETDAQTriggeredHit
+struct _KM3NETDAQTriggeredHit
     dom_id::Int32
     channel_id::UInt8
     tdc::Int32
     tot::UInt8
     trigger_mask::UInt64
 end
-function readtype(io::IO, T::Type{KM3NETDAQTriggeredHit})
+packedsizeof(::Type{_KM3NETDAQTriggeredHit}) = 24  # incl. cnt and vers
+function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     dom_id = readtype(io, Int32)
     channel_id = read(io, UInt8)
     tdc = read(io, Int32)
@@ -136,14 +117,14 @@ function readtype(io::IO, T::Type{KM3NETDAQTriggeredHit})
     T(dom_id, channel_id, tdc, tot, trigger_mask)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQTriggeredHit}}, ::Type{Nojagg})
-    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQTriggeredHit, skipbytes=10)
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{Nojagg})
+    UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQTriggeredHit, skipbytes=10)
 end
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{KM3NETDAQTriggeredHit}}, ::Type{Offsetjagg})
-    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQTriggeredHit, skipbytes=10)
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{Offsetjagg})
+    UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQTriggeredHit, skipbytes=10)
 end
 
-struct KM3NETDAQEventHeader
+struct _KM3NETDAQEventHeader
     detector_id::Int32
     run::Int32
     frame_index::Int32
@@ -153,9 +134,9 @@ struct KM3NETDAQEventHeader
     trigger_mask::UInt64
     overlays::UInt32
 end
-packedsizeof(::Type{KM3NETDAQEventHeader}) = 76
+packedsizeof(::Type{_KM3NETDAQEventHeader}) = 76
 
-function readtype(io::IO, T::Type{KM3NETDAQEventHeader})
+function readtype(io::IO, T::Type{_KM3NETDAQEventHeader})
     skip(io, 18)
     detector_id = readtype(io, Int32)
     run = readtype(io, Int32)
@@ -171,6 +152,6 @@ function readtype(io::IO, T::Type{KM3NETDAQEventHeader})
     T(detector_id, run, frame_index, UTC_seconds, UTC_16nanosecondcycles, trigger_counter, trigger_mask, overlays)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{KM3NETDAQEventHeader}, ::Type{Nojagg})
-    UnROOT.splitup(rawdata, rawoffsets, KM3NETDAQEventHeader, jagged=false)
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{Nojagg})
+    UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQEventHeader, jagged=false)
 end

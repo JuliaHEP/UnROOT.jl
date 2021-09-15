@@ -99,3 +99,7 @@ function parseTH(th::Dict{Symbol, Any})
     end
     return counts, edges, sumw2
 end
+
+function samplefile(filename::AbstractString)
+    return ROOTFile(normpath(joinpath(@__DIR__, "../test/samples", filename)))
+end

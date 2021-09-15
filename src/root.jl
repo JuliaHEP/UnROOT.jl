@@ -193,11 +193,12 @@ on type `T` and jagg type `J`.
 In order to retrieve data from custom branches, user should defined more speialized
 method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
+function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
+    # specialized case to get Vector{Bool} instead of BitVector
+    return map(ntoh,reinterpret(Bool, rawdata))
+end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where T
     return ntoh.(reinterpret(T, rawdata))
-end
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T<:Bool}
-    return map(ntoh,reinterpret(T, rawdata))
 end
 # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
 # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -206,10 +207,10 @@ end
 # the other is where we need to auto detector T bsaed on class name
 # we want the fundamental type as `reinterpret` will create vector
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nooffsetjagg}) where T
+    _size = sizeof(eltype(T))
     real_data = ntoh.(reinterpret(T, rawdata))
-    rawoffsets .÷= sizeof(eltype(T))
-    rawoffsets .+= 1
-    return VectorOfVectors(real_data, rawoffsets)
+    rawoffsets .= (rawoffsets .÷ _size) .+ 1
+    return VectorOfVectors(real_data, rawoffsets, ArraysOfArrays.no_consistency_checks)
 end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Offsetjagg}) where T
     # for each "event", the index range is `offsets[i] + jagg_offset + 1` to `offsets[i+1]`
@@ -237,9 +238,8 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Offsetjagg}) where
     end
     resize!(rawdata, dp)
     real_data = ntoh.(reinterpret(T, rawdata))
-    offset .÷= sizeof(eltype(T))
-    offset .+= 1
-    return VectorOfVectors(real_data, offset)
+    offset .= (offset .÷ _size) .+ 1
+    return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
 end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Offsetjaggjagg}) where T
     jagg_offset = 10
