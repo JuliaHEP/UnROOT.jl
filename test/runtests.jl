@@ -656,3 +656,15 @@ end
         end
     end
 end
+
+@testset "TDirectory" begin
+    f = UnROOT.samplefile("tdir_complicated.root")
+    @test length(keys(f["mydir"])) == 4
+    @test sort(keys(f["mydir"])) == ["Events", "c", "d", "mysubdir"]
+    @test sort(keys(f["mydir/mysubdir"])) == ["e", "f"]
+    @test sum(length.(LazyTree(f, "mydir/Events").Jet_pt)) == 4
+    @test sum(length.(f["mydir/Events/Jet_pt"])) == 4
+
+    f = UnROOT.samplefile("issue11_tdirectory.root")
+    @test sum(f["Data/mytree/Particle0_E"]) ≈ 1012.0
+end
