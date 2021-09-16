@@ -827,6 +827,20 @@ function TH(io, tkey::TKey, refs)
     fields
 end
 
+function TDirectory(io, tkey::TKey, refs)
+    fobj = io
+    seekstart(fobj, tkey)
+
+    # almost verbatim from L95 to L101 of root.jl
+    dir_header = unpack(fobj, ROOTDirectoryHeader)
+    seek(fobj, dir_header.fSeekKeys)
+    header_key = unpack(fobj, TKey)
+    n_keys = readtype(fobj, Int32)
+    keys = [unpack(fobj, TKey) for _ in 1:n_keys]
+
+    directory = ROOTDirectory(header_key.fName, dir_header, keys, fobj, refs)
+    return directory
+end
 
 # FIXME idk what is going on but this just looks like a TTree.....
 function TNtuple(io, tkey::TKey, refs)
