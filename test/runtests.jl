@@ -536,6 +536,14 @@ end
     _ = length.(arr);
     @test length.(arr.buffer) == length.(arr.buffer_range)
     close(rootfile)
+
+    # issue 108
+    # unsigned short -> Int16, ulong64 -> UInt64
+    # file minified with `rooteventselector --recreate -l 2 "trackntuple.root:trackingNtuple/tree" issue108_small.root`
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue108_small.root"))
+    @test rootfile["tree/trk_algoMask"][2] == [0x0000000000004000, 0x0000000000004000, 0x0000000000004000, 0x0000000000004000]
+    @test rootfile["tree/pix_ladder"][3][1:5] == UInt16[0x0001, 0x0001, 0x0001, 0x0001, 0x0003]
+    close(rootfile)
 end
 
 @testset "jagged subbranch type by leaf" begin
