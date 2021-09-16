@@ -365,6 +365,10 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                     UInt32
                 elseif elname == "unsigned char" 
                     Char
+                elseif elname == "unsigned short"
+                    UInt16
+                elseif elname == "ulong64"
+                    UInt64
                 else
                     _type = getfield(Base, Symbol(:C, elname))
                 end
