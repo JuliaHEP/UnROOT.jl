@@ -50,7 +50,7 @@ function children(t::TTree)
 end
 printnode(io::IO, t::TTree) = print(io, "$(t.fName) (TTree)")
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
-printnode(io::IO, f::ROOTDirectory) = print(io, f.name)
+printnode(io::IO, f::ROOTDirectory) = print(io, "$(f.name) (TDirectory)")
 printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
 function Base.show(io::IO, tree::LazyTree)

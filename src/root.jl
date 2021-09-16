@@ -156,7 +156,9 @@ end
     end
 end
 
-function getindex(d::ROOTDirectory, s)
+# FIXME unify with above?
+@memoize LRU(maxsize = 2000) function getindex(d::ROOTDirectory, s)
+# function getindex(d::ROOTDirectory, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
