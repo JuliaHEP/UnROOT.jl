@@ -157,6 +157,11 @@ end
 end
 
 function getindex(d::ROOTDirectory, s)
+    if '/' ∈ s
+        @debug "Splitting path '$s' and getting items recursively"
+        paths = split(s, '/')
+        return d[first(paths)][join(paths[2:end], "/")]
+    end
     tkey = d.keys[findfirst(isequal(s), keys(d))]
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
     S = streamer(d.fobj, tkey, d.refs)
