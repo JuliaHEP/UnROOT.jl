@@ -7,14 +7,14 @@ struct TKeyNode
     name::AbstractString
     classname::AbstractString
 end
-function children(f::ROOTFile)
+function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
     # display TTrees recursively
     # subsequent TTrees with duplicate fName will be skipped
     # since TKey cycle number is guaranteed to be decreasing
     # then all TKeys in the file which are not for a TTree
     seen = Set{String}()
-    ch = Vector{Union{TTree,TKeyNode}}()
-    lock(f)
+    ch = Vector{Union{TTree,TKeyNode,ROOTDirectory}}()
+    T === ROOTFile ? lock(f) : nothing
     for k in keys(f)
         try
             obj = f[k]
@@ -25,12 +25,17 @@ function children(f::ROOTFile)
         catch
         end
     end
-    for tkey in f.directory.keys
+    tkeys = T === ROOTFile ? f.directory.keys : f.keys
+    for tkey in tkeys
         kn = TKeyNode(tkey.fName, tkey.fClassName)
         kn.classname == "TTree" && continue
-        push!(ch, kn)
+        if kn.classname == "TDirectory"
+            push!(ch, f[tkey.fName])
+        else
+            push!(ch, kn)
+        end
     end
-    unlock(f)
+    T === ROOTFile ? unlock(f) : nothing
     ch
 end
 function children(t::TTree)
@@ -45,6 +50,7 @@ function children(t::TTree)
 end
 printnode(io::IO, t::TTree) = print(io, "$(t.fName) (TTree)")
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
+printnode(io::IO, f::ROOTDirectory) = print(io, f.name)
 printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
 function Base.show(io::IO, tree::LazyTree)

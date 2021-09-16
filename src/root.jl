@@ -2,6 +2,8 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
+    fobj::IOStream
+    refs::Dict{Int32, Any}
 end
 
 struct ROOTFile
@@ -92,7 +94,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     n_keys = readtype(fobj, Int32)
     keys = [unpack(fobj, TKey) for _ in 1:n_keys]
 
-    directory = ROOTDirectory(tkey.fName, dir_header, keys)
+    directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
     ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, ReentrantLock())
 end
@@ -152,6 +154,13 @@ end
     finally
         unlock(f)
     end
+end
+
+function getindex(d::ROOTDirectory, s)
+    tkey = d.keys[findfirst(isequal(s), keys(d))]
+    streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
+    S = streamer(d.fobj, tkey, d.refs)
+    return S
 end
 
 function Base.keys(f::ROOTFile)
