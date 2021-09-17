@@ -159,22 +159,27 @@ and update buffer and buffer range accordingly.
     moment, access a `LazyBranch` from different threads at the same time can cause
     performance issue and incorrect event result.
 """
+
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
     br = @inbounds ba.buffer_range[tid]
-    if idx ∉ br
-        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
-        bb = basketarray(ba.f, ba.b, seek_idx)
-        if typeof(bb) !== B
-            error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
-        end
-        ba.buffer[tid] = bb
-        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
-        ba.buffer_range[tid] = br
+    localidx = if idx ∉ br
+        _localindex_newbasket!(ba, idx, tid)
+    else
+        localidx = idx - br.start + 1
     end
-    localidx = idx - br.start + 1
     return @inbounds ba.buffer[tid][localidx]
 end
+
+function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
+    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
+    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
+    br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
+    ba.buffer_range[tid] = br
+    return idx - br.start + 1
+end
+
+Base.IndexStyle(::Type{<:LazyBranch}) = IndexCartesian()
 
 function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     idx > ba.L && return nothing
