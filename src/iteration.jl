@@ -38,6 +38,7 @@ end
 """
     basketarray(f::ROOTFile, path::AbstractString, ith)
     basketarray(f::ROOTFile, branch::Union{TBranch, TBranchElement}, ith)
+    basketarray(lb::LazyBranch, ith)
 
 Reads actual data from ith basket of a branch. This function first calls [`readbasket`](@ref)
 to obtain raw bytes and offsets of a basket, then calls [`auto_T_JaggT`](@ref) followed
@@ -55,6 +56,16 @@ function basketarray(f::ROOTFile, branch, ithbasket)
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
     return interped_data(rawdata, rawoffsets, T, J)
+end
+
+"""
+    basketarray_iter(f::ROOTFile, branch::Union{TBranch, TBranchElement})
+    basketarray_iter(lb::LazyBranch)
+
+Returns a `Base.Generator` yielding the output of `basketarray()` for all baskets.
+"""
+function basketarray_iter(f::ROOTFile, branch)
+    return (basketarray(f, branch, i) for i in 1:numbaskets(branch))
 end
 
 # function barrior to make getting individual index faster
@@ -121,6 +132,9 @@ Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
+basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
+basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
+
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
     println(io, ":")
@@ -145,22 +159,27 @@ and update buffer and buffer range accordingly.
     moment, access a `LazyBranch` from different threads at the same time can cause
     performance issue and incorrect event result.
 """
+
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
-    br = ba.buffer_range[tid]
-    if idx ∉ br
-        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
-        bb = basketarray(ba.f, ba.b, seek_idx)
-        if typeof(bb) !== B
-            error("Expected type of interpreted data: $(B), got: $(typeof(bb))")
-        end
-        ba.buffer[tid] = bb
-        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
-        ba.buffer_range[tid] = br
+    br = @inbounds ba.buffer_range[tid]
+    localidx = if idx ∉ br
+        _localindex_newbasket!(ba, idx, tid)
+    else
+        idx - br.start + 1
     end
-    localidx = idx - br.start + 1
     return @inbounds ba.buffer[tid][localidx]
 end
+
+function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
+    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
+    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
+    br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
+    ba.buffer_range[tid] = br
+    return idx - br.start + 1
+end
+
+Base.IndexStyle(::Type{<:LazyBranch}) = IndexCartesian()
 
 function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     idx > ba.L && return nothing
