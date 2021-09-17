@@ -679,6 +679,6 @@ end
 
 @testset "Basic C++ types" begin
     f = UnROOT.samplefile("tree_basictypes.root")
-    onesrow = LazyTree(f,"t")[2] |> values .|> only .|> Int
+    onesrow = LazyTree(f,"t")[2] |> values .|> first .|> Int
     @test all(onesrow .== 1)
 end
