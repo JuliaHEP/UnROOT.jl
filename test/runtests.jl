@@ -676,3 +676,9 @@ end
     f = UnROOT.samplefile("issue11_tdirectory.root")
     @test sum(f["Data/mytree/Particle0_E"]) ≈ 1012.0
 end
+
+@testset "Basic C++ types" begin
+    f = UnROOT.samplefile("tree_basictypes.root")
+    onesrow = LazyTree(f,"t")[2] |> values .|> first .|> Int
+    @test all(onesrow .== 1)
+end

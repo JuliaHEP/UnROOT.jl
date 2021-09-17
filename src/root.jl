@@ -127,11 +127,11 @@ end
 function Base.getindex(f::ROOTFile, s::AbstractString)
     S = _getindex(f, s)
     if S isa Union{TBranch, TBranchElement}
-        try # if we can't construct LazyBranch, just give up (maybe due to custom class)
+        # try # if we can't construct LazyBranch, just give up (maybe due to custom class)
             return LazyBranch(f, S)
-        catch
-            @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
-        end
+        # catch
+        #     @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
+        # end
     end
     S
 end
@@ -366,9 +366,13 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                 elseif elname == "unsigned int" 
                     UInt32
                 elseif elname == "unsigned char" 
-                    Char
+                    UInt8
                 elseif elname == "unsigned short"
                     UInt16
+                elseif elname == "unsigned long"
+                    UInt64
+                elseif elname == "long64"
+                    Int64
                 elseif elname == "ulong64"
                     UInt64
                 else
