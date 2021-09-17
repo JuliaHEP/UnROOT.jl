@@ -418,6 +418,7 @@ function Base.hash(b::Union{TBranch, TBranchElement}, h::UInt)
 end
 Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
+numbaskets(b::Union{TBranch, TBranchElement}) = findfirst(x->x>(b.fEntries-1),b.fBasketEntry)-1
 function Base.eltype(b::Union{TBranch, TBranchElement})
     T, jagT = interp_jaggT(b)
     jagT === Nojagg ? T : Vector{T}
