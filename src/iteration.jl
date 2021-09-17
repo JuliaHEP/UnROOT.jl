@@ -108,6 +108,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
+        T = (T === Vector{Bool} ? BitVector : T)
         _buffer = J === Nojagg ? T[] : VectorOfVectors(T(), Int32[1])
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
