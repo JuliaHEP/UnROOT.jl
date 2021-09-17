@@ -166,7 +166,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     localidx = if idx ∉ br
         _localindex_newbasket!(ba, idx, tid)
     else
-        localidx = idx - br.start + 1
+        idx - br.start + 1
     end
     return @inbounds ba.buffer[tid][localidx]
 end
