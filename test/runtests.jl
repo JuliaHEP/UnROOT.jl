@@ -676,3 +676,11 @@ end
     f = UnROOT.samplefile("issue11_tdirectory.root")
     @test sum(f["Data/mytree/Particle0_E"]) ≈ 1012.0
 end
+
+@testset "basketarrays()" begin
+    f = UnROOT.samplefile("tree_with_vector_multiple_baskets.root")
+    t = LazyTree(f,"t1")
+    @test (UnROOT.basketarrays(f, f["t1"]["b1"]) .|> length) == [1228, 1228, 44]
+    @test (UnROOT.basketarrays(t.b1) .|> length) == [1228, 1228, 44]
+    @test length(UnROOT.basketarray(t.b1, 1)) == 1228
+end
