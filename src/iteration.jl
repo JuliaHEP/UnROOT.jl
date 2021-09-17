@@ -59,12 +59,12 @@ function basketarray(f::ROOTFile, branch, ithbasket)
 end
 
 """
-    basketarrays(f::ROOTFile, branch::Union{TBranch, TBranchElement})
-    basketarrays(lb::LazyBranch)
+    basketarray_iter(f::ROOTFile, branch::Union{TBranch, TBranchElement})
+    basketarray_iter(lb::LazyBranch)
 
 Returns a `Base.Generator` yielding the output of `basketarray()` for all baskets.
 """
-function basketarrays(f::ROOTFile, branch)
+function basketarray_iter(f::ROOTFile, branch)
     return (basketarray(f, branch, i) for i in 1:numbaskets(branch))
 end
 
@@ -133,7 +133,7 @@ Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
 basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
-basketarrays(lb::LazyBranch) = basketarrays(lb.f, lb.b)
+basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
