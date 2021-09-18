@@ -200,6 +200,13 @@ end
 
 reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
+function _interp_inplace(T, rawdata)
+    conv = convert(Ptr{eltype(T)}, pointer(rawdata))
+    real_data = unsafe_wrap(Array, conv, length(rawdata) ÷ sizeof(eltype(T)))
+    real_data .= ntoh.(real_data)
+    return real_data
+end
+
 """
     interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
 
@@ -209,11 +216,12 @@ on type `T` and jagg type `J`.
 In order to retrieve data from custom branches, user should defined more speialized
 method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
-function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
+function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg}, inplace::Bool=false)
     # specialized case to get Vector{Bool} instead of BitVector
     return map(ntoh,reinterpret(Bool, rawdata))
 end
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
+
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}, inplace::Bool=false) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
     # only needs when the jaggedness comes from TLeafElements, not needed when
@@ -221,7 +229,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
     if J === Nojagg
-        return ntoh.(reinterpret(T, rawdata))
+        return inplace ? _interp_inplace(T, rawdata) : ntoh.(reinterpret(T, rawdata))
     elseif J === Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
@@ -269,7 +277,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         else
             offset = rawoffsets
         end
-        real_data = ntoh.(reinterpret(T, rawdata))
+        real_data = inplace ? _interp_inplace(T, rawdata) : ntoh.(reinterpret(T, rawdata))
         offset .= (offset .÷ _size) .+ 1
         return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
     end

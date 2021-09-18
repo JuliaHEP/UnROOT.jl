@@ -32,7 +32,7 @@ function array(f::ROOTFile, branch; raw=false)
         return rawdata, rawoffsets
     end
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
-    return interped_data(rawdata, rawoffsets, T, J)
+    return interped_data(rawdata, rawoffsets, T, J, false)
 end
 
 """
@@ -47,7 +47,7 @@ by [`interped_data`](@ref) to translate raw bytes into actual data.
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     return basketarray(f, f[path], ithbasket)
 end
-function basketarray(f::ROOTFile, branch, ithbasket)
+function basketarray(f::ROOTFile, branch, ithbasket, inplace::Bool=false)
     ismissing(branch) && error("No branch found at $path")
     length(branch.fLeaves.elements) > 1 && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
@@ -55,7 +55,11 @@ function basketarray(f::ROOTFile, branch, ithbasket)
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
-    return interped_data(rawdata, rawoffsets, T, J)
+    if inplace
+        return interped_data(rawdata, rawoffsets, T, J, true), Ref(rawdata)
+    else
+        return interped_data(rawdata, rawoffsets, T, J)
+    end
 end
 
 """
@@ -105,15 +109,18 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     fEntry::Vector{Int64}
     buffer::Vector{B}
     buffer_range::Vector{UnitRange{Int64}}
+    ref::Vector{Ref{Vector{UInt8}}}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
         T = (T === Vector{Bool} ? BitVector : T)
         _buffer = J === Nojagg ? T[] : VectorOfVectors(T(), Int32[1])
+        @show T, T in values(f.customstructs)
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
                                         [_buffer for _ in 1:Threads.nthreads()],
-                                        [0:-1 for _ in 1:Threads.nthreads()])
+                                        [0:-1 for _ in 1:Threads.nthreads()],
+                                        [Ref(UInt8[]) for _ in 1:Threads.nthreads()])
     end
 end
 
@@ -173,7 +180,9 @@ end
 
 function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
     seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
-    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
+    inplace = T ∉ values(ba.f.customstructs)
+    # inplace = false
+    ba.buffer[tid], ba.ref[tid] = basketarray(ba.f, ba.b, seek_idx, inplace)
     br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
     ba.buffer_range[tid] = br
     return idx - br.start + 1
