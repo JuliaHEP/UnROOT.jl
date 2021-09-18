@@ -218,7 +218,7 @@ method of this function with specific `T` and `J`. See `TLorentzVector` example.
 """
 function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg}, inplace::Bool=false)
     # specialized case to get Vector{Bool} instead of BitVector
-    return map(ntoh,reinterpret(Bool, rawdata))
+    return inplace ? _interp_inplace(Bool, rawdata) : map(ntoh,reinterpret(Bool, rawdata))
 end
 
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}, inplace::Bool=false) where {T, J<:JaggType}
