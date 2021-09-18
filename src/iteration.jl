@@ -55,11 +55,8 @@ function basketarray(f::ROOTFile, branch, ithbasket, inplace::Bool=false)
 
     rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
-    if inplace
-        return interped_data(rawdata, rawoffsets, T, J, true), Ref(rawdata)
-    else
-        return interped_data(rawdata, rawoffsets, T, J)
-    end
+    data = interped_data(rawdata, rawoffsets, T, J, inplace)
+    return inplace ? (data, Ref(rawdata)) : data
 end
 
 """
