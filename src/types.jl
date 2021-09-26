@@ -68,6 +68,12 @@ function unpack(io, T::Type{TBasketKey})
     fObjlen = readtype(io, Int32)
     fDatime = readtype(io, UInt32)
     fKeylen = readtype(io, Int16)
+
+    # do a single read to get rest of bytes into memory
+    # and offset by the 16 bytes we already read
+    io = IOBuffer(read(io, fKeylen - 16))
+    start = -16
+
     fCycle = readtype(io, Int16)
     fSeekKey = readtype(io, inttype)
     fSeekPdir = readtype(io, inttype)
