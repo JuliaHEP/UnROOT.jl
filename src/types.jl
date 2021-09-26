@@ -59,48 +59,46 @@ end
 
 function unpack(io, T::Type{TBasketKey})
     start = position(io)
-    fields = Dict{Symbol, Union{Integer, String}}()
-    sizehint!(fields, length(fieldnames(T)))
 
-    fields[:fNbytes] = readtype(io, Int32)
-    fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
+    fNbytes = readtype(io, Int32)
+    fVersion = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
 
-    inttype = fields[:fVersion] <= 1000 ? Int32 : Int64
+    inttype = fVersion <= 1000 ? Int32 : Int64
 
-    fields[:fObjlen] = readtype(io, Int32)
-    fields[:fDatime] = readtype(io, UInt32)
-    fields[:fKeylen] = readtype(io, Int16)
-    fields[:fCycle] = readtype(io, Int16)
-    fields[:fSeekKey] = readtype(io, inttype)
-    fields[:fSeekPdir] = readtype(io, inttype)
-    fields[:fClassName] = readtype(io, String)
-    fields[:fName] = readtype(io, String)
-    fields[:fTitle] = readtype(io, String)
+    fObjlen = readtype(io, Int32)
+    fDatime = readtype(io, UInt32)
+    fKeylen = readtype(io, Int16)
+    fCycle = readtype(io, Int16)
+    fSeekKey = readtype(io, inttype)
+    fSeekPdir = readtype(io, inttype)
+    fClassName = readtype(io, String)
+    fName = readtype(io, String)
+    fTitle = readtype(io, String)
 
     # if complete (which is true for compressed, it seems?)
-    seek(io, start + fields[:fKeylen] - 18 - 1)
-    fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
-    fields[:fBufferSize] = readtype(io, Int32)
-    fields[:fNevBufSize] = readtype(io, Int32)
-    fields[:fNevBuf] = readtype(io, Int32)
-    fields[:fLast] = readtype(io, Int32)
+    seek(io, start + fKeylen - 18 - 1)
+    fVersion = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
+    fBufferSize = readtype(io, Int32)
+    fNevBufSize = readtype(io, Int32)
+    fNevBuf = readtype(io, Int32)
+    fLast = readtype(io, Int32)
 
     T(
-      fields[:fNbytes],
-      fields[:fVersion],
-      fields[:fObjlen],
-      fields[:fDatime],
-      fields[:fKeylen],
-      fields[:fCycle],
-      fields[:fSeekKey],
-      fields[:fSeekPdir],
-      fields[:fClassName],
-      fields[:fName],
-      fields[:fTitle],
-      fields[:fBufferSize],
-      fields[:fNevBufSize],
-      fields[:fNevBuf],
-      fields[:fLast],
+      fNbytes,
+      fVersion,
+      fObjlen,
+      fDatime,
+      fKeylen,
+      fCycle,
+      fSeekKey,
+      fSeekPdir,
+      fClassName,
+      fName,
+      fTitle,
+      fBufferSize,
+      fNevBufSize,
+      fNevBuf,
+      fLast,
    )
 end
 
