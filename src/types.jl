@@ -60,6 +60,8 @@ end
 function unpack(io, T::Type{TBasketKey})
     start = position(io)
     fields = Dict{Symbol, Union{Integer, String}}()
+    sizehint!(fields, length(fieldnames(T)))
+
     fields[:fNbytes] = readtype(io, Int32)
     fields[:fVersion] = readtype(io, Int16)  # FIXME if "complete" it's UInt16 (acc. uproot)
 
@@ -83,7 +85,23 @@ function unpack(io, T::Type{TBasketKey})
     fields[:fNevBuf] = readtype(io, Int32)
     fields[:fLast] = readtype(io, Int32)
 
-    T(; fields...)
+    T(
+      fields[:fNbytes],
+      fields[:fVersion],
+      fields[:fObjlen],
+      fields[:fDatime],
+      fields[:fKeylen],
+      fields[:fCycle],
+      fields[:fSeekKey],
+      fields[:fSeekPdir],
+      fields[:fClassName],
+      fields[:fName],
+      fields[:fTitle],
+      fields[:fBufferSize],
+      fields[:fNevBufSize],
+      fields[:fNevBuf],
+      fields[:fLast],
+   )
 end
 
 iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t.fKeylen
