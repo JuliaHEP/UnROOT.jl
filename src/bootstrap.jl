@@ -639,7 +639,7 @@ end
     fWriteBasket
     fEntryNumber
 
-    fIOFeatures
+    fIOFeatures=0x00
 
     fOffset
     fMaxBaskets
