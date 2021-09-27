@@ -544,6 +544,11 @@ end
     @test rootfile["tree/trk_algoMask"][2] == [0x0000000000004000, 0x0000000000004000, 0x0000000000004000, 0x0000000000004000]
     @test rootfile["tree/pix_ladder"][3][1:5] == UInt16[0x0001, 0x0001, 0x0001, 0x0001, 0x0003]
     close(rootfile)
+
+    # issue 116
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue116.root"))
+    @test length(rootfile["fTree"].fBranches.elements) == 112
+    close(rootfile)
 end
 
 @testset "jagged subbranch type by leaf" begin
