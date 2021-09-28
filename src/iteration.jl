@@ -307,3 +307,28 @@ end
 function Base.getindex(ba::LazyBranch{T,J,B}, rang::UnitRange) where {T,J,B}
     return [ba[i] for i in rang]
 end
+
+clusterranges(t::LazyTree) = clusterranges([getproperty(t,p) for p in propertynames(t)])
+function clusterranges(lbs::Vector{LazyBranch})
+    basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
+    common = mapreduce(Set, ∩, basketentries) |> collect |> sort
+    clusterranges = [common[i]+1:common[i+1] for i in 1:length(common)-1]
+    return clusterranges
+end
+clusterbytes(t::LazyTree; kw...) = clusterbytes([getproperty(t,p) for p in propertynames(t)]; kw...)
+function clusterbytes(lbs::Vector{LazyBranch}; compressed=false)
+    basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
+    common = mapreduce(Set, ∩, basketentries) |> collect |> sort
+    bytes = zeros(Float64, length(common)-1)
+    for lb in lbs
+        b = lb.b
+        finflate = compressed ? 1.0 : b.fTotBytes/b.fZipBytes
+        entries = b.fBasketEntry[1:numbaskets(b)+1]
+        basketbytes = b.fBasketBytes[1:numbaskets(b)+1] * finflate
+        iclusters = searchsortedlast.(Ref(common), entries[1:end-1])
+        pairs = zip(iclusters, basketbytes)
+        sumbytes = [sum(last.(g)) for g in groupby(first, pairs)]
+        bytes .+= sumbytes
+    end
+    return bytes
+end

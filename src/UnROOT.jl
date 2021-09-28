@@ -10,6 +10,7 @@ import AbstractTrees: children, printnode, print_tree
 
 using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
+import IterTools: groupby
 
 import Tables, TypedTables, PrettyTables
 
