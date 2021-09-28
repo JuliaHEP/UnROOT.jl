@@ -692,7 +692,7 @@ end
 end
 
 @testset "Cluster ranges" begin
-    t = LazyTree(UnROOT.samplefile("blah.root"),"t1");
+    t = LazyTree(UnROOT.samplefile("tree_with_clusters.root"),"t1");
     @test all(UnROOT._clusterbytes(t; compressed=true) .< 10000)
     @test all(UnROOT._clusterbytes(t; compressed=false) .< 10000)
     @test UnROOT._clusterbytes([t.b1,t.b2]) == UnROOT._clusterbytes(t)
