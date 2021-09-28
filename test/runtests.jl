@@ -695,3 +695,15 @@ end
     @test (UnROOT.basketarray_iter(t.b1) .|> length) == [1228, 1228, 44]
     @test length(UnROOT.basketarray(t.b1, 1)) == 1228
 end
+
+@testset "Cluster ranges" begin
+    t = LazyTree(UnROOT.samplefile("tree_with_clusters.root"),"t1");
+    @test all(UnROOT._clusterbytes(t; compressed=true) .< 10000)
+    @test all(UnROOT._clusterbytes(t; compressed=false) .< 10000)
+    @test UnROOT._clusterbytes([t.b1,t.b2]) == UnROOT._clusterbytes(t)
+    @test length(UnROOT._clusterranges([t.b1])) == 157
+    @test length(UnROOT._clusterranges([t.b2])) == 70
+    @test length(UnROOT._clusterranges(t)) == 18 # same as uproot4
+    @test sum(UnROOT._clusterbytes([t.b1]; compressed=true)) == 33493.0 # same as uproot4
+    @test sum(UnROOT._clusterbytes([t.b2]; compressed=true)) == 23710.0 # same as uproot4
+end
