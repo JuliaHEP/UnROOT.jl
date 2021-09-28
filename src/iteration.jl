@@ -308,15 +308,14 @@ function Base.getindex(ba::LazyBranch{T,J,B}, rang::UnitRange) where {T,J,B}
     return [ba[i] for i in rang]
 end
 
-clusterranges(t::LazyTree) = clusterranges([getproperty(t,p) for p in propertynames(t)])
-function clusterranges(lbs::Vector{LazyBranch})
+_clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
+function _clusterranges(lbs::AbstractVector{<:LazyBranch})
     basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
     common = mapreduce(Set, ∩, basketentries) |> collect |> sort
-    clusterranges = [common[i]+1:common[i+1] for i in 1:length(common)-1]
-    return clusterranges
+    return [common[i]+1:common[i+1] for i in 1:length(common)-1]
 end
-clusterbytes(t::LazyTree; kw...) = clusterbytes([getproperty(t,p) for p in propertynames(t)]; kw...)
-function clusterbytes(lbs::Vector{LazyBranch}; compressed=false)
+_clusterbytes(t::LazyTree; kw...) = _clusterbytes([getproperty(t,p) for p in propertynames(t)]; kw...)
+function _clusterbytes(lbs::AbstractVector{<:LazyBranch}; compressed=false)
     basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
     common = mapreduce(Set, ∩, basketentries) |> collect |> sort
     bytes = zeros(Float64, length(common)-1)
@@ -332,3 +331,5 @@ function clusterbytes(lbs::Vector{LazyBranch}; compressed=false)
     end
     return bytes
 end
+
+Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))
