@@ -53,8 +53,9 @@ printnode(io::IO, f::ROOTFile) = print(io, f.filename)
 printnode(io::IO, f::ROOTDirectory) = print(io, "$(f.name) (TDirectory)")
 printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
-function Base.show(io::IO, tree::LazyTree)
-    io = io === stdout ? IOContext(io, :limit=>true, :compact=>true) : io
+Base.show(tree::LazyTree) = _show(stdout, tree, crop=:both)
+Base.show(io::IO, tree::LazyTree) = _show(io, tree)
+function _show(io::IO, tree::LazyTree; kwargs...)
     _hs = _make_header(tree)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
@@ -71,7 +72,9 @@ function Base.show(io::IO, tree::LazyTree)
         compact_printing=false,
         formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(8, length(_hs[1]))),
         display_size=(min(_ds[1], 40), min(_ds[2], 160)),
+        kwargs...
     )
+    nothing
 end
 _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
