@@ -54,6 +54,7 @@ printnode(io::IO, f::ROOTDirectory) = print(io, "$(f.name) (TDirectory)")
 printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
 function Base.show(io::IO, tree::LazyTree)
+    io = io === stdout ? IOContext(io, :limit=>true, :compact=>true) : io
     _hs = _make_header(tree)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
