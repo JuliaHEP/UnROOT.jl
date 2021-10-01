@@ -366,6 +366,11 @@ end
     show(_io, t.Muon_pt[1:10])
     s = repr(t[1:10])
     @test length(collect(eachmatch(r"Float32\[", s))) == 0
+    _io = IOBuffer()
+    show(_io, t)
+    @test length(split(String(take!(_io)),'\n')) > length(t)
+    show(_io, t; crop=:both)
+    @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
     close(f)
 end
 
