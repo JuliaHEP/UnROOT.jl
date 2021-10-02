@@ -332,4 +332,5 @@ function _clusterbytes(lbs::AbstractVector{<:LazyBranch}; compressed=false)
     return bytes
 end
 
+Tables.columns(t::LazyTree) = NamedTuple((p, getproperty(t, p)) for p in propertynames(t))
 Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))
