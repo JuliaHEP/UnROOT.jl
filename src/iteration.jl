@@ -186,7 +186,11 @@ function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     return (ba[idx], idx + 1)
 end
 
-struct LazyTree{T}
+struct LazyEvent{T<:TypedTables.Table}
+    tree::T
+    idx::Int64
+end
+struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
 
@@ -197,7 +201,6 @@ Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(innertable(lt), s)
 
 Base.broadcastable(lt::LazyTree) = lt
 Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
-Base.findall(f::Function, lt::LazyTree) = [f(evt) for evt in lt]
 Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
 # kept lazy for broadcasting purpose
 Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
@@ -288,10 +291,6 @@ function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,R
     return LazyTree(f, s, [branch])
 end
 
-struct LazyEvent{T<:TypedTables.Table}
-    tree::T
-    idx::Int64
-end
 function Base.show(io::IO, evt::LazyEvent)
     idx = Core.getfield(evt, :idx)
     fields = propertynames(Core.getfield(evt, :tree))
