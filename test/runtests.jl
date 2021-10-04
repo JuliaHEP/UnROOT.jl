@@ -368,7 +368,10 @@ end
     @test length(collect(eachmatch(r"Float32\[", s))) == 0
     _io = IOBuffer()
     show(_io, t)
-    @test length(split(String(take!(_io)),'\n')) > length(t)
+    _iostring = String(take!(_io))
+    @test length(split(_iostring,'\n')) > length(t)
+    @test occursin("───────", _iostring)
+    @test !occursin("NamedTuple", _iostring)
     show(_io, t; crop=:both)
     @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
     close(f)
@@ -689,7 +692,7 @@ end
 
 @testset "Basic C++ types" begin
     f = UnROOT.samplefile("tree_basictypes.root")
-    onesrow = LazyTree(f,"t")[2] |> values .|> first .|> Int
+    onesrow = LazyTree(f,"t")[2] |> collect |> values .|> first .|> Int
     @test all(onesrow .== 1)
 end
 
@@ -711,4 +714,22 @@ end
     @test length(UnROOT._clusterranges(t)) == 18 # same as uproot4
     @test sum(UnROOT._clusterbytes([t.b1]; compressed=true)) == 33493.0 # same as uproot4
     @test sum(UnROOT._clusterbytes([t.b2]; compressed=true)) == 23710.0 # same as uproot4
+end
+
+
+@static if VERSION > v"1.5.0"
+    @testset "Broadcast fusion" begin
+        rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+        t = LazyTree(rootfile, "Events", "nMuon")
+        testf(evt) = evt.nMuon == 4
+        testf2(evt) = evt.nMuon == 4
+        alloc1 = @allocated a1 = testf.(t)
+        alloc1 += @allocated a2 = testf2.(t)
+        alloc1 += @allocated idx1 = findall(a1 .& a2)
+        alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
+        @assert !isempty(idx1)
+        @test idx1 == idx2
+        # compiler optimization is good on 1.8
+        @test alloc1 > 1.4*alloc2
+    end
 end
