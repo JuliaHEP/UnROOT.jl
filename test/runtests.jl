@@ -714,16 +714,18 @@ end
 end
 
 
-@testset "Broadcast fusion" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
-    t = LazyTree(rootfile, "Events", "nMuon")
-    testf(evt) = evt.nMuon == 4
-    testf2(evt) = evt.nMuon == 4
-    alloc1 = @allocated a1 = testf.(t)
-    alloc1 += @allocated a2 = testf2.(t)
-    alloc1 += @allocated idx1 = findall(a1 .& a2)
-    alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
-    @assert !isempty(idx1)
-    @test idx1 == idx2
-    @test alloc1 > 2*alloc2
+@static if VERSION > v"1.5.0"
+    @testset "Broadcast fusion" begin
+        rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+        t = LazyTree(rootfile, "Events", "nMuon")
+        testf(evt) = evt.nMuon == 4
+        testf2(evt) = evt.nMuon == 4
+        alloc1 = @allocated a1 = testf.(t)
+        alloc1 += @allocated a2 = testf2.(t)
+        alloc1 += @allocated idx1 = findall(a1 .& a2)
+        alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
+        @assert !isempty(idx1)
+        @test idx1 == idx2
+        @test alloc1 > 1.4*alloc2
+    end
 end
