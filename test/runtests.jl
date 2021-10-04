@@ -729,6 +729,7 @@ end
         alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
         @assert !isempty(idx1)
         @test idx1 == idx2
-        @test alloc1 > 1.6*alloc2
+        # compiler optimization is good on 1.8
+        @test alloc1 > 1.4*alloc2
     end
 end
