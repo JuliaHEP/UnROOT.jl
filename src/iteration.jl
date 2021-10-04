@@ -179,7 +179,7 @@ function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) w
     return idx - br.start + 1
 end
 
-Base.IndexStyle(::Type{<:LazyBranch}) = IndexCartesian()
+Base.IndexStyle(::Type{<:LazyBranch}) = IndexLinear()
 
 function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     idx > ba.L && return nothing
@@ -195,15 +195,19 @@ end
 Base.propertynames(lt::LazyTree) = propertynames(innertable(lt))
 Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(innertable(lt), s)
 
-# a specific branch
+Base.broadcastable(lt::LazyTree) = lt
+Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
+Base.findall(testf::Function, lt::LazyTree) = [testf(evt) for evt in lt]
 Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
+# kept lazy for broadcasting purpose
+Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
 function Base.getindex(lt::LazyTree, rang::UnitRange)
     return LazyTree(innertable(lt)[rang])
 end
-Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
-Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 
 # a specific event
+Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
+Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
@@ -220,6 +224,8 @@ Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, fir
 # interfacing Table
 Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
 Base.length(lt::LazyTree) = length(innertable(lt))
+Base.ndims(::Type{<:LazyTree}) = 1
+Base.size(lt::LazyTree) = size(innertable(lt))
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
@@ -332,5 +338,5 @@ function _clusterbytes(lbs::AbstractVector{<:LazyBranch}; compressed=false)
     return bytes
 end
 
-Tables.columns(t::LazyTree) = NamedTuple((p, getproperty(t, p)) for p in propertynames(t))
+Tables.columns(t::LazyTree) = Tables.columns(innertable(t))
 Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))
