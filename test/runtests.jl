@@ -368,7 +368,10 @@ end
     @test length(collect(eachmatch(r"Float32\[", s))) == 0
     _io = IOBuffer()
     show(_io, t)
-    @test length(split(String(take!(_io)),'\n')) > length(t)
+    _iostring = String(take!(_io))
+    @test length(split(_iostring,'\n')) > length(t)
+    @test contains(_iostring, "───────")
+    @test !contains(_iostring, "NamedTuple")
     show(_io, t; crop=:both)
     @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
     close(f)
