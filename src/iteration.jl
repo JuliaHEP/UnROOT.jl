@@ -303,9 +303,12 @@ function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     return LazyEvent(innertable(tree), idx), idx + 1
 end
 
-# TODO this is not terribly slow, but we can get faster implementation still ;)
-function Base.getindex(ba::LazyBranch{T,J,B}, rang::UnitRange) where {T,J,B}
-    return [ba[i] for i in rang]
+function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
+    ib1 = findfirst(x -> x > (first(range) - 1), ba.fEntry) - 1
+    ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
+    offset = ba.fEntry[ib1]
+    range = (first(range)-offset):(last(range)-offset)
+    return vcat([basketarray(ba, i) for i in ib1:ib2]...)[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
