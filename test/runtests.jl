@@ -716,16 +716,13 @@ end
 
 @testset "Broadcast fusion" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
-    mytree = LazyTree(rootfile, "Events", "nMuon")
+    t = LazyTree(rootfile, "Events", "nMuon")
     testf(evt) = evt.nMuon == 4
     testf2(evt) = evt.nMuon == 4
-    function naive(t)
-        a1 = testf.(t)
-        a2 = testf2.(t)
-        findall(a1 .&& a2)
-    end
-    alloc1 = @allocated idx1 = naive(mytree)
-    alloc2 = @allocated idx2 = findall(@. testf(mytree) && testf2(mytree))
+    alloc1 = @allocated a1 = testf.(t)
+    alloc1 += @allocated a2 = testf2.(t)
+    alloc1 += @allocated idx1 = findall(a1 .& a2)
+    alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
     @assert !isempty(idx1)
     @test idx1 == idx2
     @test alloc1 > 2*alloc2
