@@ -296,8 +296,10 @@ function Base.show(io::IO, evt::LazyEvent)
     fields = propertynames(Core.getfield(evt, :tree))
     nfields = length(fields)
     sfields = nfields < 20 ? ": $(fields)" : ""
-    show(io, "LazyEvent $(idx) with $(nfields) fields$(sfields)")
+    println(io, "UnROOT.LazyEvent at index $(idx) with $(nfields) columns:")
+    show(io, collect(evt))
 end
+
 function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end
