@@ -370,8 +370,8 @@ end
     show(_io, t)
     _iostring = String(take!(_io))
     @test length(split(_iostring,'\n')) > length(t)
-    @test contains(_iostring, "───────")
-    @test !contains(_iostring, "NamedTuple")
+    @test occursin("───────", _iostring)
+    @test !occursin("NamedTuple", _iostring)
     show(_io, t; crop=:both)
     @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
     close(f)
@@ -729,6 +729,6 @@ end
         alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
         @assert !isempty(idx1)
         @test idx1 == idx2
-        @test alloc1 > 1.4*alloc2
+        @test alloc1 > 1.6*alloc2
     end
 end
