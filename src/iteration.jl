@@ -201,7 +201,7 @@ Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(innertable(lt), s)
 
 Base.broadcastable(lt::LazyTree) = lt
 Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
-Base.getindex(lt::LazyTree, row::Int) = innertable(lt)[row]
+Base.getindex(lt::LazyTree, row::Int) = LazyEvent(innertable(lt), row)
 # kept lazy for broadcasting purpose
 Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
 function Base.getindex(lt::LazyTree, rang::UnitRange)
