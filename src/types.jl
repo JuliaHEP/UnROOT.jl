@@ -132,11 +132,11 @@ function _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
     # https://github.com/JuliaIO/CodecZlib.jl/blob/a777d8f53aebd223fe7c7399436a5050784d210f/src/libz.jl
     # https://github.com/root-project/root/blob/87a998d48803bc207288d90038e60ff148827664/core/zip/src/RZip.cxx#L392
     zstream = CodecZlib.ZStream()
-    err = CodecZlib.inflate_init!(zstream, CodecZlib.Z_DEFAULT_WINDOWBITS)
     zstream.next_in = input_ptr
     zstream.avail_in = input_size
     zstream.next_out = output_ptr
     zstream.avail_out = output_size
+    CodecZlib.inflate_init!(zstream, CodecZlib.Z_DEFAULT_WINDOWBITS)
     while (err = CodecZlib.inflate!(zstream, CodecZlib.Z_FINISH) != CodecZlib.Z_STREAM_END)
         if (err != CodecZlib.Z_OK)
             CodecZlib.inflate_end!(zstream)
