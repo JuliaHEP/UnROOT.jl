@@ -127,6 +127,31 @@ function compressed_datastream(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end
 
+function _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
+    # References:
+    # https://github.com/JuliaIO/CodecZlib.jl/blob/a777d8f53aebd223fe7c7399436a5050784d210f/src/libz.jl
+    # https://github.com/root-project/root/blob/87a998d48803bc207288d90038e60ff148827664/core/zip/src/RZip.cxx#L392
+    zstream = CodecZlib.ZStream()
+    zstream.next_in = input_ptr
+    zstream.avail_in = input_size
+    zstream.next_out = output_ptr
+    zstream.avail_out = output_size
+    CodecZlib.inflate_init!(zstream, CodecZlib.Z_DEFAULT_WINDOWBITS)
+    while (err = CodecZlib.inflate!(zstream, CodecZlib.Z_FINISH) != CodecZlib.Z_STREAM_END)
+        if (err != CodecZlib.Z_OK)
+            CodecZlib.inflate_end!(zstream)
+            error(CodecZlib.zlib_error_message(zstream, err))
+        end
+    end
+    CodecZlib.inflate_end!(zstream)
+    nothing
+end
+
+function _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
+    CodecLz4.LZ4_decompress_safe(input_ptr, output_ptr, input_size, output_size)
+    nothing
+end
+
 """
     decompress_datastreambytes(compbytes, tkey)
 
@@ -147,19 +172,30 @@ function decompress_datastreambytes(compbytes, tkey)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         rawbytes = read(io, compbytes)
 
-        # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
-        @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
-            transcode(ZlibDecompressor, rawbytes)
-        elseif cname == "XZ"
-            transcode(XzDecompressor, rawbytes)
-        elseif cname == "ZS"
-            transcode(ZstdDecompressor, rawbytes)
-        elseif cname == "L4"
+        if cname == "L4"
             # skip checksum which is 8 bytes
-            lz4_decompress(rawbytes[9:end], uncompbytes)
+            # original: lz4_decompress(rawbytes[9:end], uncompbytes)
+            input = @view rawbytes[9:end]
+            input_ptr = pointer(input)
+            input_size = length(input)
+            output_ptr = pointer(uncomp_data) + fufilled
+            output_size = uncompbytes
+            _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
+        elseif cname == "ZL"
+            # original: @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(ZlibDecompressor, rawbytes)
+            input_ptr = pointer(rawbytes)
+            input_size = length(rawbytes)
+            output_ptr = pointer(uncomp_data) + fufilled
+            output_size = uncompbytes
+            _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
+        elseif cname == "XZ"
+            @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
+        elseif cname == "ZS"
+            @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
+
         fufilled += uncompbytes
     end
     return uncomp_data
