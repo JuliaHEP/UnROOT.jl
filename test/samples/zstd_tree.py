@@ -1,3 +1,6 @@
+# Run this with a newer version of ROOT
+# Otherwise zstd isn't available and the
+# 505 will fall back to zlib
 from ROOT import TFile, TTree
 from array import array
 
