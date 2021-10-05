@@ -183,6 +183,11 @@ end
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
     close(rootfile)
+
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_int_array_zstd.root"))
+    arr = collect(rootfile["t1/a"])
+    @test arr == 0:99
+    close(rootfile)
 end
 
 @testset "ROOTDirectoryHeader" begin
