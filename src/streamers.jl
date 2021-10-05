@@ -87,7 +87,7 @@ function Streamers(io)
         elseif cname == "XZ"
             IOBuffer(transcode(XzDecompressor, compressedbytes))
         elseif cname == "ZS"
-            IOBuffer(transcode(ZstdDecompressor, io))
+            IOBuffer(transcode(ZstdDecompressor, compressedbytes))
         elseif cname == "L4"
             IOBuffer(lz4_decompress(compressedbytes[9:end], tkey.fObjlen))
         else
