@@ -147,19 +147,23 @@ function decompress_datastreambytes(compbytes, tkey)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         rawbytes = read(io, compbytes)
 
-        # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
-        @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
-            transcode(ZlibDecompressor, rawbytes)
-        elseif cname == "XZ"
-            transcode(XzDecompressor, rawbytes)
-        elseif cname == "ZS"
-            transcode(ZstdDecompressor, rawbytes)
-        elseif cname == "L4"
+        if cname == "L4"
+            outptr = pointer(uncomp_data) + fufilled
             # skip checksum which is 8 bytes
-            lz4_decompress(rawbytes[9:end], uncompbytes)
+            input = @view rawbytes[9:end]
+            CodecLz4.LZ4_decompress_safe(pointer(input), outptr, length(input), uncompbytes)
         else
-            error("Unsupported compression type '$(String(compression_header.algo))'")
+            # indexing `0+1 to 0+2` are two bytes, no need to +1 in the second term
+            @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= if cname == "ZL"
+                transcode(ZlibDecompressor, rawbytes)
+            elseif cname == "XZ"
+                transcode(XzDecompressor, rawbytes)
+            elseif cname == "ZS"
+                transcode(ZstdDecompressor, rawbytes)
+                error("Unsupported compression type '$(String(compression_header.algo))'")
+            end
         end
+
         fufilled += uncompbytes
     end
     return uncomp_data
