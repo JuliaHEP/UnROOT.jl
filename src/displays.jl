@@ -77,6 +77,39 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
+function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
+    _hs = _make_header(tree)
+    maxrows = 10
+    maxcols = 30
+    nrow = length(tree)
+    t = @view innertable(tree)[1:min(maxrows,nrow)]
+    ncol = length(Tables.columns(t))
+    withcommas(value) = reverse(join(join.(Iterators.partition(reverse(string(value)),3)),","))
+    write(io, "<p>")
+    write(io, "$(withcommas(nrow)) rows × $(ncol) columns")
+    if (nrow > maxrows) && (ncol > maxcols)
+        write(io, " (omitted printing of $(withcommas(nrow-maxrows)) rows and $(ncol-maxcols) columns)")
+    elseif (nrow > maxrows)
+        write(io, " (omitted printing of $(withcommas(nrow-maxrows)) rows)")
+    elseif (ncol > maxcols)
+        write(io, " (omitted printing of $(ncol-maxcols) columns)")
+    end
+    write(io, "</p>")
+    PrettyTables.pretty_table(
+        io,
+        t;
+        header=_hs,
+        alignment=:l,
+        row_number_column_title="",
+        show_row_number=true,
+        compact_printing=false,
+        filters_col     = ((_,i) -> i <= maxcols,),
+        formatters=(v, i, j) -> _treeformat(v, 100),
+        tf = PrettyTables.HTMLTableFormat(css = """th { color: #000; background-color: #fff; }"""),
+        backend=Val(:html),
+    )
+    nothing
+end
 _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
@@ -86,7 +119,8 @@ function _make_header(t)
 end
 function _treeformat(val, trunc)
     s = if val isa AbstractArray{T} where T<:Integer
-        string(Int.(val))
+        T = Int
+        replace(string(T.(val)), string(T)=>"")
     elseif val isa AbstractArray{T} where T<:AbstractFloat
         T = eltype(val)
         replace(string(round.(T.(val); sigdigits=3)), string(T)=>"")
