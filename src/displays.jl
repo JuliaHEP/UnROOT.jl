@@ -56,6 +56,7 @@ printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 Base.show(tree::LazyTree; kwargs...) = _show(stdout, tree; crop=:both, kwargs...)
 Base.show(io::IO, tree::LazyTree; kwargs...) = _show(io, tree; kwargs...)
 Base.show(io::IO, ::MIME"text/plain", tree::LazyTree) = _show(io, tree)
+Base.show(io::IO, ::MIME"text/html", tree::LazyTree) = _showhtml(io, tree)
 function _show(io::IO, tree::LazyTree; kwargs...)
     _hs = _make_header(tree)
     _ds = displaysize(io)
@@ -77,6 +78,29 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
+function _showhtml(io::IO, tree::LazyTree)
+    _hs = _make_header(tree)
+    rowstoshow = 10
+    nrow = length(tree)
+    t = @view innertable(tree)[1:min(rowstoshow,nrow)]
+    ncol = length(Tables.columns(t))
+    nrowcommas = reverse(join(join.(Iterators.partition(reverse(string(nrow)),3)),","))
+    write(io, "<p>$(nrowcommas) rows × $(ncol) columns</p>")
+    PrettyTables.pretty_table(
+        io,
+        t;
+        header=_hs,
+        alignment=:l,
+        row_number_column_title="Row",
+        show_row_number=true,
+        compact_printing=true,
+        formatters=(v, i, j) -> _treeformat(v, 100),
+        tf = PrettyTables.HTMLTableFormat(css = """th { color: #000; background-color: #fff; }"""),
+        backend=Val(:html),
+    )
+    (nrow > rowstoshow) && write(io, "<p>&vellip;</p")
+    nothing
+end
 _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
@@ -86,7 +110,8 @@ function _make_header(t)
 end
 function _treeformat(val, trunc)
     s = if val isa AbstractArray{T} where T<:Integer
-        string(Int.(val))
+        T = Int
+        replace(string(T.(val)), string(T)=>"")
     elseif val isa AbstractArray{T} where T<:AbstractFloat
         T = eltype(val)
         replace(string(round.(T.(val); sigdigits=3)), string(T)=>"")
