@@ -86,7 +86,16 @@ function _showhtml(io::IO, tree::LazyTree)
     t = @view innertable(tree)[1:min(maxrows,nrow)]
     ncol = length(Tables.columns(t))
     withcommas(value) = reverse(join(join.(Iterators.partition(reverse(string(value)),3)),","))
-    write(io, "<p>$(withcommas(nrow)) rows × $(ncol) columns</p>")
+    write(io, "<p>")
+    write(io, "$(withcommas(nrow)) rows × $(ncol) columns")
+    if (nrow > maxrows) && (ncol > maxcols)
+        write(io, " (omitted printing of $(withcommas(nrow-maxrows)) rows and $(ncol-maxcols) columns)")
+    elseif (nrow > maxrows)
+        write(io, " (omitted printing of $(withcommas(nrow-maxrows)) rows)")
+    elseif (ncol > maxcols)
+        write(io, " (omitted printing of $(ncol-maxcols) columns)")
+    end
+    write(io, "</p>")
     PrettyTables.pretty_table(
         io,
         t;
@@ -100,13 +109,6 @@ function _showhtml(io::IO, tree::LazyTree)
         tf = PrettyTables.HTMLTableFormat(css = """th { color: #000; background-color: #fff; }"""),
         backend=Val(:html),
     )
-    if (nrow > maxrows) && (ncol > maxcols)
-        write(io, "<p>(omitted $(withcommas(nrow-maxrows)) rows and $(ncol-maxcols) columns)</p>")
-    elseif (nrow > maxrows)
-        write(io, "<p>(omitted $(withcommas(nrow-maxrows)) rows)</p>")
-    elseif (ncol > maxcols)
-        write(io, "<p>(omitted $(ncol-maxcols) columns)</p>")
-    end
     nothing
 end
 _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
