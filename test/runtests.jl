@@ -374,6 +374,10 @@ end
     @test !occursin("NamedTuple", _iostring)
     show(_io, t; crop=:both)
     @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
+    _io = IOBuffer()
+    show(_io, MIME"text/html"(), t)
+    _iostring = String(take!(_io))
+    @test occursin("</table>", _iostring)
     close(f)
 end
 
