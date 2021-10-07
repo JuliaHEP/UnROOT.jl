@@ -263,7 +263,8 @@ end
     branch = rootfile["t1/LVs"]
     tree = LazyTree(rootfile, "t1")
 
-    @test eltype(branch) === Vector{LorentzVectors.LorentzVector{Float64}}
+    @test eltype(branch) <: AbstractVector{LorentzVectors.LorentzVector{Float64}}
+    @test eltype(branch) <: SubArray
     @test length.(branch[1:10]) == 0:9
     close(rootfile)
 end
@@ -292,7 +293,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array_double.root"))
     data = rootfile["t1/double_array"]
     @test data isa AbstractVector
-    @test eltype(data) === Vector{T}
+    @test eltype(data) <: AbstractVector{T}
     @test data[1] == T[]
     @test data[1:2] == [T[], T[0]]
     @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
@@ -317,7 +318,7 @@ end
     event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
     Electron_dxy = rootfile["Events/Electron_dxy"]
-    @test eltype(Electron_dxy) == Vector{Float32}
+    @test eltype(Electron_dxy) == SubArray{Float32, 1, Vector{Float32}, Tuple{UnitRange{Int64}}, true}
     @test Electron_dxy[1:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
