@@ -160,7 +160,7 @@ and update buffer and buffer range accordingly.
     performance issue and incorrect event result.
 """
 
-@inline function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
+function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
     br = @inbounds ba.buffer_range[tid]
     localidx = if idx ∉ br
