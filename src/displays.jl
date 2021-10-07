@@ -101,7 +101,7 @@ function _showhtml(io::IO, tree::LazyTree)
         t;
         header=_hs,
         alignment=:l,
-        row_number_column_title="Row",
+        row_number_column_title="",
         show_row_number=true,
         compact_printing=false,
         filters_col     = ((_,i) -> i <= maxcols,),
