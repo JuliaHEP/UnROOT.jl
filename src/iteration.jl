@@ -160,7 +160,7 @@ and update buffer and buffer range accordingly.
     performance issue and incorrect event result.
 """
 
-function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
+@inline function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
     br = @inbounds ba.buffer_range[tid]
     localidx = if idx ∉ br
@@ -229,6 +229,15 @@ Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
 Base.length(lt::LazyTree) = length(innertable(lt))
 Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(innertable(lt))
+
+function LazyArrays.Vcat(ts::LazyTree...)
+    cs = Tables.columns.(innertable.(ts))
+    LazyTree(TypedTables.Table(map(Vcat, cs...)))
+end
+Base.vcat(ts::LazyTree...) = Vcat(ts...)
+Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
+Base.mapreduce(f::Function, ::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f::Function, ::typeof(Vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
@@ -300,7 +309,7 @@ function Base.show(io::IO, evt::LazyEvent)
     show(io, collect(evt))
 end
 
-function Base.getproperty(evt::LazyEvent, s::Symbol)
+@inline function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end
 Base.collect(evt::LazyEvent) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
