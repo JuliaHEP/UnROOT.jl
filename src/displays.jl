@@ -78,7 +78,7 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
-function _showhtml(io::IO, tree::LazyTree)
+function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     _hs = _make_header(tree)
     maxrows = 10
     maxcols = 30
