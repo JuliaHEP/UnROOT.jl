@@ -263,7 +263,8 @@ end
     branch = rootfile["t1/LVs"]
     tree = LazyTree(rootfile, "t1")
 
-    @test eltype(branch) === Vector{LorentzVectors.LorentzVector{Float64}}
+    @test eltype(branch) <: AbstractVector{LorentzVectors.LorentzVector{Float64}}
+    @test eltype(branch) <: SubArray
     @test length.(branch[1:10]) == 0:9
     close(rootfile)
 end
@@ -292,7 +293,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array_double.root"))
     data = rootfile["t1/double_array"]
     @test data isa AbstractVector
-    @test eltype(data) === Vector{T}
+    @test eltype(data) <: AbstractVector{T}
     @test data[1] == T[]
     @test data[1:2] == [T[], T[0]]
     @test data[end] == T[90, 91, 92, 93, 94, 95, 96, 97, 98]
@@ -317,7 +318,7 @@ end
     event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
     Electron_dxy = rootfile["Events/Electron_dxy"]
-    @test eltype(Electron_dxy) == Vector{Float32}
+    @test eltype(Electron_dxy) == SubArray{Float32, 1, Vector{Float32}, Tuple{UnitRange{Int64}}, true}
     @test Electron_dxy[1:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
     @test eltype(HLT_Mu3_PFJet40) == Bool
@@ -677,6 +678,14 @@ end
         end
         @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
+
+        nmus .= 0
+        t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+        @batch for evt in vcat(t,t_dummy) # avoid using the same underlying file handler
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
+        end
+        @test sum(nmus) == 2*878
+
         for j in 1:3
             inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
             @batch for (i, evt) in enumerate(t)
@@ -725,6 +734,20 @@ end
     @test sum(UnROOT._clusterbytes([t.b2]; compressed=true)) == 23710.0 # same as uproot4
 end
 
+@testset "Vcat/chaining" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
+    tt = vcat(t,t)
+    @test (@allocated vcat(t,t)) < 1000
+    @test length(tt) == 2*length(t)
+    s1 = sum(t.nMuon)
+    s2 = sum(tt.nMuon)
+    @test s2 == 2*s1
+    alloc1 = @allocated sum(length, t.Muon_pt)
+    alloc2 = @allocated sum(evt->length(evt.nMuon), tt)
+    @test alloc2 < 2.1 * alloc1
+    close(rootfile)
+end
 
 @static if VERSION > v"1.5.0"
     @testset "Broadcast fusion" begin
