@@ -1,7 +1,7 @@
 module UnROOT
 
 using LazyArrays
-export ROOTFile, LazyBranch, LazyTree, @batch
+export ROOTFile, LazyBranch, LazyTree
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
 ntoh(b::Bool) = b
