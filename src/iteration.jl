@@ -109,7 +109,13 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
         T = (T === Vector{Bool} ? BitVector : T)
-        _buffer = J === Nojagg ? T[] : VectorOfVectors(T(), Int32[1])
+        _buffer = T[]
+        if J != Nojagg
+            # if branch is jagged, fix the buffer and eltype according to what
+            # VectorOfVectors would return in `getindex`
+            _buffer = VectorOfVectors(T(), Int32[1])
+            T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
+        end
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
                                         [_buffer for _ in 1:Threads.nthreads()],
@@ -230,6 +236,15 @@ Base.length(lt::LazyTree) = length(innertable(lt))
 Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(innertable(lt))
 
+function LazyArrays.Vcat(ts::LazyTree...)
+    cs = Tables.columns.(innertable.(ts))
+    LazyTree(TypedTables.Table(map(Vcat, cs...)))
+end
+Base.vcat(ts::LazyTree...) = Vcat(ts...)
+Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
+Base.mapreduce(f::Function, ::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f::Function, ::typeof(Vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
+
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
     for b in obj.fBranches.elements
@@ -300,7 +315,7 @@ function Base.show(io::IO, evt::LazyEvent)
     show(io, collect(evt))
 end
 
-function Base.getproperty(evt::LazyEvent, s::Symbol)
+@inline function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end
 Base.collect(evt::LazyEvent) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
