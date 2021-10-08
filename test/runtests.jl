@@ -674,6 +674,14 @@ end
         end
         @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
+
+        nmus .= 0
+        t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+        @batch for evt in vcat(t,t_dummy) # avoid using the same underlying file handler
+            nmus[Threads.threadid()] += length(evt.Muon_pt)
+        end
+        @test sum(nmus) == 2*878
+
         for j in 1:3
             inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
             @batch for (i, evt) in enumerate(t)
@@ -722,6 +730,20 @@ end
     @test sum(UnROOT._clusterbytes([t.b2]; compressed=true)) == 23710.0 # same as uproot4
 end
 
+@testset "Vcat/chaining" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
+    tt = vcat(t,t)
+    @test (@allocated vcat(t,t)) < 1000
+    @test length(tt) == 2*length(t)
+    s1 = sum(t.nMuon)
+    s2 = sum(tt.nMuon)
+    @test s2 == 2*s1
+    alloc1 = @allocated sum(length, t.Muon_pt)
+    alloc2 = @allocated sum(evt->length(evt.nMuon), tt)
+    @test alloc2 < 2.1 * alloc1
+    close(rootfile)
+end
 
 @static if VERSION > v"1.5.0"
     @testset "Broadcast fusion" begin
