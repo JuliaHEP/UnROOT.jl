@@ -1,7 +1,7 @@
 name = "UnROOT"
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
-version = "0.7.1"
+version = "0.7.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -33,6 +33,7 @@ CodecZlib = "^0.6.0, ^0.7.0"
 CodecZstd = "^0.6.0, ^0.7.0"
 IterTools = "^1"
 LRUCache = "^1.3.0"
+LazyArrays = "^0.22, ^1"
 LorentzVectors = "^0.4.0"
 Memoization = "^0.1.10"
 Mixers = "^0.1.0"
