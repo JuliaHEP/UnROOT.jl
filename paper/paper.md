@@ -54,11 +54,16 @@ subtype of `AbstractArray` -- the limit is the sky.
 
 # Comparison with existing software
 
-Julia and other languages...
+This section focusses on the comparison with other existing ROOT I/O solutions
+in the Julia universe, however, one honorable mention is `uproot`, which is a
+purely Python-based ROOT I/O library and played (plays) an important role for the
+development of `UnROOT.jl` as it is by the time of writing the most complete and
+best documented ROOT I/O implementation.
 
-- UpROOT.jl
+`UpROOT.jl` is a wrapper for `uproot` and uses `PyCall` as a bridge. (TODO:
+problems of Julia->PyWrapper->Awkward)
+
 - ROOT.jl
-- uproot
 - ...
 
 # Conclusion
