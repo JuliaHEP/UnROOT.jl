@@ -7,7 +7,7 @@ authors:
   - name: Tamás Gál
     orcid: 0000-0001-7821-8673
     affiliation: "1, 2"
-  - name: Jerry Ling
+  - name: Jerry (Jiahong) Ling
     orcid: 0000-0002-3359-0380
     affiliation: "3"
   - name: Nick Amin
@@ -24,9 +24,27 @@ date: 08 October 2021
 bibliography: paper.bib
 ---
 # Summary
-
+`UnROOT.jl` is a pure Julia implementation of CERN ROOT files I/O (`.root`) that is fast,
+memory-efficient, and composes well with Julia's high-performance iteration, array, and
+multi-threading interfaces.
 
 # Statement of need
+The High-Energy Physics (HEP) community has been troubled by the two-language problem
+for a long time. Often, physicists would start prototyping with a `Python` front-end
+which glues to a `C++` back-end. Soon they will hit a task which is extremely hard to
+express in columnar (i.e. "vectorized") style. This usually leads to either writing
+`C++` kernel and interface it with `Python`, or, porting the prototype to `C++` and
+start to maintain two code bases. Both options are engineering challenging for physicists
+who are not also software engineering.
+
+Using `Python` front-end and dancing across language barriers also hinders the ability
+to parallelize the tasks which are conceptually trivial most of the time.
+
+`UnROOT.jl` attempts to solve all of the above by choosing Julia, a high-performance
+language with simple and expressive syntax. Users can freely escape to a `for-loop`
+should vectorized-style shows inflexibility, without any performance degradation.
+At the same time, `UnROOT.jl` transparently support multi-threading/multi-processing
+by simply being a subtype of `AbstractArray` -- the limit is the sky.
 
 
 # Features and Functionality
