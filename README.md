@@ -45,9 +45,7 @@ julia> for event in mytree
        end
 event.Electron_dxy = Float32[0.00037050247]
 
-julia> using Polyester #optional dependency
-
-julia> @batch for event in mytree # multi-threading
+julia> Threads.@threads for event in mytree # multi-threading
            ...
        end
 ```

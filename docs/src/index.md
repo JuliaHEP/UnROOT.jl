@@ -33,23 +33,18 @@ julia> for (i, event) in enumerate(mytree)
        end
 ```
 
-Both of which are compostable with `@batch` from `Polyester.jl` for multi-threading:
+Both of which are compostable with `@threads` for multi-threading:
 ```julia
-julia> using Polyester # need to install it first as it's an optional dependency
-
-julia> @batch for event in mytree
+julia> Threads.@threads for event in mytree
            ...
        end
 
-julia> @batch for (i, event) in enumerate(mytree)
+julia> Threads.@threads for (i, event) in enumerate(mytree)
            ...
        end
 ```
-On finer control over `@batch`, such as batch size or per-core/thread, see [Polyester](https://github.com/JuliaSIMD/Polyester.jl)'s page.
-
 Only one basket per branch will be cached so you don't have to worry about running out of RAM.
-At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
-is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
+At the same time, `event` inside the for-loop is not materialized until a field is accessed.
 
 ## Laziness in Indexing, Slicing, and Looping
 Laziness (or eagerness) in UnROOT generally refers to if an "event" has read each branches of the tree or not.
@@ -84,6 +79,6 @@ The laziness of the main interfaces are summarized below:
 |                        | `mytree`    | `enumerate(mytree)` |
 | ---------------------- |:-----------:|:-------------------:|
 | `for X in ...`         | 💤          | 💤                  |
-| `@threads for X in ...`| 🚨          | 💤                  |
-| `@batch for X in ...`  | 💤          | 💤                  |
-| `getindex()`           | 🚨          | 💤                  |
+| `@threads for X in ...`| 💤          | 💤                  |
+| `getindex(tree, row::Int)`| 💤          | N/A                  |
+| `getindex(tree, row::Range)`| 🚨          | N/A                  |
