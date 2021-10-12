@@ -225,11 +225,11 @@ Base.lastindex(lt::LazyTree) = length(lt)
 Base.eachindex(lt::LazyTree) = 1:lastindex(lt)
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
+Base.step(e::Iterators.Enumerate{LazyTree{T}}) where T = 1
 Base.firstindex(e::Iterators.Enumerate{LazyTree{T}}) where T = firstindex(e.itr)
 Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
 Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
-Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, first(iterate(e.itr, row)))
-
+Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, LazyEvent(innertable(e.itr), row))
 # interfacing Table
 Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
 Base.length(lt::LazyTree) = length(innertable(lt))

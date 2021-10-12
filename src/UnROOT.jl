@@ -1,7 +1,7 @@
 module UnROOT
 
-using Requires, LazyArrays
-export ROOTFile, LazyBranch, LazyTree, @batch
+using LazyArrays
+export ROOTFile, LazyBranch, LazyTree
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
 ntoh(b::Bool) = b
@@ -29,9 +29,5 @@ include("root.jl")
 include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
-
-function __init__()
-    @require Polyester="f517fe37-dbe3-4b94-8317-1923a5111588" include("polyester.jl")
-end
 
 end # module

@@ -658,19 +658,6 @@ end
         @test count(>(0), nmus) > 1 # test @threads is actually threading
         @test sum(nmus) == 878
 
-        nmus .= 0
-        @batch for (i, evt) in enumerate(t)
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        @test count(>(0), nmus) > 1 # test @batch is actually threading
-        @test sum(nmus) == 878
-
-        event_nums = zeros(Int, Threads.nthreads())
-        @batch for (i, evt) in enumerate(t)
-            event_nums[Threads.threadid()] += 1
-        end
-        @test count(>(0), event_nums) > 1 # test @batch is actually threading
-        @test sum(event_nums) == length(t)
 
         nmus .= 0
         @batch for evt in t
@@ -688,7 +675,7 @@ end
 
         for j in 1:3
             inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
-            @batch for (i, evt) in enumerate(t)
+            Threads.@threads for (i, evt) in enumerate(t)
                 push!(inds[Threads.threadid()], i)
             end
             @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
