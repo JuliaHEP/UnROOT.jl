@@ -43,7 +43,7 @@ Using a `Python` front-end and dancing across language barriers also hinders the
 to parallelize tasks that are conceptually trivial most of the time.
 
 `UnROOT.jl` attempts to solve all of the above by choosing Julia, a
-high-performance language with simple and expressive syntax. Users can freely
+high-performance language with simple and expressive syntax [@Julia]. Users can freely
 escape to a `for-loop` whenever vectorized-style processing is not flexible
 enough, without any performance degradation. At the same time, `UnROOT.jl`
 transparently supports multi-threading and multi-processing by simply being a
@@ -51,6 +51,48 @@ subtype of `AbstractArray` -- the limit is the sky.
 
 # Features and Functionality
 
+Opening and loading a "tree" lazily is simple:
+```julia
+julia> using UnROOT
+
+julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
+ROOTFile with 2 entries and 21 streamers.
+test/samples/NanoAODv5_sample.root
+└─ Events
+   ├─ "run"
+   ├─ "luminosityBlock"
+   ├─ "event"
+   ├─ "HTXS_Higgs_pt"
+   ├─ "HTXS_Higgs_y"
+   └─ "⋮"
+
+julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$"])
+ Row │ Electron_dxy     nMuon   Muon_eta         Muon_pt
+     │ Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
+─────┼───────────────────────────────────────────────────────────
+ 1   │ [0.000371]       0       []               []
+ 2   │ [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
+ 3   │ []               0       []               []
+ 4   │ [-0.00157]       0       []               []
+ ⋮   │     ⋮            ⋮             ⋮                ⋮
+```
+
+Then, the `LazyTree` object acts as a table: you can iterate it sequentially or in parallel,
+select entries based on range or masks etc:
+```julia
+for event in mytree
+    # ... Operate on event
+end
+
+Threads.@threads for event in mytree # multi-threading
+    # ... Operate on event
+end
+```
+
+The `LazyTree` is designed as `<: AbstractArray` which makes it compose well with
+the rest of Julia ecosystem. For example, syntactic loop fusion [^1] "just works",
+and it works with Query-style tabular manipulation provided by packages like `Query.jl`
+without any additional code support.
 
 # Comparison with existing software
 
@@ -71,3 +113,5 @@ problems of Julia->PyWrapper->Awkward)
 
 # References
 
+
+[^1]: https://julialang.org/blog/2017/01/moredots/
