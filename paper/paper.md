@@ -43,7 +43,9 @@ Using a `Python` front-end and dancing across language barriers also hinders the
 to parallelize tasks that are conceptually trivial most of the time.
 
 `UnROOT.jl` attempts to solve all of the above by choosing Julia, a
-high-performance language with simple and expressive syntax [@Julia]. Users can freely
+high-performance language with simple and expressive syntax [@Julia]. Julia is designed
+to solve the two-language problem in general. This has been studied for HEP specifically
+as well[@JuliaPerformance]. Analysis software written in Julia can freely
 escape to a `for-loop` whenever vectorized-style processing is not flexible
 enough, without any performance degradation. At the same time, `UnROOT.jl`
 transparently supports multi-threading and multi-processing by simply being a
