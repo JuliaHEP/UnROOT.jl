@@ -35,11 +35,12 @@ The High-Energy Physics (HEP) community has been troubled by the two-language
 problem for a long time. Often, physicists would start prototyping with a
 `Python` front-end which glues to a `C/C++/Fortran` back-end. Soon they will hit
 a task which is extremely hard to express in columnar (i.e. "vectorized") style,
-a type of problems which are normally tackled with libraries like `numpy` or
-`pandas`. This usually leads to either writing `C++` kernels and interface it
-with `Python`, or, porting the prototype to `C++` and start to maintain two code
-bases including the wrapper code. Both options are engineering challenges for
-physicists who usually have no or little background in software engineering.
+a type of problems which are normally tackled with libraries like
+`numpy`[@harris2020array] or `pandas`[@reback2020pandas]. This usually leads to
+either writing `C++` kernels and interface it with `Python`, or, porting the
+prototype to `C++` and start to maintain two code bases including the wrapper
+code. Both options are engineering challenges for physicists who usually have no
+or little background in software engineering.
 
 Using a `Python` front-end and dancing across language barriers also hinders the ability
 to parallelize tasks that are conceptually trivial most of the time.
