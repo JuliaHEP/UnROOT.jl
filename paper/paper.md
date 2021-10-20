@@ -26,9 +26,9 @@ date: 08 October 2021
 bibliography: paper.bib
 ---
 # Summary
-`UnROOT.jl` is a pure Julia implementation of CERN ROOT files I/O (`.root`) that is fast,
-memory-efficient, and composes well with Julia's high-performance iteration, array, and
-multi-threading interfaces.
+`UnROOT.jl` is a pure Julia implementation of CERN ROOT[@Brun:1997pa] files I/O
+(`.root`) that is fast, memory-efficient, and composes well with Julia's
+high-performance iteration, array, and multi-threading interfaces.
 
 # Statement of need
 The High-Energy Physics (HEP) community has been troubled by the two-language
