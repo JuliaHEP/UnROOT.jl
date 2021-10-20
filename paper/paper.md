@@ -67,23 +67,23 @@ julia> using UnROOT
 julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile with 2 entries and 21 streamers.
 test/samples/NanoAODv5_sample.root
-└─ Events
-   ├─ "run"
-   ├─ "luminosityBlock"
-   ├─ "event"
-   ├─ "HTXS_Higgs_pt"
-   ├─ "HTXS_Higgs_y"
-   └─ "⋮"
+   Events
+      "run"
+      "luminosityBlock"
+      "event"
+      "HTXS_Higgs_pt"
+      "HTXS_Higgs_y"
+      ...
 
 julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$"])
- Row │ Electron_dxy     nMuon   Muon_eta         Muon_pt
-     │ Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
-─────┼───────────────────────────────────────────────────────────
- 1   │ [0.000371]       0       []               []
- 2   │ [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
- 3   │ []               0       []               []
- 4   │ [-0.00157]       0       []               []
- ⋮   │     ⋮            ⋮             ⋮                ⋮
+ Row   Electron_dxy     nMuon   Muon_eta         Muon_pt
+       Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
+
+ 1     [0.000371]       0       []               []
+ 2     [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
+ 3     []               0       []               []
+ 4     [-0.00157]       0       []               []
+       ...
 ```
 
 Then, the `LazyTree` object acts as a table: you can iterate through it sequentially or in parallel,
