@@ -11,7 +11,7 @@ authors:
     orcid: 0000-0002-3359-0380
     affiliation: "3"
   - name: Nick Amin
-    orcid: 0000-
+    orcid: 0000-0003-2560-0013
     affiliation: "4"
 affiliations:
  - name: Erlangen Centre for Astroparticle Physics
@@ -20,6 +20,8 @@ affiliations:
    index: 2
  - name: Harvard University
    index: 3
+ - name: University of California, Santa Barbara
+   index: 4
 date: 08 October 2021
 bibliography: paper.bib
 ---
@@ -53,7 +55,12 @@ subtype of `AbstractArray` -- the limit is the sky.
 
 # Features and Functionality
 
-Opening and loading a "tree" lazily is simple:
+`UnROOT.jl` can deserialize instances of the commonly used `TH1`, `TH2`,
+`TDirectory`, and `TTree` ROOT classes. All basic C++ types for `TTree`
+branches are supported, including their nested variants. Additionally, a
+`UnROOT.jl` provides a way to hook into deserialization for custom types.
+Opening and loading a `TTree` lazily is simple:
+
 ```julia
 julia> using UnROOT
 
@@ -79,8 +86,9 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
  ⋮   │     ⋮            ⋮             ⋮                ⋮
 ```
 
-Then, the `LazyTree` object acts as a table: you can iterate it sequentially or in parallel,
-select entries based on range or masks etc:
+Then, the `LazyTree` object acts as a table: you can iterate through it sequentially or in parallel,
+select entries based on range or masks, and operate on whole columns:
+
 ```julia
 for event in mytree
     # ... Operate on event
@@ -89,10 +97,12 @@ end
 Threads.@threads for event in mytree # multi-threading
     # ... Operate on event
 end
+
+mytree.Muon_pt # whole column as a lazy vector of vectors
 ```
 
 The `LazyTree` is designed as `<: AbstractArray` which makes it compose well with
-the rest of Julia ecosystem. For example, syntactic loop fusion [^1] "just works",
+the rest of the Julia ecosystem. For example, syntactic loop fusion [^1] "just works",
 and it works with Query-style tabular manipulation provided by packages like `Query.jl`
 without any additional code support.
 
@@ -110,6 +120,12 @@ problems of Julia->PyWrapper->Awkward)
 
 - ROOT.jl
 - ...
+
+
+
+_ (?) Generic statement like: `UpROOT.jl` has demonstrated tree processing
+speeds at the same level as the `C++` `ROOT` framework as well as the
+Python-based `uproot` library _
 
 # Conclusion
 
