@@ -199,6 +199,9 @@ end
 struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
+function LazyTree(path::String, x...)
+    LazyTree(ROOTFile(path), x...)
+end
 
 @inline innertable(t::LazyTree) = Core.getfield(t, :treetable)
 
