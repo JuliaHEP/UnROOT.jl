@@ -183,11 +183,23 @@ function decompress_datastreambytes(compbytes, tkey)
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
         elseif cname == "ZL"
             # original: @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(ZlibDecompressor, rawbytes)
-            input_ptr = pointer(rawbytes)
-            input_size = length(rawbytes)
-            output_ptr = pointer(uncomp_data) + fufilled
-            output_size = uncompbytes
-            _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
+
+            # If this is a one-shot decompression, use LibDeflate (faster)
+            if uncompbytes == tkey.fObjlen
+                # Need to ignore the 0x78 0xXX zlib header
+                nbytes = decompress!(Decompressor(), uncomp_data, rawbytes[3:end])
+                if nbytes != uncompbytes
+                    error("LibDeflate produced $(nbytes) bytes but we expected $(uncompbytes) bytes")
+                end
+            else
+                input_ptr = pointer(rawbytes)
+                input_size = length(rawbytes)
+                output_ptr = pointer(uncomp_data) + fufilled
+                output_size = uncompbytes
+                _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
+            end
+
+
         elseif cname == "XZ"
             @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"

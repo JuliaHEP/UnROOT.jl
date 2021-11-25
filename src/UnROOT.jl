@@ -12,6 +12,8 @@ using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, Arr
 using Mixers, Parameters, Memoization, LRUCache
 import IterTools: groupby
 
+import LibDeflate: decompress!, Decompressor
+
 import Tables, TypedTables, PrettyTables
 
 @static if VERSION < v"1.6"
