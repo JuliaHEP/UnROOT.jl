@@ -187,10 +187,7 @@ function decompress_datastreambytes(compbytes, tkey)
             # If this is a one-shot decompression, use LibDeflate (faster)
             if uncompbytes == tkey.fObjlen
                 # Need to ignore the 0x78 0xXX zlib header
-                nbytes = decompress!(Decompressor(), uncomp_data, rawbytes[3:end])
-                if nbytes != uncompbytes
-                    error("LibDeflate produced $(nbytes) bytes but we expected $(uncompbytes) bytes")
-                end
+                decompress!(Decompressor(), uncomp_data, rawbytes[3:end], uncompbytes)
             else
                 input_ptr = pointer(rawbytes)
                 input_size = length(rawbytes)
