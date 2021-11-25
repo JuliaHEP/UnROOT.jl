@@ -152,6 +152,7 @@ function _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
     nothing
 end
 
+
 """
     decompress_datastreambytes(compbytes, tkey)
 
@@ -187,7 +188,8 @@ function decompress_datastreambytes(compbytes, tkey)
             # If this is a one-shot decompression, use LibDeflate (faster)
             if uncompbytes == tkey.fObjlen
                 # Need to ignore the 0x78 0xXX zlib header
-                decompress!(Decompressor(), uncomp_data, rawbytes[3:end], uncompbytes)
+                deleteat!(rawbytes, 1:2)
+                decompress!(Decompressor(), uncomp_data, rawbytes, uncompbytes)
             else
                 input_ptr = pointer(rawbytes)
                 input_size = length(rawbytes)
