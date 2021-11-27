@@ -8,9 +8,11 @@ ntoh(b::Bool) = b
 
 import AbstractTrees: children, printnode, print_tree
 
-using CodecZlib, CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
+using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
 import IterTools: groupby
+
+import LibDeflate: unsafe_zlib_decompress!, Decompressor
 
 import Tables, TypedTables, PrettyTables
 

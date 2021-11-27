@@ -127,24 +127,21 @@ function compressed_datastream(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end
 
-function _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
-    # References:
-    # https://github.com/JuliaIO/CodecZlib.jl/blob/a777d8f53aebd223fe7c7399436a5050784d210f/src/libz.jl
-    # https://github.com/root-project/root/blob/87a998d48803bc207288d90038e60ff148827664/core/zip/src/RZip.cxx#L392
-    zstream = CodecZlib.ZStream()
-    zstream.next_in = input_ptr
-    zstream.avail_in = input_size
-    zstream.next_out = output_ptr
-    zstream.avail_out = output_size
-    CodecZlib.inflate_init!(zstream, CodecZlib.Z_DEFAULT_WINDOWBITS)
-    while (err = CodecZlib.inflate!(zstream, CodecZlib.Z_FINISH) != CodecZlib.Z_STREAM_END)
-        if (err != CodecZlib.Z_OK)
-            CodecZlib.inflate_end!(zstream)
-            error(CodecZlib.zlib_error_message(zstream, err))
-        end
-    end
-    CodecZlib.inflate_end!(zstream)
-    nothing
+# Based on
+# https://github.com/jakobnissen/LibDeflate.jl/blob/d172c4429404a6ce73b3d44541e80d6f69a0f38a/src/zlib.jl#L38
+function _decompress_zlib!(
+    output::AbstractArray{UInt8},
+    input,
+    n_out::Integer
+)
+    GC.@preserve output input unsafe_zlib_decompress!(
+        Base.HasLength(),
+        Decompressor(),
+        pointer(output),
+        n_out,
+        pointer(input),
+        sizeof(input)
+    )
 end
 
 function _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
@@ -182,12 +179,8 @@ function decompress_datastreambytes(compbytes, tkey)
             output_size = uncompbytes
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
         elseif cname == "ZL"
-            # original: @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(ZlibDecompressor, rawbytes)
-            input_ptr = pointer(rawbytes)
-            input_size = length(rawbytes)
-            output_ptr = pointer(uncomp_data) + fufilled
-            output_size = uncompbytes
-            _decompress_zlib!(input_ptr, input_size, output_ptr, output_size)
+            output = @view(uncomp_data[fufilled+1:fufilled+uncompbytes])
+            _decompress_zlib!(output, rawbytes, uncompbytes)
         elseif cname == "XZ"
             @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"
