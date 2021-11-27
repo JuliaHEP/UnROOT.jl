@@ -84,7 +84,7 @@ function Streamers(io)
 
         if cname == "ZL"
             output = Vector{UInt8}(undef, tkey.fObjlen)
-            _decompress_zlib!(output, compressedbytes, length(output))
+            zlib_decompress!(Decompressor(), output, compressedbytes, length(output))
             IOBuffer(output)
         elseif cname == "XZ"
             IOBuffer(transcode(XzDecompressor, compressedbytes))

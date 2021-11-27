@@ -12,7 +12,7 @@ using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using Mixers, Parameters, Memoization, LRUCache
 import IterTools: groupby
 
-import LibDeflate: unsafe_zlib_decompress!, Decompressor
+import LibDeflate: zlib_decompress!, Decompressor
 
 import Tables, TypedTables, PrettyTables
 
