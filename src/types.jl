@@ -127,23 +127,6 @@ function compressed_datastream(io, tkey)
     return read(io, tkey.fNbytes - tkey.fKeylen)
 end
 
-# Based on
-# https://github.com/jakobnissen/LibDeflate.jl/blob/d172c4429404a6ce73b3d44541e80d6f69a0f38a/src/zlib.jl#L38
-function _decompress_zlib!(
-    output::AbstractArray{UInt8},
-    input,
-    n_out::Integer
-)
-    GC.@preserve output input unsafe_zlib_decompress!(
-        Base.HasLength(),
-        Decompressor(),
-        pointer(output),
-        n_out,
-        pointer(input),
-        sizeof(input)
-    )
-end
-
 function _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
     CodecLz4.LZ4_decompress_safe(input_ptr, output_ptr, input_size, output_size)
     nothing
@@ -180,7 +163,7 @@ function decompress_datastreambytes(compbytes, tkey)
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
         elseif cname == "ZL"
             output = @view(uncomp_data[fufilled+1:fufilled+uncompbytes])
-            _decompress_zlib!(output, rawbytes, uncompbytes)
+            zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
         elseif cname == "XZ"
             @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"
