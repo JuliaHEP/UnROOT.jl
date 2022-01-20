@@ -196,7 +196,6 @@ end
     fUUID::SVector{18, UInt8}      # Universal Unique ID
 end
 
-
 @io struct FileHeader64
     fBEGIN::Int32                  # Pointer to first data record
     fEND::UInt64                   # Pointer to first free word at the EOF
@@ -278,5 +277,13 @@ function aliasfor(classname)
         return ROOT_3a3a_TIOFeatures
     else
         nothing
+    end
+end
+
+function Base.show(io::IO, h::Union{TKey, FileHeader32, FileHeader64, ROOTDirectoryHeader})
+    println(io, typeof(h))
+    for fname ∈ fieldnames(typeof(h))
+        value = getfield(h, fname)
+        println(io, "  $fname = $value")
     end
 end

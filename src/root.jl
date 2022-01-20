@@ -72,6 +72,8 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         header = unpack(fobj, FileHeader64)
     end
 
+    @debug "File header: $header"
+
     # Streamers
     if header.fSeekInfo != 0
         @debug "Reading streamer info."
@@ -81,19 +83,27 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         @debug "No streamer info present, skipping."
     end
 
+    @debug "Reading the primary TKey"
     seek(fobj, header.fBEGIN)
+    @debug "Cursor position: $(position(fobj))"
     tkey = unpack(fobj, TKey)
+    @debug "Primary TKey: $tkey"
+    @debug "Cursor position: $(position(fobj))"
 
-    # Reading the header key for the top ROOT directory
+    @debug "Reading the header key of the top ROOT directory"
     seek(fobj, header.fBEGIN + header.fNbytesName)
     dir_header = unpack(fobj, ROOTDirectoryHeader)
+    @debug "Directory header: $dir_header"
 
     seek(fobj, dir_header.fSeekKeys)
     header_key = unpack(fobj, TKey)
+    @debug "Header TKey: $header_key"
 
     n_keys = readtype(fobj, Int32)
+    @debug "Got $n_keys keys in the header, parsing them..."
     keys = [unpack(fobj, TKey) for _ in 1:n_keys]
 
+    @debug "Instantiate the ROOT directory '$tkey.fName'"
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
     ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, ReentrantLock())
