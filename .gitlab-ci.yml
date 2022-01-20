@@ -4,7 +4,8 @@ stages:
 .test_template: &test_definiton |
   export JULIA_PROJECT=@.
   export JL_PKG=ROOTIO
-  julia --threads=2 --check-bounds=yes --color=yes -e "if VERSION < v\"0.7.0-DEV.5183\"; Pkg.test(\"${JL_PKG}\", coverage=true); else using Pkg; Pkg.test(coverage=true); end"
+  export JULIA_NUM_THREADS=3
+  julia --check-bounds=yes --color=yes -e "using Pkg; Pkg.test(coverage=true)"
 
 test-julia-1.3:
   image: julia:1.3
