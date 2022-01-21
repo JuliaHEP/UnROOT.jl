@@ -655,7 +655,9 @@ end
         Threads.@threads for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test count(>(0), nmus) == Threads.nthreads() # test @threads is actually threading
+        if Threads.nthreads() > 1
+            @test count(>(0), nmus) > 1 # test @threads is actually threading
+        end
         @test sum(nmus) == 878
 
 
@@ -663,7 +665,9 @@ end
         @batch for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test count(>(0), nmus) == Threads.nthreads() # test @threads is actually threading
+        if Threads.nthreads() > 1
+            @test count(>(0), nmus) > 1 # test @threads is actually threading
+        end
         @test sum(nmus) == 878
 
         nmus .= 0
