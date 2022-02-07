@@ -625,6 +625,7 @@ end
 
 
     if get(ENV, "CI", "false") == "true"
+        # Make sure CI runs with more than 1 thread
         @test Threads.nthreads() > 1
     end
     nmus = zeros(Int, Threads.nthreads())
@@ -645,7 +646,9 @@ end
 @static if VERSION > v"1.5.1"
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
     @testset "Multi threading" begin
-        nmus = zeros(Int, Threads.nthreads())
+        nthreads = Threads.nthreads()
+        nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
+        nmus = zeros(Int, nthreads)
         Threads.@threads for (i, evt) in enumerate(t)
             nmus[Threads.threadid()] += length(t.Muon_pt[i])
         end
@@ -655,7 +658,6 @@ end
         Threads.@threads for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test count(>(0), nmus) > 1 # test @threads is actually threading
         @test sum(nmus) == 878
 
 
@@ -663,7 +665,6 @@ end
         @batch for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
-        @test count(>(0), nmus) > 1 # test @batch is actually threading
         @test sum(nmus) == 878
 
         nmus .= 0
@@ -674,7 +675,7 @@ end
         @test sum(nmus) == 2*878
 
         for j in 1:3
-            inds = [Vector{Int}() for _ in 1:Threads.nthreads()]
+            inds = [Vector{Int}() for _ in 1:nthreads]
             Threads.@threads for (i, evt) in enumerate(t)
                 push!(inds[Threads.threadid()], i)
             end
