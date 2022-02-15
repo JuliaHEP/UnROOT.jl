@@ -21,6 +21,11 @@ import Tables, TypedTables, PrettyTables
     Base.first(a::S, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
 end
 
+function unsafe_arraycast(::Type{D}, ary::Vector{S}) where {S, D}
+    l = sizeof(S)*length(ary)÷sizeof(D)
+    ccall(:jl_reshape_array, Vector{D}, (Any, Any, Any), Vector{D}, ary, (l,))
+end
+
 include("constants.jl")
 include("io.jl")
 include("types.jl")

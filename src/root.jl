@@ -221,19 +221,22 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
     if J === Nojagg
-        return ntoh.(reinterpret(T, rawdata))
+        res = unsafe_arraycast(T, rawdata)
+        res .= ntoh.(res)
+        return res
     elseif J === Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
         subT = eltype(eltype(T))
         out = VectorOfVectors(T(), Int32[1])
-        @views for i in 1:(length(rawoffsets)-1)
-            flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
+        for i in 1:(length(rawoffsets)-1)
+            flat = @view rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
             row = VectorOfVectors{subT}()
             cursor = 1
             while cursor < length(flat)
-                n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
+                n = ntoh(reinterpret(Int32, @view flat[cursor:cursor+sizeof(Int32)-1])[1])
                 cursor += sizeof(Int32)
-                b = ntoh.(reinterpret(subT, flat[cursor:cursor+n*sizeof(subT)-1]))
+                b = unsafe_arraycast(subT, flat[cursor:cursor+n*sizeof(subT)-1])
+                b .= ntoh.(b)
                 cursor += n*sizeof(subT)
                 push!(row, b)
             end
@@ -269,7 +272,8 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         else
             offset = rawoffsets
         end
-        real_data = ntoh.(reinterpret(T, rawdata))
+        real_data = unsafe_arraycast(eltype(T), rawdata)
+        real_data .= ntoh.(real_data)
         offset .= (offset .÷ _size) .+ 1
         return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
     end

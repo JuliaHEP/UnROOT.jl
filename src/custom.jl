@@ -38,7 +38,8 @@ Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(l
 function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
-    v4 = ntoh.(reinterpret(Float64, @view v[1+32:end]))
+    v4 = reinterpret(Float64, @view v[1+32:end])
+    v4 .= ntoh.(v4)
     # t,x,y,z in LorentzVectors.jl
     LVF64(v4[4], v4[1], v4[2], v4[3])
 end

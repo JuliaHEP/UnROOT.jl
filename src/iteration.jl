@@ -108,7 +108,6 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
-        T = (T === Vector{Bool} ? BitVector : T)
         _buffer = T[]
         if J != Nojagg
             # if branch is jagged, fix the buffer and eltype according to what
