@@ -24,7 +24,7 @@ end
 function unsafe_arraycastntoh(::Type{D}, ary::Vector{S}) where {S, D}
     @static if VERSION < v"1.7"
         res = reinterpret(D, ary)
-        D == Bool && return res
+        D == Bool && return collect(res) #FIXME I hate this
         return ntoh.(res)
     else
         l = sizeof(S)*length(ary)÷sizeof(D)
