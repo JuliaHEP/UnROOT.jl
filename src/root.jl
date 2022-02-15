@@ -221,8 +221,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # the other is where we need to auto detector T bsaed on class name
     # we want the fundamental type as `reinterpret` will create vector
     if J === Nojagg
-        res = unsafe_arraycast(T, rawdata)
-        res .= ntoh.(res)
+        res = unsafe_arraycastntoh(T, rawdata)
         return res
     elseif J === Offsetjaggjagg # the branch is doubly jagged
         jagg_offset = 10
@@ -235,8 +234,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             while cursor < length(flat)
                 n = ntoh(reinterpret(Int32, @view flat[cursor:cursor+sizeof(Int32)-1])[1])
                 cursor += sizeof(Int32)
-                b = unsafe_arraycast(subT, flat[cursor:cursor+n*sizeof(subT)-1])
-                b .= ntoh.(b)
+                b = unsafe_arraycastntoh(subT, flat[cursor:cursor+n*sizeof(subT)-1])
                 cursor += n*sizeof(subT)
                 push!(row, b)
             end
@@ -272,8 +270,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         else
             offset = rawoffsets
         end
-        real_data = unsafe_arraycast(eltype(T), rawdata)
-        real_data .= ntoh.(real_data)
+        real_data = unsafe_arraycastntoh(eltype(T), rawdata)
         offset .= (offset .÷ _size) .+ 1
         return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
     end
