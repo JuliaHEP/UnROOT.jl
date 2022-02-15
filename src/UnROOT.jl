@@ -21,16 +21,16 @@ import Tables, TypedTables, PrettyTables
     Base.first(a::S, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
 end
 
-@static if VERSION < v"1.7"
-    function unsafe_arraycastntoh(::Type{D}, ary::Vector{S}) where {S, D}
-        ntoh.(reinterpret(D, ary))
-    end
-else
-    function unsafe_arraycastntoh(::Type{D}, ary::Vector{S}) where {S, D}
+function unsafe_arraycastntoh(::Type{D}, ary::Vector{S}) where {S, D}
+    @static if VERSION < v"1.7"
+        res = reinterpret(D, ary)
+        D == Bool && return res
+        return ntoh.(res)
+    else
         l = sizeof(S)*length(ary)÷sizeof(D)
         res = ccall(:jl_reshape_array, Vector{D}, (Any, Any, Any), Vector{D}, ary, (l,))
         @. res = ntoh(res)
-        res
+        return res
     end
 end
 
