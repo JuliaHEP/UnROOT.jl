@@ -77,6 +77,15 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
+
+# stop crazy stracktrace
+function Base.show(io::IO, 
+    ::Type{<:LazyTree{<:UnROOT.TypedTables.Table{NamedTuple{Ns, Vs}}}})
+    where {T, Ns, Vs}
+    println(io, "LazyTree with $(length(Ns)) branches:")
+    println(io, collect(Ns))
+end
+
 function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     _hs = _make_header(tree)
     maxrows = 10
