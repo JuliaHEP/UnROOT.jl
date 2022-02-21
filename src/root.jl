@@ -2,7 +2,7 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::IOStream
+    fobj::Union{IOStream, XRootDgo.XRDStream}
     refs::Dict{Int32, Any}
 end
 
@@ -10,7 +10,7 @@ struct ROOTFile
     filename::AbstractString
     format_version::Int32
     header::FileHeader
-    fobj::IOStream
+    fobj::Union{IOStream, XRootDgo.XRDStream}
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
@@ -59,7 +59,16 @@ test/samples/NanoAODv5_sample.root
 ```
 """
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
-    fobj = Base.open(filename)
+    fobj = if startswith(filename, "root://")
+        sep_idx = findlast("//", filename)
+        baseurl = filename[8:first(sep_idx)-1]
+        filepath = filename[last(sep_idx):end]
+        @show baseurl
+        @show filepath
+        XRootDgo.XRDStream(baseurl, filepath, "go")
+    else
+        Base.open(filename)
+    end
     preamble = unpack(fobj, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion

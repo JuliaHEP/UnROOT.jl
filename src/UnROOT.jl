@@ -1,6 +1,6 @@
 module UnROOT
 
-using LazyArrays
+using LazyArrays, XRootDgo
 export ROOTFile, LazyBranch, LazyTree
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
@@ -27,6 +27,7 @@ include("types.jl")
 include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
+# include("xrootd.jl")
 include("root.jl")
 include("iteration.jl")
 include("custom.jl")
