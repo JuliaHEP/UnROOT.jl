@@ -21,13 +21,27 @@ import Tables, TypedTables, PrettyTables
     Base.first(a::S, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
 end
 
+"""
+    OffsetBuffer
+
+Works with seek, position of the original file. Think of it as a view of IOStream that can be
+indexed with original positions.
+"""
+struct OffsetBuffer{T}
+    io::T
+    offset::Int
+end
+Base.read(io::OffsetBuffer, nb) = Base.read(io.io, nb)
+Base.seek(io::OffsetBuffer, i) = Base.seek(io.io, i - io.offset)
+Base.skip(io::OffsetBuffer, i) = Base.skip(io.io, i)
+Base.position(io::OffsetBuffer) = position(io.io) + io.offset
+
 include("constants.jl")
 include("io.jl")
 include("types.jl")
 include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
-# include("xrootd.jl")
 include("root.jl")
 include("iteration.jl")
 include("custom.jl")

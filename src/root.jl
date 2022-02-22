@@ -87,8 +87,8 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         tail_start = max(0, header.fSeekInfo - 5000) # 5kb heuristic
 
         seek(fobj, tail_start)
-        tail_buffer = IOBuffer(read(fobj))
-        seek(tail_buffer, header.fSeekInfo - tail_start)
+        tail_buffer = OffsetBuffer(IOBuffer(read(fobj)), Int(tail_start))
+        seek(tail_buffer, header.fSeekInfo)
         streamers = Streamers(tail_buffer)
     else
         @debug "No streamer info present, skipping."
@@ -112,7 +112,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     end
 
     dirkey = dir_header.fSeekKeys
-    seek(tail_buffer, dirkey - tail_start)
+    seek(tail_buffer, dirkey)
     header_key = unpack(tail_buffer, TKey)
 
     n_keys = readtype(tail_buffer, Int32)
@@ -468,14 +468,6 @@ See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 function readbasket(f::ROOTFile, branch, ith) 
     readbasketseek(f, branch, branch.fBasketSeek[ith], branch.fBasketBytes[ith])
 end
-
-struct OffsetBuffer{T}
-    io::T
-    offset::Int
-end
-Base.read(io::OffsetBuffer, nb) = Base.read(io.io, nb)
-Base.seek(io::OffsetBuffer, i) = Base.seek(io.io, i - io.offset)
-Base.position(io::OffsetBuffer) = position(io.io) + io.offset
 
 function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nb)
     lock(f)
