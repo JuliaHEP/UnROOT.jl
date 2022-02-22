@@ -120,18 +120,19 @@ function streamerfor(f::ROOTFile, name::AbstractString)
             return e
         end
     end
-    error("No streamer found for $name.")
+    @warn "No streamer found for $name."
+    return missing
 end
 
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
     S = _getindex(f, s)
     if S isa Union{TBranch, TBranchElement}
-        # try # if we can't construct LazyBranch, just give up (maybe due to custom class)
+        try # if we can't construct LazyBranch, just give up (maybe due to custom class)
             return LazyBranch(f, S)
-        # catch
-        #     @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
-        # end
+        catch
+            @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
+        end
     end
     S
 end
@@ -324,24 +325,30 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
         parentname = branch.fParentName  # assuming it has a parent ;)
-        try
-            # this will call a customize routine if defined by user
-            # see custom.jl
-            #
-            # TODO to be verified: fields of custom classes have the same classname and parentname,
-            # the fieldname is the fTitle. Here, we use the dot-separator, so that the
-            # user can provide e.g. `KM3NETDAQ::JDAQEvent.snapshotHits`, where `KM3NETDAQ::JDAQEvent`
-            # is the class name and `snapshotHits` the field name. The provided type will be used
-            # to parse the data
-            if classname == parentname
-                identifier = join([classname, branch.fTitle], '.')
-            else
-                identifier = classname
-            end
+
+        # This will call a customize routine if defined by user see custom.jl
+        #
+        # TODO to be verified: fields of custom classes have the same classname and parentname,
+        # the fieldname is the fTitle. Here, we use the dot-separator, so that the
+        # user can provide e.g. `KM3NETDAQ::JDAQEvent.snapshotHits`, where `KM3NETDAQ::JDAQEvent`
+        # is the class name and `snapshotHits` the field name. The provided type will be used
+        # to parse the data
+        if classname == parentname
+            identifier = join([classname, branch.fTitle], '.')
+        else
+            identifier = classname
+        end
+        if haskey(customstructs, identifier)
             _custom = customstructs[identifier]
             return _custom, Nojagg
-        catch
         end
+
+        # Checking if there is a matching streamer defined in the ROOT file
+        streamer = streamerfor(f, classname)
+        if !ismissing(streamer)
+            println("Found streamer for $(classname)")
+        end
+
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
             elname = m[1]
