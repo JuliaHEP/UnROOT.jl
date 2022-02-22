@@ -712,6 +712,11 @@ end
     @test length(UnROOT.basketarray(t.b1, 1)) == 1228
 end
 
+@testset "XRootD" begin
+    r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
+    @test r["Events"].fEntries == 29308627
+end
+
 @testset "Cluster ranges" begin
     t = LazyTree(UnROOT.samplefile("tree_with_clusters.root"),"t1");
     @test all(UnROOT._clusterbytes(t; compressed=true) .< 10000)
