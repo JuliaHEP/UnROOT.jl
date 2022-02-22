@@ -58,50 +58,70 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
+const HEAD_BUFFER_SIZE = 2048
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, "root://")
         sep_idx = findlast("//", filename)
         baseurl = filename[8:first(sep_idx)-1]
         filepath = filename[last(sep_idx):end]
-        @show baseurl
-        @show filepath
         XRootDgo.XRDStream(baseurl, filepath, "go")
     else
         Base.open(filename)
     end
-    preamble = unpack(fobj, FilePreamble)
+    head_buffer = IOBuffer(read(fobj, HEAD_BUFFER_SIZE))
+    preamble = unpack(head_buffer, FilePreamble)
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion
 
     if format_version < 1000000
         @debug "32bit ROOT file"
-        header = unpack(fobj, FileHeader32)
+        header = unpack(head_buffer, FileHeader32)
     else
         @debug "64bit ROOT file"
-        header = unpack(fobj, FileHeader64)
+        header = unpack(head_buffer, FileHeader64)
     end
 
     # Streamers
     if header.fSeekInfo != 0
         @debug "Reading streamer info."
-        seek(fobj, header.fSeekInfo)
-        streamers = Streamers(fobj)
+        tail_start = header.fSeekInfo
+        seek(fobj, tail_start)
+        tail_buffer = IOBuffer(read(fobj))
+        seek(fobj, tail_start)
+        streamers = Streamers(fobj) #FIXME: apparently streamers aren't alwasy confined at the end
     else
         @debug "No streamer info present, skipping."
     end
 
-    seek(fobj, header.fBEGIN)
-    tkey = unpack(fobj, TKey)
+    tkey = try # in case buffer is not enough
+        seek(head_buffer, header.fBEGIN)
+        unpack(head_buffer, TKey)
+    catch
+        seek(fobj, header.fBEGIN)
+        unpack(fobj, TKey)
+    end
 
-    # Reading the header key for the top ROOT directory
-    seek(fobj, header.fBEGIN + header.fNbytesName)
-    dir_header = unpack(fobj, ROOTDirectoryHeader)
+    dir_header = try # in case buffer is not enough
+        # Reading the header key for the top ROOT directory
+        seek(head_buffer, header.fBEGIN + header.fNbytesName)
+        unpack(head_buffer, ROOTDirectoryHeader)
+    catch
+        # seek(fobj, header.fBEGIN + header.fNbytesName)
+        # unpack(fobj, ROOTDirectoryHeader)
+    end
 
-    seek(fobj, dir_header.fSeekKeys)
-    header_key = unpack(fobj, TKey)
+    dirkey = dir_header.fSeekKeys
+    if  dirkey < tail_start # need to adjust tail buffer
+        tail_start = dirkey
+        seek(fobj, tail_start)
+        tail_buffer = IOBuffer(read(fobj))
+    end
 
-    n_keys = readtype(fobj, Int32)
-    keys = [unpack(fobj, TKey) for _ in 1:n_keys]
+    seek(tail_buffer, dirkey - tail_start)
+    header_key = unpack(tail_buffer, TKey)
+
+    n_keys = readtype(tail_buffer, Int32)
+    keys = [unpack(tail_buffer, TKey) for _ in 1:n_keys]
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
