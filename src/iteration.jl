@@ -122,6 +122,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
+basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
+basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
@@ -138,8 +140,6 @@ Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
-basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
-basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)

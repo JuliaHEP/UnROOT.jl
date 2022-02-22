@@ -73,12 +73,12 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion
 
-    if format_version < 1000000
+    header = if format_version < 1000000
         @debug "32bit ROOT file"
-        header = unpack(head_buffer, FileHeader32)
+        unpack(head_buffer, FileHeader32)
     else
         @debug "64bit ROOT file"
-        header = unpack(head_buffer, FileHeader64)
+        unpack(head_buffer, FileHeader64)
     end
 
     # Streamers
@@ -431,9 +431,9 @@ function readbranchraw(f::ROOTFile, branch)
     datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(zeros(Int32, 1), branch.fEntries+1) # this is always Int32
     position = 0
-    foreach(branch.fBasketSeek) do seek
-        seek==0 && return
-        data, offset = readbasketseek(f, branch, seek)
+    for (seek, nb) in zip(branch.fBasketSeek, nbytes)
+        seek==0 && break
+        data, offset = readbasketseek(f, branch, seek, nb)
         append!(datas, data)
         # FIXME: assuming offset has always 0 or at least 2 elements ;)
         append!(offsets, (@view offset[2:end]) .+ position)
@@ -457,7 +457,7 @@ end
 # 3GB cache for baskets
 """
     readbasket(f::ROOTFile, branch, ith)
-    readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
+    readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nbytes)
 
 The fundamental building block of reading read data from a .root file. Read read one
 basket's raw bytes and offsets at a time. These raw bytes and offsets then (potentially) get
@@ -465,15 +465,26 @@ processed by [`interped_data`](@ref).
 
 See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
-readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
+function readbasket(f::ROOTFile, branch, ith) 
+    readbasketseek(f, branch, branch.fBasketSeek[ith], branch.fBasketBytes[ith])
+end
 
-function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
+struct OffsetBuffer{T}
+    io::T
+    offset::Int
+end
+Base.read(io::OffsetBuffer, nb) = Base.read(io.io, nb)
+Base.seek(io::OffsetBuffer, i) = Base.seek(io.io, i - io.offset)
+Base.position(io::OffsetBuffer) = position(io.io) + io.offset
+
+function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nb)
     lock(f)
     local basketkey, compressedbytes
     try
         seek(f.fobj, seek_pos)
-        basketkey = unpack(f.fobj, TBasketKey)
-        compressedbytes = compressed_datastream(f.fobj, basketkey)
+        rawbuffer = OffsetBuffer(IOBuffer(read(f.fobj, nb)), seek_pos)
+        basketkey = unpack(rawbuffer, TBasketKey)
+        compressedbytes = compressed_datastream(rawbuffer, basketkey)
     catch
         finally
         unlock(f)
