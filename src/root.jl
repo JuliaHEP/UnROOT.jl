@@ -58,7 +58,7 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
-const HEAD_BUFFER_SIZE = 2048
+const HEAD_BUFFER_SIZE = 1024
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, "root://")
         sep_idx = findlast("//", filename)
@@ -84,11 +84,12 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     # Streamers
     if header.fSeekInfo != 0
         @debug "Reading streamer info."
-        tail_start = header.fSeekInfo
+        tail_start = max(0, header.fSeekInfo - 5000) # 5kb heuristic
+
         seek(fobj, tail_start)
         tail_buffer = IOBuffer(read(fobj))
-        seek(fobj, tail_start)
-        streamers = Streamers(fobj) #FIXME: apparently streamers aren't alwasy confined at the end
+        seek(tail_buffer, header.fSeekInfo - tail_start)
+        streamers = Streamers(tail_buffer)
     else
         @debug "No streamer info present, skipping."
     end
@@ -106,17 +107,11 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         seek(head_buffer, header.fBEGIN + header.fNbytesName)
         unpack(head_buffer, ROOTDirectoryHeader)
     catch
-        # seek(fobj, header.fBEGIN + header.fNbytesName)
-        # unpack(fobj, ROOTDirectoryHeader)
+        seek(fobj, header.fBEGIN + header.fNbytesName)
+        unpack(fobj, ROOTDirectoryHeader)
     end
 
     dirkey = dir_header.fSeekKeys
-    if  dirkey < tail_start # need to adjust tail buffer
-        tail_start = dirkey
-        seek(fobj, tail_start)
-        tail_buffer = IOBuffer(read(fobj))
-    end
-
     seek(tail_buffer, dirkey - tail_start)
     header_key = unpack(tail_buffer, TKey)
 
