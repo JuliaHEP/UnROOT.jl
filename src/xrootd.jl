@@ -1,6 +1,8 @@
 using xrootdgo_jll
 import HTTP
 
+const RemoteStream = Union{HTTPStream, XRDStream}
+
 mutable struct HTTPStream
     uri::HTTP.URI
     seekloc::Int
@@ -24,21 +26,21 @@ mutable struct HTTPStream
     end
 end
 
-function Base.position(fobj::HTTPStream)
+function Base.position(fobj::RemoteStream)
     fobj.seekloc
 end
 
-function Base.seek(fobj::HTTPStream, loc)
+function Base.seek(fobj::RemoteStream, loc)
     fobj.seekloc = loc
     return fobj
 end
 
-function Base.skip(fobj::HTTPStream, stride)
+function Base.skip(fobj::RemoteStream, stride)
     fobj.seekloc += stride
     return fobj
 end
 
-function Base.seekstart(fobj::HTTPStream)
+function Base.seekstart(fobj::RemoteStream)
     fobj.seekloc = 0
     return fobj
 end
@@ -55,7 +57,7 @@ function Base.read(fobj::HTTPStream, nb::Integer)
     return b
 end
 
-function Base.read(fobj::HTTPStream)
+function Base.read(fobj::RemoteStream)
     read(fobj, fobj.size - fobj.seekloc + 1)
 end
 
@@ -70,25 +72,6 @@ function XRDStream(urlbase::AbstractString, filepath::AbstractString, username::
     # file_id = @threadcall((:Open, xrootdgo), Cstring, (Cstring, Cstring, Cstring), urlbase, filepath, username)
     size = @ccall xrootdgo.Size(file_id::Cstring)::Int
     XRDStream(file_id, 0, size)
-end
-
-function Base.position(fobj::XRDStream)
-    fobj.seekloc
-end
-
-function Base.seek(fobj::XRDStream, loc)
-    fobj.seekloc = loc
-    return fobj
-end
-
-function Base.skip(fobj::XRDStream, stride)
-    fobj.seekloc += stride
-    return fobj
-end
-
-function Base.seekstart(fobj::XRDStream)
-    fobj.seekloc = 0
-    return fobj
 end
 
 function Base.close(fobj::XRDStream)
@@ -122,8 +105,4 @@ function Base.read(fobj::XRDStream, nb::Integer)
     GC.@preserve buffer _read!(buffer, fobj, nb, fobj.seekloc)
     fobj.seekloc += nb
     return buffer
-end
-
-function Base.read(fobj::XRDStream)
-    read(fobj, fobj.size - fobj.seekloc + 1)
 end
