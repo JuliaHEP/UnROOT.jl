@@ -8,12 +8,18 @@ mutable struct HTTPStream
     multipart::Bool
     function HTTPStream(uri::AbstractString)
         #TODO: determin multipart support
-        test = HTTP.request("GET", uri, ("Range" => "bytes=0-3",))
+        test = HTTP.request("GET", uri, ("Range" => "bytes=0-3", "User-Agent" => "UnROOT.jl"))
         @assert test.status==206 "bad network or wrong server"
         @assert String(test.body)=="root" "not a root file"
         multipart = false
-        cr = Dict(test.headers)["Content-Range"]
-        size = parse(Int, match(r"/(\d+)", cr).captures[1])
+        local v
+        for pair in test.headers
+            if lowercase(pair[1]) == "content-range"
+                v = pair[2]
+                break
+            end
+        end
+        size = parse(Int, match(r"/(\d+)", v).captures[1])
         new(HTTP.URI(uri), 0, size, multipart)
     end
 end
