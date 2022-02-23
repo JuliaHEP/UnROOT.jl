@@ -1,7 +1,11 @@
 using xrootdgo_jll
 import HTTP
 
-const RemoteStream = Union{HTTPStream, XRDStream}
+mutable struct XRDStream
+    gofile_id::Cstring # used as key to a global `map` on the Go side
+    seekloc::Int
+    size::Int
+end
 
 mutable struct HTTPStream
     uri::HTTP.URI
@@ -25,6 +29,8 @@ mutable struct HTTPStream
         new(HTTP.URI(uri), 0, size, multipart)
     end
 end
+const RemoteStream = Union{HTTPStream, XRDStream}
+
 
 function Base.position(fobj::RemoteStream)
     fobj.seekloc
@@ -59,12 +65,6 @@ end
 
 function Base.read(fobj::RemoteStream)
     read(fobj, fobj.size - fobj.seekloc + 1)
-end
-
-mutable struct XRDStream
-    gofile_id::Cstring # used as key to a global `map` on the Go side
-    seekloc::Int
-    size::Int
 end
 
 function XRDStream(urlbase::AbstractString, filepath::AbstractString, username::AbstractString)
