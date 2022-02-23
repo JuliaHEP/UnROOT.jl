@@ -1,4 +1,57 @@
 using xrootdgo_jll
+import HTTP
+
+mutable struct HTTPStream
+    uri::HTTP.URI
+    seekloc::Int
+    size::Int
+    multipart::Bool
+    function HTTPStream(uri::AbstractString)
+        #TODO: determin multipart support
+        test = HTTP.request("GET", uri, ("Range" => "bytes=0-3",))
+        @assert test.status==206 "bad network or wrong server"
+        @assert String(test.body)=="root" "not a root file"
+        multipart = false
+        cr = Dict(test.headers)["Content-Range"]
+        size = parse(Int, match(r"/(\d+)", cr).captures[1])
+        new(HTTP.URI(uri), 0, size, multipart)
+    end
+end
+
+function Base.position(fobj::HTTPStream)
+    fobj.seekloc
+end
+
+function Base.seek(fobj::HTTPStream, loc)
+    fobj.seekloc = loc
+    return fobj
+end
+
+function Base.skip(fobj::HTTPStream, stride)
+    fobj.seekloc += stride
+    return fobj
+end
+
+function Base.seekstart(fobj::HTTPStream)
+    fobj.seekloc = 0
+    return fobj
+end
+
+function Base.close(fobj::HTTPStream) # no-op
+    nothing
+end
+
+function Base.read(fobj::HTTPStream, nb::Integer)
+    stop = fobj.seekloc + nb - 1
+    hd = ["Range" => "bytes=$(fobj.seekloc)-$stop"]
+    b = HTTP.request(HTTP.stack(), "GET", fobj.uri, hd, UInt8[]).body
+    fobj.seekloc += nb
+    return b
+end
+
+function Base.read(fobj::HTTPStream)
+    read(fobj, fobj.size - fobj.seekloc + 1)
+end
 
 mutable struct XRDStream
     gofile_id::Cstring # used as key to a global `map` on the Go side
@@ -45,17 +98,18 @@ function _read!(ptr, fobj, nb)
     _read!(ptr, fobj, nb, fobj.seekloc)
 end
 
-function Base.read(fobj::XRDStream, ::Type{T}) where T
-    @debug @show T, sizeof(T)
-    nb = sizeof(T)
-    output = Ref{T}()
-    tko = Base.@_gc_preserve_begin output
-    po = Ptr{UInt8}(pointer_from_objref(output))
-    _read!(po, fobj, nb, fobj.seekloc)
-    Base.@_gc_preserve_end tko
-    fobj.seekloc += nb
-    return output[]
-end
+# TODO: should never get used, if things go well
+# function Base.read(fobj::XRDStream, ::Type{T}) where T
+#     @debug @show T, sizeof(T)
+#     nb = sizeof(T)
+#     output = Ref{T}()
+#     tko = Base.@_gc_preserve_begin output
+#     po = Ptr{UInt8}(pointer_from_objref(output))
+#     _read!(po, fobj, nb, fobj.seekloc)
+#     Base.@_gc_preserve_end tko
+#     fobj.seekloc += nb
+#     return output[]
+# end
 
 function Base.read(fobj::XRDStream, nb::Integer)
     buffer = Vector{UInt8}(undef, nb)
