@@ -240,8 +240,11 @@ Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(innertable(lt))
 
 function LazyArrays.Vcat(ts::LazyTree...)
-    cs = Tables.columns.(innertable.(ts))
-    LazyTree(TypedTables.Table(map(Vcat, cs...)))
+    branch_names = propertynames(first(ts))
+    res_branches = map(branch_names) do bname
+        LazyArrays.Vcat(getproperty.(ts, bname)...)
+    end
+    LazyTree(TypedTables.Table(NamedTuple{branch_names}(res_branches)))
 end
 Base.vcat(ts::LazyTree...) = Vcat(ts...)
 Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
