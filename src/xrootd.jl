@@ -14,7 +14,7 @@ mutable struct HTTPStream
     multipart::Bool
     function HTTPStream(uri::AbstractString)
         #TODO: determin multipart support
-        test = HTTP.request("GET", uri, ("Range" => "bytes=0-3", "User-Agent" => "UnROOT.jl"))
+        test = HTTP.request("GET", uri, ("Range" => "bytes=0-3", "User-Agent" => "UnROOTjl"))
         @assert test.status==206 "bad network or wrong server"
         @assert String(test.body)=="root" "not a root file"
         multipart = false
@@ -56,8 +56,9 @@ function Base.close(fobj::HTTPStream) # no-op
 end
 
 function Base.read(fobj::HTTPStream, nb::Integer)
-    stop = fobj.seekloc + nb - 1
-    hd = ["Range" => "bytes=$(fobj.seekloc)-$stop"]
+    @debug nb
+    stop = min(fobj.seekloc + nb - 1, fobj.size)
+    hd = ("Range" => "bytes=$(fobj.seekloc)-$stop",)
     b = HTTP.request(HTTP.stack(), "GET", fobj.uri, hd, UInt8[]).body
     fobj.seekloc += nb
     return b

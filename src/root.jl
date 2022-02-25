@@ -89,7 +89,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         tail_start = max(0, header.fSeekInfo - 5000) # 5kb heuristic
 
         seek(fobj, tail_start)
-        tail_buffer = OffsetBuffer(IOBuffer(read(fobj)), Int(tail_start))
+        tail_buffer = OffsetBuffer(IOBuffer(read(fobj, 2*10^4)), Int(tail_start))
         seek(tail_buffer, header.fSeekInfo)
         streamers = Streamers(tail_buffer)
     else

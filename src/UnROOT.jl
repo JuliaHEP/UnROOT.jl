@@ -48,4 +48,11 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
+if ccall(:jl_generating_output, Cint, ()) == 1   # if we're precompiling the package
+    let
+        r = ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
+        show(devnull, r)
+    end
+end
+
 end # module
