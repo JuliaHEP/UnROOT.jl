@@ -68,11 +68,13 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         filepath = filename[last(sep_idx):end]
         XRDStream(baseurl, filepath, "go")
     else
+        !isfile(filename) && "$filename is not a file"
         MmapStream(filename)
     end
-    head_buffer = IOBuffer(read(fobj, HEAD_BUFFER_SIZE))
+    header_bytes = read(fobj, HEAD_BUFFER_SIZE)
+    @assert header_bytes[1:4] ==  [0x72, 0x6f, 0x6f, 0x74] "$filename is not a ROOT file."
+    head_buffer = IOBuffer(header_bytes)
     preamble = unpack(head_buffer, FilePreamble)
-    String(preamble.identifier) == "root" || error("Not a ROOT file!")
     format_version = preamble.fVersion
 
     header = if format_version < 1000000
