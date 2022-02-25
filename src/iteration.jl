@@ -290,9 +290,6 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
     tree isa TTree || error("$s is not a tree name.")
-    if length(branches) > 30
-        @warn "Your tree is quite wide, with $(length(branches)) branches, this will take compiler a moment."
-    end
     d = Dict{Symbol,LazyBranch}()
     _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
