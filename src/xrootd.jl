@@ -8,7 +8,7 @@ mutable struct XRDStream
 end
 
 mutable struct MmapStream # Mmap based
-    mmap_ary::Vector{UInt8} # used as key to a global `map` on the Go side
+    mmap_ary::Vector{UInt8}
     seekloc::Int
     size::Int
     function MmapStream(filepath::AbstractString) 
@@ -24,20 +24,6 @@ function Base.read(fobj::MmapStream, nb::Integer)
     b = fobj.mmap_ary[fobj.seekloc+1 : stop]
     fobj.seekloc += nb
     return b
-end
-
-function Base.read(fobj::MmapStream, ::Type{T}) where T
-    nb = sizeof(T)
-    output = Ref{T}()
-    input = read(fobj, nb)
-    tki = Base.@_gc_preserve_begin input
-    tko = Base.@_gc_preserve_begin output
-    pi = Ptr{UInt8}(pointer_from_objref(input))
-    po = Ptr{UInt8}(pointer_from_objref(output))
-    Base._memcpy!(po, pi, nb)
-    Base.@_gc_preserve_end tki
-    Base.@_gc_preserve_end tko
-    return output[]
 end
 
 function Base.close(fobj::MmapStream) # no-op
@@ -66,20 +52,11 @@ mutable struct HTTPStream
         new(HTTP.URI(uri), 0, size, multipart)
     end
 end
+
 const SourceStream = Union{MmapStream, HTTPStream, XRDStream}
 
-function Base.read(fobj::HTTPStream, ::Type{T}) where T
-    nb = sizeof(T)
-    output = Ref{T}()
-    input = read(fobj, nb)
-    tki = Base.@_gc_preserve_begin input
-    tko = Base.@_gc_preserve_begin output
-    pi = Ptr{UInt8}(pointer_from_objref(input))
-    po = Ptr{UInt8}(pointer_from_objref(output))
-    Base._memcpy!(po, pi, nb)
-    Base.@_gc_preserve_end tki
-    Base.@_gc_preserve_end tko
-    return output[]
+function Base.read(fobj::SourceStream, ::Type{T}) where T
+    return only(reinterpret(T, read(fobj, sizeof(T))))
 end
 
 function Base.position(fobj::SourceStream)
