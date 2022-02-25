@@ -4,7 +4,7 @@ using LazyArrays
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
-import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
+import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, reinterpret
 ntoh(b::Bool) = b
 
 import AbstractTrees: children, printnode, print_tree
@@ -38,7 +38,7 @@ Base.skip(io::OffsetBuffer, i) = Base.skip(io.io, i)
 Base.position(io::OffsetBuffer) = position(io.io) + io.offset
 
 include("constants.jl")
-include("xrootd.jl")
+include("streamsource.jl")
 include("io.jl")
 include("types.jl")
 include("utils.jl")

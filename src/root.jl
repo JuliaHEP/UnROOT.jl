@@ -2,7 +2,7 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::Union{MmapStream, XRDStream, HTTPStream}
+    fobj::SourceStream
     refs::Dict{Int32, Any}
 end
 
@@ -10,15 +10,13 @@ struct ROOTFile
     filename::String
     format_version::Int32
     header::FileHeader
-    fobj::Union{MmapStream, XRDStream, HTTPStream}
+    fobj::SourceStream
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
-    lk::ReentrantLock
 end
 function close(f::ROOTFile)
-    # TODO: should we take care of the lock?
     close(f.fobj)
 end
 function ROOTFile(f::Function, args...; pv...)
@@ -29,8 +27,7 @@ function ROOTFile(f::Function, args...; pv...)
         close(rootfile)
     end
 end
-lock(f::ROOTFile) = lock(f.lk)
-unlock(f::ROOTFile) = unlock(f.lk)
+
 function Base.hash(rf::ROOTFile, h::UInt)
     hash(rf.fobj, h)
 end
@@ -124,7 +121,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, ReentrantLock())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs)
 end
 
 function Base.show(io::IO, f::ROOTFile)

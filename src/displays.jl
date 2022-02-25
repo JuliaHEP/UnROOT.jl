@@ -14,7 +14,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
     # then all TKeys in the file which are not for a TTree
     seen = Set{String}()
     ch = Vector{Union{TTree,TKeyNode,ROOTDirectory}}()
-    T === ROOTFile ? lock(f) : nothing
     for k in keys(f)
         try
             obj = f[k]
@@ -35,7 +34,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
             push!(ch, kn)
         end
     end
-    T === ROOTFile ? unlock(f) : nothing
     ch
 end
 function children(t::TTree)
