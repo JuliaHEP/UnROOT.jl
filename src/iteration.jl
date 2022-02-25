@@ -333,7 +333,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
     offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return vcat([basketarray(ba, i) for i in ib1:ib2]...)[range]
+    return Vcat(asyncmap(i->basketarray(ba, i), ib1:ib2)...)[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])

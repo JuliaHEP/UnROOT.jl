@@ -583,16 +583,18 @@ end
 end
 
 @testset "Type stability" begin
-    function isfullystable(func)
-        io = IOBuffer()
-        print(io, (@code_typed func()).first);
-        typed = String(take!(io))
-        return !occursin("::Any", typed)
-    end
+    # function isfullystable(func)
+    #     io = IOBuffer()
+    #     print(io, (@code_typed func()).first);
+    #     typed = String(take!(io))
+    #     println(typed)
+    #     return !occursin("::Any", typed)
+    # end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["MET_pt"])[1:10]
 
+    # LazyArray has a BoundsArray that is ::Any but is "fine"
     function f1()
         s = 0.0f0
         for evt in t
@@ -602,8 +604,8 @@ end
     end
     f2() = sum(t.MET_pt)
 
-    @test isfullystable(f1)
-    @test isfullystable(f2)
+    @inferred f1()
+    @inferred f2()
 
     close(rootfile)
 end

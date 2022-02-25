@@ -2,7 +2,7 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::Union{IOStream, XRDStream, HTTPStream}
+    fobj::Union{MmapStream, XRDStream, HTTPStream}
     refs::Dict{Int32, Any}
 end
 
@@ -10,7 +10,7 @@ struct ROOTFile
     filename::String
     format_version::Int32
     header::FileHeader
-    fobj::Union{IOStream, XRDStream, HTTPStream}
+    fobj::Union{MmapStream, XRDStream, HTTPStream}
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
@@ -68,7 +68,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         filepath = filename[last(sep_idx):end]
         XRDStream(baseurl, filepath, "go")
     else
-        Base.open(filename)
+        MmapStream(filename)
     end
     head_buffer = IOBuffer(read(fobj, HEAD_BUFFER_SIZE))
     preamble = unpack(head_buffer, FilePreamble)
@@ -172,14 +172,8 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    lock(f)
-    try
-        S = streamer(f.fobj, tkey, f.streamers.refs)
-        return S
-    catch
-    finally
-        unlock(f)
-    end
+    S = streamer(f.fobj, tkey, f.streamers.refs)
+    return S
 end
 
 # FIXME unify with above?
@@ -472,17 +466,10 @@ function readbasket(f::ROOTFile, branch, ith)
 end
 
 function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nb)
-    lock(f)
-    local basketkey, compressedbytes
-    try
-        seek(f.fobj, seek_pos)
-        rawbuffer = OffsetBuffer(IOBuffer(read(f.fobj, nb)), seek_pos)
-        basketkey = unpack(rawbuffer, TBasketKey)
-        compressedbytes = compressed_datastream(rawbuffer, basketkey)
-    catch
-        finally
-        unlock(f)
-    end
+    local rawbuffer
+    rawbuffer = OffsetBuffer(IOBuffer(read_seek_nb(f.fobj, seek_pos, nb)), seek_pos)
+    basketkey = unpack(rawbuffer, TBasketKey)
+    compressedbytes = compressed_datastream(rawbuffer, basketkey)
 
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
 
