@@ -213,14 +213,17 @@ Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
 Base.getindex(lt::LazyTree, row::Int) = LazyEvent(innertable(lt), row)
 # kept lazy for broadcasting purpose
 Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
-function Base.getindex(lt::LazyTree, rang::UnitRange)
-    return LazyTree(innertable(lt)[rang])
+function Base.getindex(lt::LazyTree, rang)
+    bnames = propertynames(lt)
+    branches = asyncmap(b->getproperty(lt, b)[rang], bnames)
+    return LazyTree(TypedTables.Table(NamedTuple{bnames}(branches)))
 end
 
 # a specific event
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
+Base.getindex(lt::LazyTree, row, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
