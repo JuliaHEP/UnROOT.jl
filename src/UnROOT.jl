@@ -1,6 +1,7 @@
 module UnROOT
 
-using LazyArrays, Mmap
+using LazyArrays
+import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, lock, unlock, reinterpret
