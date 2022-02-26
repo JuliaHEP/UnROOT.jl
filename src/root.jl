@@ -83,41 +83,24 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     end
 
     # Streamers
-    if header.fSeekInfo != 0
-        @debug "Reading streamer info."
-        tail_start = max(0, header.fSeekInfo - 5000) # 5kb heuristic
+    seek(fobj, header.fSeekInfo)
+    stream_buffer = OffsetBuffer(IOBuffer(read(fobj, 10^5)), Int(header.fSeekInfo))
+    streamers = Streamers(stream_buffer)
 
-        seek(fobj, tail_start)
-        tail_buffer = OffsetBuffer(IOBuffer(read(fobj, 10^6)), Int(tail_start))
-        seek(tail_buffer, header.fSeekInfo)
-        streamers = Streamers(tail_buffer)
-    else
-        @debug "No streamer info present, skipping."
-    end
-
-    tkey = try # in case buffer is not enough
-        seek(head_buffer, header.fBEGIN)
-        unpack(head_buffer, TKey)
-    catch
-        seek(fobj, header.fBEGIN)
-        unpack(fobj, TKey)
-    end
-
-    dir_header = try # in case buffer is not enough
-        # Reading the header key for the top ROOT directory
-        seek(head_buffer, header.fBEGIN + header.fNbytesName)
-        unpack(head_buffer, ROOTDirectoryHeader)
-    catch
-        seek(fobj, header.fBEGIN + header.fNbytesName)
-        unpack(fobj, ROOTDirectoryHeader)
-    end
-
+    seek(head_buffer, header.fBEGIN + header.fNbytesName)
+    dir_header = unpack(head_buffer, ROOTDirectoryHeader)
     dirkey = dir_header.fSeekKeys
-    seek(tail_buffer, dirkey)
-    header_key = unpack(tail_buffer, TKey)
+    seek(fobj, dirkey)
+    tail_buffer = @async IOBuffer(read(fobj, 10^6))
 
-    n_keys = readtype(tail_buffer, Int32)
-    keys = [unpack(tail_buffer, TKey) for _ in 1:n_keys]
+    seek(head_buffer, header.fBEGIN)
+    tkey = unpack(head_buffer, TKey)
+
+    wait(tail_buffer)
+    unpack(tail_buffer.result, TKey)
+
+    n_keys = readtype(tail_buffer.result, Int32)
+    keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
