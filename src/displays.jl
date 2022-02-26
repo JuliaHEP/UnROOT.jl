@@ -76,6 +76,7 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     nothing
 end
 
+
 function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
     print(io, summary(br))
     println(": ")
@@ -89,6 +90,13 @@ function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
         Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
     end
     nothing
+
+# stop crazy stracktrace
+function Base.show(io::IO, 
+    ::Type{<:LazyTree{<:UnROOT.TypedTables.Table{NamedTuple{Ns, Vs}}}}) where {T, Ns, Vs}
+    elip = length(Ns) > 5 ? "..." : ""
+    println(io, "LazyTree with $(length(Ns)) branches:")
+    println(io, join(first(Ns, 5), ", "), elip)
 end
 
 function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
