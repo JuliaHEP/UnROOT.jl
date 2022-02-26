@@ -75,6 +75,22 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
+
+function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
+    print(io, summary(br))
+    println(": ")
+    if length(br) < 200
+        Base.print_array(IOContext(io, :limit => true), br[:])
+    else
+        head = @async br[1:100]
+        tail = @async br[end-99:end]
+        wait(head)
+        wait(tail)
+        Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
+    end
+    nothing
+end
+
 function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     _hs = _make_header(tree)
     maxrows = 10
