@@ -90,6 +90,7 @@ function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
         Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
     end
     nothing
+end
 
 # stop crazy stracktrace
 function Base.show(io::IO, 
