@@ -122,6 +122,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
+basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
+basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
@@ -138,8 +140,6 @@ Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
-basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
-basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
@@ -213,14 +213,17 @@ Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
 Base.getindex(lt::LazyTree, row::Int) = LazyEvent(innertable(lt), row)
 # kept lazy for broadcasting purpose
 Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
-function Base.getindex(lt::LazyTree, rang::UnitRange)
-    return LazyTree(innertable(lt)[rang])
+function Base.getindex(lt::LazyTree, rang)
+    bnames = propertynames(lt)
+    branches = asyncmap(b->getproperty(lt, b)[rang], bnames)
+    return LazyTree(TypedTables.Table(NamedTuple{bnames}(branches)))
 end
 
 # a specific event
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
+Base.getindex(lt::LazyTree, row, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 Base.firstindex(lt::LazyTree) = 1
@@ -290,9 +293,6 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
     tree isa TTree || error("$s is not a tree name.")
-    if length(branches) > 30
-        @warn "Your tree is quite wide, with $(length(branches)) branches, this will take compiler a moment."
-    end
     d = Dict{Symbol,LazyBranch}()
     _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
@@ -336,7 +336,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
     offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return vcat([basketarray(ba, i) for i in ib1:ib2]...)[range]
+    return Vcat(asyncmap(i->basketarray(ba, i), ib1:ib2)...)[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])

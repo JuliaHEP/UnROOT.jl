@@ -14,7 +14,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
     # then all TKeys in the file which are not for a TTree
     seen = Set{String}()
     ch = Vector{Union{TTree,TKeyNode,ROOTDirectory}}()
-    T === ROOTFile ? lock(f) : nothing
     for k in keys(f)
         try
             obj = f[k]
@@ -35,7 +34,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
             push!(ch, kn)
         end
     end
-    T === ROOTFile ? unlock(f) : nothing
     ch
 end
 function children(t::TTree)
@@ -75,6 +73,22 @@ function _show(io::IO, tree::LazyTree; kwargs...)
         display_size=(min(_ds[1], 40), min(_ds[2], 160)),
         kwargs...
     )
+    nothing
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
+    print(io, summary(br))
+    println(": ")
+    if length(br) < 200
+        Base.print_array(IOContext(io, :limit => true), br[:])
+    else
+        head = @async br[1:100]
+        tail = @async br[end-99:end]
+        wait(head)
+        wait(tail)
+        Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
+    end
     nothing
 end
 
