@@ -28,7 +28,7 @@ function _find_scitoken()
     op1 = get(ENV, "BEARER_TOKEN", "")
     op2 = get(ENV, "BEARER_TOKEN_FILE", "")
     op3 = get(ENV, "XDG_RUNTIME_DIR", "")
-    uid = Int(Libc.getuid())
+    uid = strip(read(`id -u`, String))
     op3_file = joinpath(op3, "bt_u$uid")
     op4_file = "/tmp/bt_u$uid"
     token = if !isempty(op1)
