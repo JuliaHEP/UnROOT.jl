@@ -55,8 +55,8 @@ At the same time, `event` inside the for-loop is not materialized until a field 
 is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
 
 XRootD is also supported, depending on the protocol:
-- the "url" has to start with `http://` or `https://`:
-- or the "url" has to start with `root://` and have another `//` to separate server and file path
+-   the "url" has to start with `http://` or `https://`:
+-   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
 ```julia
 julia> r = @time ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
   0.034877 seconds (5.13 k allocations: 533.125 KiB)

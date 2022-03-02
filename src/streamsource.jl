@@ -82,7 +82,6 @@ const SourceStream = Union{MmapStream, HTTPStream, XRDStream}
 
 function Base.read(fobj::SourceStream, ::Type{T}) where T
     return only(reinterpret(T, read(fobj, sizeof(T))))
-end
 
 function Base.position(fobj::SourceStream)
     fobj.seekloc
