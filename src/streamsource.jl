@@ -74,7 +74,7 @@ end
 const SourceStream = Union{MmapStream, HTTPStream}
 
 function Base.read(fobj::SourceStream, ::Type{T}) where T
-    return only(reinterpret(T, read(fobj, sizeof(T))))
+    return reinterpret(T, read(fobj, sizeof(T)))[1] # TODO: use `only`
 end
 
 function Base.position(fobj::SourceStream)
