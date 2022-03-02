@@ -59,11 +59,6 @@ const HEAD_BUFFER_SIZE = 1024
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
-    elseif startswith(filename, "root://")
-        sep_idx = findlast("//", filename)
-        baseurl = filename[8:first(sep_idx)-1]
-        filepath = filename[last(sep_idx):end]
-        XRDStream(baseurl, filepath, "go")
     else
         !isfile(filename) && "$filename is not a file"
         MmapStream(filename)
