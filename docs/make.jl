@@ -8,6 +8,7 @@ makedocs(;
     ),
     pages=[
         "Introduction" => "index.md",
+        "Example Usage" => "exampleusage.md",
         "Performance Tips" => "performancetips.md",
         "Advanced Usage" => [
             "Parse Custom Branch" => "advanced/custom_branch.md",

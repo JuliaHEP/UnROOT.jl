@@ -395,6 +395,8 @@ primitivetype(l::TLeafD) = Float64
     fMaximum
 end
 
+primitivetype(l::TLeafC) = UInt8
+
 function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
     preamble = Preamble(io, T)
     parsefields!(io, fields, TLeaf)

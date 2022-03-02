@@ -54,6 +54,18 @@ Only one basket per branch will be cached so you don't have to worry about runni
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
 is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
 
+XRootD is also supported, depending on the protocol:
+-   the "url" has to start with `http://` or `https://`:
+-   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
+```julia
+julia> r = @time ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
+  0.034877 seconds (5.13 k allocations: 533.125 KiB)
+ROOTFile with 1 entry and 18 streamers.
+
+julia> r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
+ROOTFile with 1 entry and 19 streamers.
+```
+
 ## Branch of custom struct
 
 We provide an experimental interface for hooking up UnROOT with your custom types

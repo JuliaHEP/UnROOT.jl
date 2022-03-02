@@ -238,7 +238,7 @@ end
 
 const ROOTDirectoryHeader = Union{ROOTDirectoryHeader32, ROOTDirectoryHeader64}
 
-function unpack(io::IOStream, ::Type{ROOTDirectoryHeader})
+function unpack(io, ::Type{ROOTDirectoryHeader})
     fVersion = readtype(io, Int16)
     skip(io, -2)
 
