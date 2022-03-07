@@ -360,6 +360,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                     Bool 
                 elseif elname == "unsigned int" 
                     UInt32
+                elseif elname == "signed char"
+                    Int8
                 elseif elname == "unsigned char" 
                     UInt8
                 elseif elname == "unsigned short"
