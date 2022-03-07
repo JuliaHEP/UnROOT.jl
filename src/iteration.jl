@@ -302,7 +302,7 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         if b isa Regex
             filter(_m(b), all_bnames)
         elseif b isa String
-            expand = filter(startswith("$b/$b"), all_bnames)
+            expand = filter(n->startswith(n, "$b/$b"), all_bnames)
             isempty(expand) ? filter(isequal(b), all_bnames) : expand
         else
             error("branch selection must be string or regex")
