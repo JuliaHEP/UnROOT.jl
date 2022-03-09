@@ -309,7 +309,8 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         end
     end
     for b in res_bnames
-        norm_name = replace(b, r"^.*?/" => "", "fCoordinates." => "")
+        norm_name = replace(b, r"^.*?/" => "")
+        norm_name = replace(norm_name, "fCoordinates." => "")
         norm_name = replace(norm_name, "." => "_")
         d[Symbol(norm_name)] = f["$s/$b"]
     end
