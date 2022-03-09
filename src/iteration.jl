@@ -309,7 +309,9 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         end
     end
     for b in res_bnames
-        d[Symbol(b)] = f["$s/$b"]
+        norm_name = replace(b, r"^.*?/" => "", "fCoordinates." => "")
+        norm_name = replace(norm_name, "." => "_")
+        d[Symbol(norm_name)] = f["$s/$b"]
     end
     return LazyTree(TypedTables.Table(d))
 end
