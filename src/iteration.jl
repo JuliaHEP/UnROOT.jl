@@ -258,7 +258,9 @@ function getbranchnamesrecursive(obj)
     out = Vector{String}()
     for b in obj.fBranches.elements
         push!(out, b.fName)
-        for subname in getbranchnamesrecursive(b)
+        subs = getbranchnamesrecursive(b)
+        !isempty(subs) && pop!(out)
+        for subname in subs
             push!(out, "$(b.fName)/$(subname)")
         end
     end
@@ -294,12 +296,20 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
     tree isa TTree || error("$s is not a tree name.")
     d = Dict{Symbol,LazyBranch}()
-    _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
-    branches = mapreduce(b -> filter(_m(b), getbranchnamesrecursive(tree)), ∪, branches)
-    SB = Symbol.(branches)
-    for b in SB
-        d[b] = f["$s/$b"]
+    all_bnames = getbranchnamesrecursive(tree)
+    res_bnames = mapreduce(∪, branches) do b
+        if b isa Regex
+            filter(_m(b), all_bnames)
+        elseif b isa String
+            expand = filter(n->startswith(n, "$b/$b"), all_bnames)
+            isempty(expand) ? filter(isequal(b), all_bnames) : expand
+        else
+            error("branch selection must be string or regex")
+        end
+    end
+    for b in res_bnames
+        d[Symbol(b)] = f["$s/$b"]
     end
     return LazyTree(TypedTables.Table(d))
 end
