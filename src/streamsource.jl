@@ -28,7 +28,7 @@ function _find_scitoken()
     op1 = get(ENV, "BEARER_TOKEN", "")
     op2 = get(ENV, "BEARER_TOKEN_FILE", "")
     op3 = get(ENV, "XDG_RUNTIME_DIR", "")
-    uid = @static if Base.Sys.iswindows() 
+    uid = @static if Sys.iswindows() 
             "julia"
         else
             strip(read(`id -u`, String))
