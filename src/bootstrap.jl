@@ -203,6 +203,41 @@ end
 primitivetype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
 
 # FIXME this should be generated and inherited from TLeaf
+@with_kw struct TLeafS
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafS})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Int16)
+    fields[:fMaximum] = readtype(io, Int16)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafS})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafS) = l.fIsUnsigned ? UInt16 : Int16
+
+# FIXME this should be generated and inherited from TLeaf
 @with_kw struct TLeafL
     # from TNamed
     fName
