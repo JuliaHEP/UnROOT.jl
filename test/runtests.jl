@@ -91,6 +91,8 @@ end
 
 
 @testset "ROOTFile" begin
+    @test_throws SystemError ROOTFile("non_existent_fname.root")
+
     ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root")) do rootfile
         @test 100 == rootfile.header.fBEGIN
         @test 1 == length(rootfile.directory.keys)
