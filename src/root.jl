@@ -60,7 +60,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
     else
-        !isfile(filename) && error("$filename is not a file")
+        !isfile(filename) && throw(SystemError("opening file $filename", 2))
         MmapStream(filename)
     end
     header_bytes = read(fobj, HEAD_BUFFER_SIZE)
