@@ -393,6 +393,13 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         end
     else
         _type = primitivetype(leaf)
+        if leaf.fLen > 1
+            _type = SVector{_type, 9}
+            _jaggtype = Nooffsetjagg
+
+            return _type, _jaggtype
+        end
+        _type = primitivetype(leaf)
         _type = _jaggtype === Nojagg ? _type : Vector{_type}
     end
 
