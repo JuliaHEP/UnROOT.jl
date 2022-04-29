@@ -710,9 +710,16 @@ end
 
 @testset "C-array types" begin
     tree = LazyTree(UnROOT.samplefile("issue165_multiple_baskets.root"), "arrays")
+    ele = tree.carr[3]
     @test length(tree.carr) == 3
-    @test length(tree.carr[1]) == 9
-    @test eltype(tree.carr[1]) == Float64
+    @test length(ele) == 9
+    @test eltype(ele) == Float64
+    @test length(typeof(ele)) == 9
+    @test all(ele .≈ 
+    [0.36131154017584005, 0.960925221890642, 0.10014465828432918, 
+     0.48728318116035463, 0.283720626162235, 0.9577006860439203, 
+     0.9665145124152836, 0.07112044611532262, 0.7229358808709941])
+    @test all(ele .== [ele...])
 end
 
 @testset "basketarray_iter()" begin
