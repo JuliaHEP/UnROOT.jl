@@ -708,6 +708,13 @@ end
     @test all(onesrow .== 1)
 end
 
+@testset "C-array types" begin
+    tree = LazyTree(UnROOT.samplefile("issue165_multiple_baskets.root"), "arrays")
+    @test length(tree.carr) == 3
+    @test length(tree.carr[1]) == 9
+    @test eltype(tree.carr[1]) == Float64
+end
+
 @testset "basketarray_iter()" begin
     f = UnROOT.samplefile("tree_with_vector_multiple_baskets.root")
     t = LazyTree(f,"t1")
