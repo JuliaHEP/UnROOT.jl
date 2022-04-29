@@ -31,6 +31,28 @@ end
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
+struct FixLenVector{N, T} <: AbstractVector{T}
+    vec::SVector{N, T}
+end
+(::Type{FixLenVector{N, T}})() where {N, T} = FixLenVector(zero(SVector{N, T}))
+Base.length(x::FixLenVector) = length(x.vec)
+Base.length(::Type{FixLenVector{N, T}}) where {N, T} = N
+Base.size(x::FixLenVector) = size(x.vec)
+Base.eltype(x::FixLenVector) = eltype(x.vec)
+Base.iterate(x::FixLenVector) = iterate(x.vec)
+Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
+Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
+function Base.reinterpret(::Type{FixLenVector{N, T}}, v::AbstractVector{UInt8}) where {N, T}
+    vs = reinterpret(T, v)
+    @. vs = ntoh(vs)
+    FixLenVector(SVector{N, T}(vs))
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T <: FixLenVector}
+    n = sizeof(T)
+    [
+     reinterpret(T, x) for x in Base.Iterators.partition(rawdata, n)
+    ]
+end
 
 # TLorentzVector
 const LVF64 = LorentzVector{Float64}
