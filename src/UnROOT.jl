@@ -3,6 +3,7 @@ module UnROOT
 using LazyArrays
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
+#export FixSizeArray, FixSizeMatrix, FixSizeVector  # would make it more readable in printed tables but not necessary
 
 import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, reinterpret
 ntoh(b::Bool) = b

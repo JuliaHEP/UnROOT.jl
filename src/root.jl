@@ -394,7 +394,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     else
         _type = primitivetype(leaf)
         if leaf.fLen > 1 # treat NTuple as Nojagg since size is static
-            _type = FixLenVector{Int(leaf.fLen), _type}
+            dims = LeafDims(leaf)
+            _type = FixSizeArray{Tuple{Int.(dims)...}, _type, length(dims)}
             return _type, Nojagg
         end
         _type = _jaggtype === Nojagg ? _type : Vector{_type}

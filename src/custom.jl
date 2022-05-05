@@ -31,23 +31,33 @@ end
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
-struct FixLenVector{N, T} <: AbstractVector{T}
-    vec::SVector{N, T}
+# Fixed-size c-style array
+struct FixSizeArray{S <: Tuple, T, N} <: AbstractArray{T, N}
+    arr::SArray{S, T, N}
 end
-(::Type{FixLenVector{N, T}})() where {N, T} = FixLenVector(zero(SVector{N, T}))
-Base.length(x::FixLenVector) = length(x.vec)
-Base.length(::Type{FixLenVector{N, T}}) where {N, T} = N
-Base.size(x::FixLenVector) = size(x.vec)
-Base.eltype(x::FixLenVector) = eltype(x.vec)
-Base.iterate(x::FixLenVector) = iterate(x.vec)
-Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
-Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
-function Base.reinterpret(::Type{FixLenVector{N, T}}, v::AbstractVector{UInt8}) where {N, T}
+const FixSizeVector{N, T} = FixSizeArray{Tuple{N}, T, 1}
+const FixSizeMatrix{M, N, T} = FixSizeArray{Tuple{M, N}, T, 2}
+
+(::Type{FixSizeArray{S, T, N}})() where {S, T, N} = FixSizeArray(zero(SArray{S, T, N}))
+Base.length(x::FixSizeArray) = length(x.arr)
+Base.length(t::Type{<:FixSizeArray}) = length(fieldtype(t,:arr))
+Base.size(x::FixSizeArray) = size(x.arr)
+Base.eltype(x::FixSizeArray) = eltype(x.arr)
+Base.iterate(x::FixSizeArray) = iterate(x.arr)
+Base.iterate(x::FixSizeArray, n) = iterate(x.arr, n)
+Base.getindex(x::FixSizeArray, n...) = getindex(x.arr, n...)
+# need this workaround since Base.sizeof is only correctly working for SArray
+# with all 4 template arguments (note only 3 are used in FixSizeArray struct).
+# Could get rid off this if it would be possible to defer the total size in our
+# wrapper struct i.e. see https://github.com/JuliaLang/julia/issues/18466
+Base.sizeof(::Type{<:FixSizeArray{S,T,N}}) where {S, T, N} =  sizeof(T)*prod(fieldtypes(S))
+function Base.reinterpret(::Type{<:FixSizeArray{S,T,N}}, v::AbstractVector{UInt8})  where {S, T, N}
     vs = reinterpret(T, v)
     @. vs = ntoh(vs)
-    FixLenVector(SVector{N, T}(vs))
+    FixSizeArray(SArray{S, T, N}(vs))
 end
-function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T <: FixLenVector}
+
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T <: FixSizeArray}
     n = sizeof(T)
     [
      reinterpret(T, x) for x in Base.Iterators.partition(rawdata, n)

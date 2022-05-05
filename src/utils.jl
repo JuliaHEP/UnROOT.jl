@@ -104,3 +104,5 @@ end
 function samplefile(filename::AbstractString)
     return ROOTFile(normpath(joinpath(@__DIR__, "../test/samples", filename)))
 end
+
+LeafDims(leaf) = parse.(Int,split(strip(match(r"\[.*\]",leaf.fTitle).match,['[',']']),"]["))
