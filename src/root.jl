@@ -318,9 +318,9 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(f, branch, leaf)
-    if hasproperty(branch, :fClassName)
-        classname = branch.fClassName # the C++ class name, such as "vector<int>"
-        parentname = branch.fParentName  # assuming it has a parent ;)
+    if hasproperty(branch, :fClassName) || haskey(customstructs, branch.fTitle)
+        classname = hasproperty(branch, :fClassName) ? branch.fClassName : branch.fTitle  # the C++ class name, such as "vector<int>" if C++-class
+        parentname = hasproperty(branch, :fParentName) ? branch.fParentName : nothing  # assuming it has a parent ;)
         try
             # this will call a customize routine if defined by user
             # see custom.jl
@@ -391,8 +391,6 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                 _type = Vector{_type}
             end
         end
-    elseif haskey(customstructs, branch.fTitle)
-        return customstructs[branch.fTitle], _jaggtype
     else
         _type = primitivetype(leaf)
         if leaf.fLen > 1 # treat NTuple as Nojagg since size is static
