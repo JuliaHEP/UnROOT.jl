@@ -391,6 +391,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                 _type = Vector{_type}
             end
         end
+    elseif haskey(customstructs, branch.fTitle)
+        return customstructs[branch.fTitle], _jaggtype
     else
         _type = primitivetype(leaf)
         if leaf.fLen > 1 # treat NTuple as Nojagg since size is static
