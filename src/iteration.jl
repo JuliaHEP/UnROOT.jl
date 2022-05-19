@@ -309,9 +309,17 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         end
     end
     for b in res_bnames
-        norm_name = replace(b, r"^.*?/" => "")
-        norm_name = replace(norm_name, "fCoordinates." => "")
-        norm_name = replace(norm_name, "." => "_")
+        # split by `.` or `/`
+        norm_name = b
+        v = split(b, r"\.|\/")
+        if length(v) >= 2 # only normalize name when branches are split
+            head, tail... = v
+            # remove duplicated info
+            replace!(tail, head => "")
+            # remove known split branch information
+            replace!(tail, "fCoordinates" => "")
+            norm_name = join([head; join(tail)], "_")
+        end
         d[Symbol(norm_name)] = f["$s/$b"]
     end
     return LazyTree(TypedTables.Table(d))
