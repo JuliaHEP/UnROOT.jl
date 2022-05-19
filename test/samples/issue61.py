@@ -1,6 +1,6 @@
 import ROOT as r
 
-# https://github.com/tamasgal/UnROOT.jl/issues/61
+# https://github.com/JuliaHEP/UnROOT.jl/issues/61
 # needs to be run in a specific environment to trigger the issue
 # in the first place
 

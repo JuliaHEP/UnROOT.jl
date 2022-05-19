@@ -79,7 +79,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
     print(io, summary(br))
-    println(": ")
+    println(io, ": ")
     if length(br) < 200
         Base.print_array(IOContext(io, :limit => true), br[:])
     else

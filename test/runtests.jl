@@ -91,6 +91,8 @@ end
 
 
 @testset "ROOTFile" begin
+    @test_throws SystemError ROOTFile("non_existent_fname.root")
+
     ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root")) do rootfile
         @test 100 == rootfile.header.fBEGIN
         @test 1 == length(rootfile.directory.keys)
@@ -665,7 +667,7 @@ end
 
 
         nmus .= 0
-        @batch for evt in t
+        Threads.@threads for evt in t
             nmus[Threads.threadid()] += length(evt.Muon_pt)
         end
         nthreads > 1 && @test count(>(0), nmus) > 1  # test @threads is actually threading
@@ -704,6 +706,20 @@ end
     f = UnROOT.samplefile("tree_basictypes.root")
     onesrow = LazyTree(f,"t")[2] |> collect |> values .|> first .|> Int
     @test all(onesrow .== 1)
+end
+
+@testset "C-array types" begin
+    tree = LazyTree(UnROOT.samplefile("issue165_multiple_baskets.root"), "arrays")
+    ele = tree.carr[3]
+    @test length(tree.carr) == 3
+    @test length(ele) == 9
+    @test eltype(ele) == Float64
+    @test length(typeof(ele)) == 9
+    @test all(ele .≈ 
+            [0.7775048011809144, 0.8664217530127716, 0.4918492038230641, 
+             0.24464299401484568, 0.38991686533667, 0.15690925771226608, 
+             0.3850047958013624, 0.9268160513261408, 0.9298329730191421])
+    @test all(ele .== [ele...])
 end
 
 @testset "basketarray_iter()" begin
