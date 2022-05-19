@@ -313,7 +313,8 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         norm_name = b
         v = split(b, r"\.|\/")
         if length(v) >= 2 # only normalize name when branches are split
-            head, tail... = v
+            head = v[1]
+            tail = v[2:end]
             # remove duplicated info
             replace!(tail, head => "")
             # remove known split branch information
