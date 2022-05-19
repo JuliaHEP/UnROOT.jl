@@ -279,6 +279,10 @@ This means that at any given time only `N` baskets are cached, where `N` is the 
 !!! note
     Accessing with `[start:stop]` will return a `LazyTree` with concrete internal table.
 
+!!! warning
+    Split branches are re-named, and the exact renaming may change. See 
+    [Issue 156](https://github.com/JuliaHEP/UnROOT.jl/pull/156) for context.
+
 # Example
 ```julia
 julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\$"])
@@ -309,7 +313,19 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
         end
     end
     for b in res_bnames
-        d[Symbol(b)] = f["$s/$b"]
+        # split by `.` or `/`
+        norm_name = b
+        v = split(b, r"\.|\/")
+        if length(v) >= 2 # only normalize name when branches are split
+            head = v[1]
+            tail = v[2:end]
+            # remove duplicated info
+            replace!(tail, head => "")
+            # remove known split branch information
+            replace!(tail, "fCoordinates" => "")
+            norm_name = join([head; join(tail)], "_")
+        end
+        d[Symbol(norm_name)] = f["$s/$b"]
     end
     return LazyTree(TypedTables.Table(d))
 end

@@ -528,16 +528,16 @@ end
 # Issues
 
 @testset "issues" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue7.root"))
+    rootfile = UnROOT.samplefile("issue7.root")
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
     close(rootfile)
 
-    # issue 55
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
+    # issue #55 and #156
+    rootfile = UnROOT.samplefile("cms_ntuple_wjet.root")
     pts1 = UnROOT.array(rootfile, "variable/met_p4/fCoordinates/fCoordinates.fPt"; raw=false)
-    pts2 = LazyTree(rootfile, "variable", [r"met_p4/fCoordinates/.*", "mll"])[!, Symbol("met_p4/fCoordinates/fCoordinates.fPt")]
+    pts2 = LazyTree(rootfile, "variable", [r"met_p4/fCoordinates/.*", "mll"])[!, Symbol("met_p4_fPt")]
     pts3 = rootfile["variable/good_jets_p4/good_jets_p4.fCoordinates.fPt"]
     @test 24 == length(pts1)
     @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts1[1:4]
@@ -546,7 +546,7 @@ end
     close(rootfile)
 
     # issue 61
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
+    rootfile = UnROOT.samplefile("issue61.root")
     @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
 
