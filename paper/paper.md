@@ -159,7 +159,10 @@ implementation.
 `UnROOT.jl` is an important package in high-energy physics and related
 scientific fields where the `ROOT` dataformat is established, since the ability
 to read and parse scientific data is certainly the first mandatory step to open
-the window to a programming language and its package ecosystem.
+the window to a programming language and its package ecosystem. `UnROOT.jl` has
+demonstrated tree processing speeds at the same level as the `C++` `ROOT`
+framework in per-event iteration as well as the Python-based `uproot` library in
+chunked iteration.
 
 # References
 
