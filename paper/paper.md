@@ -26,7 +26,7 @@ date: 08 October 2021
 bibliography: paper.bib
 ---
 # Summary
-`UnROOT.jl` is a pure Julia implementation of CERN ROOT[@Brun:1997pa] files I/O
+`UnROOT.jl` is a pure Julia implementation of CERN ROOT [@Brun:1997pa] files I/O
 (`.root`) that is fast, memory-efficient, and composes well with Julia's
 high-performance iteration, array, and multi-threading interfaces.
 
@@ -36,7 +36,7 @@ problem for a long time. Often, physicists would start prototyping with a
 `Python` front-end which glues to a `C/C++/Fortran` back-end. Soon they will hit
 a task which is extremely hard to express in columnar (i.e. "vectorized") style,
 a type of problems which are normally tackled with libraries like
-`numpy`[@harris2020array] or `pandas`[@reback2020pandas]. This usually leads to
+`numpy` [@harris2020array] or `pandas` [@reback2020pandas]. This usually leads to
 either writing `C++` kernels and interface them with `Python`, or porting the
 prototype to `C++` and start to maintain two code bases including the wrapper
 code. Both options are engineering challenges for physicists who usually have no
@@ -50,7 +50,7 @@ trivial most of the time.
 `UnROOT.jl` attempts to solve all of the above by choosing Julia, a
 high-performance language with simple and expressive syntax [@Julia]. Julia is
 designed to solve the two-language problem in general. This has been studied for
-HEP specifically as well[@JuliaPerformance]. Analysis software written in Julia
+HEP specifically as well [@JuliaPerformance]. Analysis software written in Julia
 can freely escape to a `for-loop` whenever vectorized-style processing is not
 flexible enough, without any performance degradation. At the same time,
 `UnROOT.jl` transparently supports multi-threading and multi-processing by
@@ -79,7 +79,7 @@ branches are supported as well, including their nested variants. Additionally,
 `UnROOT.jl` provides a way to hook into the deserialisation process of custom
 types where the automatic parsing fails. By the time of writing, `UnROOT` is
 already used successfully in the data analysis of the KM3NeT neutrino
-telescope[@Adri_n_Mart_nez_2016] and the CMS detector[@Ehataht:2020ebp].
+telescope [@Adri_n_Mart_nez_2016] and the CMS detector [@Ehataht:2020ebp].
 
 Opening and loading a `TTree` lazily -- i.e. without reading the whole data into
 memory -- is simple:
@@ -128,7 +128,7 @@ mytree.Muon_pt # a column as a lazy vector of vectors
 
 The `LazyTree` is designed as `<: AbstractArray` which makes it compose well
 with the rest of the Julia ecosystem. For example, syntactic loop fusion [^1] or
-Query-style tabular manipulations provided by packages like `Query.jl`[^2] without
+Query-style tabular manipulations provided by packages like `Query.jl` [^2] without
 any additional code support just work out-of-the-box.
 
 # Comparison with existing software
@@ -141,16 +141,16 @@ it is by the time of writing the most complete and best documented ROOT I/O
 implementation.
 
 - `UpROOT.jl` is a wrapper for the aforementioned `uproot` Python package and
-  uses `PyCall.jl`[^3] as a bridge, which means that it relies on `Python` as a
+  uses `PyCall.jl` [^3] as a bridge, which means that it relies on `Python` as a
   glue language. In addition to that, `uproot` itself utilises the C++ library
-  `AwkwardArray`[@pivarski_jim_2018_6522027] to efficiently deal with jagged
+  `AwkwardArray` [@pivarski_jim_2018_6522027] to efficiently deal with jagged
   data in `ROOT` files. Most of the features of `uproot` are available in the
   Julia context, but there are intrinsic performance and usability drawbacks due
   to the three language architecture.
 
-- `ROOT.jl`[^4] is one of the oldest Julia `ROOT` packages. It uses C++ bindings to
+- `ROOT.jl` [^4] is one of the oldest Julia `ROOT` packages. It uses C++ bindings to
   directly wrap the `ROOT` framework and therefore is not limited ot I/O.
-  Unfortunately, the `Cxx.jl`[^5] package which is used to generate the C++ glue
+  Unfortunately, the `Cxx.jl` [^5] package which is used to generate the C++ glue
   code does not support Julia 1.4 or later. The multi-threaded features are also
   limited.
 
