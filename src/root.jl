@@ -65,7 +65,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         filepath = filename[last(sep_idx):end]
         XRDStream(baseurl, filepath, "go")
     else
-        !isfile(filename) && "$filename is not a file"
+        !isfile(filename) && throw(SystemError("opening file $filename", 2))
         MmapStream(filename)
     end
     header_bytes = read(fobj, HEAD_BUFFER_SIZE)
@@ -365,6 +365,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                     Bool 
                 elseif elname == "unsigned int" 
                     UInt32
+                elseif elname == "signed char"
+                    Int8
                 elseif elname == "unsigned char" 
                     UInt8
                 elseif elname == "unsigned short"
@@ -396,9 +398,12 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         end
     else
         _type = primitivetype(leaf)
+        if leaf.fLen > 1 # treat NTuple as Nojagg since size is static
+            _type = FixLenVector{Int(leaf.fLen), _type}
+            return _type, Nojagg
+        end
         _type = _jaggtype === Nojagg ? _type : Vector{_type}
     end
-
     return _type, _jaggtype
 end
 

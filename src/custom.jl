@@ -31,6 +31,28 @@ end
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
+struct FixLenVector{N, T} <: AbstractVector{T}
+    vec::SVector{N, T}
+end
+(::Type{FixLenVector{N, T}})() where {N, T} = FixLenVector(zero(SVector{N, T}))
+Base.length(x::FixLenVector) = length(x.vec)
+Base.length(::Type{FixLenVector{N, T}}) where {N, T} = N
+Base.size(x::FixLenVector) = size(x.vec)
+Base.eltype(x::FixLenVector) = eltype(x.vec)
+Base.iterate(x::FixLenVector) = iterate(x.vec)
+Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
+Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
+function Base.reinterpret(::Type{FixLenVector{N, T}}, v::AbstractVector{UInt8}) where {N, T}
+    vs = reinterpret(T, v)
+    @. vs = ntoh(vs)
+    FixLenVector(SVector{N, T}(vs))
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T <: FixLenVector}
+    n = sizeof(T)
+    [
+     reinterpret(T, x) for x in Base.Iterators.partition(rawdata, n)
+    ]
+end
 
 # TLorentzVector
 const LVF64 = LorentzVector{Float64}
@@ -38,7 +60,8 @@ Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(l
 function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
-    v4 = ntoh.(reinterpret(Float64, @view v[1+32:end]))
+    v4 = (reinterpret(Float64, @view v[1+32:end]))
+    v4 .= ntoh.(v4)
     # t,x,y,z in LorentzVectors.jl
     LVF64(v4[4], v4[1], v4[2], v4[3])
 end
