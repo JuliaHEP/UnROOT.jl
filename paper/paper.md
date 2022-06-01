@@ -66,15 +66,23 @@ their own data structures (C++ classes) which derive from `ROOT` classes and
 serialise them into directories, trees and branches. The information about the
 deserialisation is written to the output file (therfore: self-descriptive) but
 there are some basic structures and constants needed to bootstrap the parsing
-process.
+process. One of the biggest advantages of the `ROOT` data format is the ability
+to store jagged structures like nested arrays of structs with different
+sub-array lengths. In high-energy physics, such structures are preferred to
+resemble e.g. particle interactions and detector responses as signals from 
+different hardware components, combined into a tree of events.
 
-`UnROOT.jl` understands the core structure of `ROOT` files and is able to
-deserialize instances of the commonly used `TH1`, `TH2`, `TDirectory`, and
-`TTree` ROOT classes. All basic C++ types for `TTree` branches are supported,
-including their nested variants. Additionally, `UnROOT.jl` provides a way to
-hook into the deserialisation of custom types, where the automatic parsing
-fails. Opening and loading a `TTree` lazily -- i.e. without reading the whole
-data into memory -- is simple:
+`UnROOT.jl` understands the core structure of `ROOT` files, and is able to
+decompress and deserialize instances of the commonly used `TH1`, `TH2`,
+`TDirectory`, `TTree` etc. ROOT classes. All basic C++ types for `TTree`
+branches are supported as well, including their nested variants. Additionally,
+`UnROOT.jl` provides a way to hook into the deserialisation process of custom
+types where the automatic parsing fails. By the time of writing, `UnROOT` is
+already used successfully in the data analysis of the KM3NeT neutrino
+telescope[@Adri_n_Mart_nez_2016] and the CMS detector.
+
+Opening and loading a `TTree` lazily -- i.e. without reading the whole data into
+memory -- is simple:
 
 ```julia
 julia> using UnROOT
@@ -101,9 +109,10 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
        ...
 ```
 
-Then, the `LazyTree` object acts as a table which suports sequential or parallel
-iteration, selectections and filtering based on ranges or masks, and operations
-on whole columns:
+As seen in the above example, the entries in the columns are multi-dimensional
+and jagged. The `LazyTree` object acts as a table which suports sequential
+or parallel iteration, selections and filtering based on ranges or masks, and
+operations on whole columns:
 
 ```julia
 for event in mytree
@@ -119,7 +128,7 @@ mytree.Muon_pt # whole column as a lazy vector of vectors
 
 The `LazyTree` is designed as `<: AbstractArray` which makes it compose well
 with the rest of the Julia ecosystem. For example, syntactic loop fusion [^1] or
-Query-style tabular manipulations provided by packages like `Query.jl` without
+Query-style tabular manipulations provided by packages like `Query.jl`[^2] without
 any additional code support just work out-of-the-box.
 
 # Comparison with existing software
@@ -131,21 +140,32 @@ and played (still plays) an important role for the development of `UnROOT.jl` as
 it is by the time of writing the most complete and best documented ROOT I/O
 implementation.
 
-`UpROOT.jl` is a wrapper for `uproot` and uses `PyCall` as a bridge. (TODO:
-problems of Julia->PyWrapper->Awkward)
+- `UpROOT.jl` is a wrapper for the aforementioned `uproot` Python package and
+  uses `PyCall.jl`[^3] as a bridge, which means that it relies on `Python` as a
+  glue language. In addition to that, `uproot` itself utilises the C++ library
+  `AwkwardArray`[@pivarski_jim_2018_6522027] to efficiently deal with jagged
+  data in `ROOT` files. Most of the features of `uproot` are available in the
+  Julia context, but there are intrinsic performance and usability drawbacks due
+  to the three language architecture.
 
-- ROOT.jl
-- ...
-
-
-
-_ (?) Generic statement like: `UpROOT.jl` has demonstrated tree processing
-speeds at the same level as the `C++` `ROOT` framework as well as the
-Python-based `uproot` library _
+- `ROOT.jl`[^4] is one of the oldest Julia `ROOT` packages. It uses C++ bindings to
+  directly wrap the `ROOT` framework and therefore is not limited ot I/O.
+  Unfortunately, the `Cxx.jl`[^5] package which is used to generate the C++ glue
+  code does not support Julia 1.4 or later. The multi-threaded features are also
+  limited.
 
 # Conclusion
+
+`UnROOT.jl` is an important package in high-energy physics and related
+scientific fields where the `ROOT` dataformat is established, since the ability
+to read and parse scientific data is certainly the first mandatory step to open
+the window to a programming language and its package ecosystem.
 
 # References
 
 
 [^1]: https://julialang.org/blog/2017/01/moredots/
+[^2]: https://github.com/queryverse/Query.jl
+[^3]: https://github.com/JuliaPy/PyCall.jl
+[^4]: https://github.com/JuliaHEP/ROOT.jl
+[^5]: https://github.com/JuliaInterop/Cxx.jl
