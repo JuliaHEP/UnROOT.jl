@@ -123,7 +123,7 @@ Threads.@threads for event in mytree # multi-threading
     # ... Operate on event
 end
 
-mytree.Muon_pt # whole column as a lazy vector of vectors
+mytree.Muon_pt # a column as a lazy vector of vectors
 ```
 
 The `LazyTree` is designed as `<: AbstractArray` which makes it compose well
