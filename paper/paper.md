@@ -104,7 +104,7 @@ Threads.@threads for event in mytree # multi-threading
     # ... Operate on event
 end
 
-mytree.Muon_pt # whole column as a lazy vector of vectors
+mytree.Muon_pt # a column as a lazy vector of vectors
 ```
 
 The `LazyTree` is designed as `<: AbstractArray` which makes it compose well with
@@ -112,30 +112,14 @@ the rest of the Julia ecosystem. For example, syntactic loop fusion [^1] or
  Query-style tabular manipulations provided by packages like `Query.jl`
 without any additional code support just work out-of-the-box.
 
-# Comparison with existing software
-
-This section focusses on the comparison with other existing ROOT I/O solutions
-in the Julia universe, however, one honorable mention is
-`uproot` [@jim_pivarski_2021_5539722], which is a purely Python-based ROOT I/O
-library and played (still plays) an important role for the development of `UnROOT.jl`
-as it is by the time of writing the most complete and best documented ROOT I/O
-implementation.
-
-`UpROOT.jl` is a wrapper for `uproot` and uses `PyCall` as a bridge. (TODO:
-problems of Julia->PyWrapper->Awkward)
-
-- ROOT.jl
-- ...
-
-
-
-_ (?) Generic statement like: `UpROOT.jl` has demonstrated tree processing
-speeds at the same level as the `C++` `ROOT` framework as well as the
-Python-based `uproot` library _
-
 # Conclusion
+`UnROOT.jl` has demonstrated tree processing
+speeds at the same level as the `C++` `ROOT` framework in per-event iteration
+as well as the Python-based `uproot` library in chunked iteration.
+
+As a pure Julia package, `UnROOT.jl` enables efficient and flexible usage of root data as
+part of big data processing or machine learning pipeline.
 
 # References
-
 
 [^1]: https://julialang.org/blog/2017/01/moredots/
