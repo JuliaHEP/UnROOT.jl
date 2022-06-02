@@ -64,7 +64,7 @@ the main features of Julia.
 The `ROOT` dataformat is flexible and mostly self-descriptive. Users can define
 their own data structures (C++ classes) which derive from `ROOT` classes and
 serialise them into directories, trees and branches. The information about the
-deserialisation is written to the output file (therfore: self-descriptive) but
+deserialisation is written to the output file (therefore: self-descriptive) but
 there are some basic structures and constants needed to bootstrap the parsing
 process. One of the biggest advantages of the `ROOT` data format is the ability
 to store jagged structures like nested arrays of structs with different
