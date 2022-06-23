@@ -219,6 +219,8 @@ function Base.getindex(lt::LazyTree, rang)
     return LazyTree(TypedTables.Table(NamedTuple{bnames}(branches)))
 end
 
+Base.view(lt::LazyTree, idx) = LazyTree(@view innertable(lt)[idx])
+
 # a specific event
 Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
