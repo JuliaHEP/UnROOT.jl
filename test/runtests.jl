@@ -310,8 +310,8 @@ end
     alloc2 = @allocated v = @view data[3:90]
     v = @view data[3:80]
     @test alloc2 < alloc1/100
-    @static if VERSION > v"1.7"
-        @test alloc < 50
+    @static if VERSION >= v"1.8"
+        @test alloc2 < 50
     end
     @test all(v.int32_array .== data.int32_array[3:80])
 
