@@ -304,10 +304,13 @@ end
 
 @testset "View" begin
     data = LazyTree(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"), "t1")
+    data[1:2]
     @view data[1:2]
-    alloc = @allocated v = @view data[3:80]
+    alloc1 = @allocated v = data[3:90]
+    alloc2 = @allocated v = @view data[3:90]
     v = @view data[3:80]
-    @static if VERSION >= v"1.7"
+    @test alloc2 < alloc1/100
+    @static if VERSION > v"1.7"
         @test alloc < 50
     end
     @test all(v.int32_array .== data.int32_array[3:80])
