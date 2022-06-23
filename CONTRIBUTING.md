@@ -28,7 +28,7 @@ our [mailist](https://groups.google.com/g/julia-hep).
 
 ### source code organization
 
-The following table shows how the Flux code is organized:
+The following table shows how the code is organized:
 
 | Directory  | Contents |
 | ------------- | ------------- |
