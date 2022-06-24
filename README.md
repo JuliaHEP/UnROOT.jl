@@ -75,13 +75,10 @@ that only takes 2 steps, as explained [in the docs](https://JuliaHEP.github.io/U
 As a show case for this functionality, the `TLorentzVector` support in UnROOT is implemented
 with the said plug-in system.
 
-## Main challenges
-- ROOT data is generally stored as big endian and is a
-  self-descriptive format, i.e. so-called streamers are stored in the files
-  which describe the actual structure of the data in the corresponding branches.
-  These streamers are read during runtime and need to be used to generate
-  Julia structs and `unpack` methods on the fly.
-- Performance is very important for a low level I/O library.
+## Support & Contributiing
+- Use Github issues for any bug reporting or feature request; feel free to make PRs, 
+bug fixing, feature tuning, quality of life, docs, examples etc.
+- See `CONTRIBUTING.md` for more information and recommended workflows in contributing to this package.
 
 
 ## TODOs
@@ -112,6 +109,7 @@ of inspiration and information for reverse engineering the ROOT binary
 structures.
 
 ## Behind the scene
+
 <details><summary>Some additional debug output: </summary>
 <p>
 
