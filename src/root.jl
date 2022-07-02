@@ -55,7 +55,7 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
-const HEAD_BUFFER_SIZE = 1024
+const HEAD_BUFFER_SIZE = 2048
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
@@ -69,7 +69,9 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         MmapStream(filename)
     end
     header_bytes = read(fobj, HEAD_BUFFER_SIZE)
-    @assert header_bytes[1:4] ==  [0x72, 0x6f, 0x6f, 0x74] "$filename is not a ROOT file."
+    if header_bytes[1:4] != [0x72, 0x6f, 0x6f, 0x74]
+        error("$filename is not a ROOT file.")
+    end
     head_buffer = IOBuffer(header_bytes)
     preamble = unpack(head_buffer, FilePreamble)
     format_version = preamble.fVersion
@@ -91,7 +93,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     dir_header = unpack(head_buffer, ROOTDirectoryHeader)
     dirkey = dir_header.fSeekKeys
     seek(fobj, dirkey)
-    tail_buffer = @async IOBuffer(read(fobj, 10^6))
+    tail_buffer = @async IOBuffer(read(fobj, 10^7))
 
     seek(head_buffer, header.fBEGIN)
     tkey = unpack(head_buffer, TKey)
