@@ -12,7 +12,15 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
+## Installation Guide
+1. Download the latest [Julia release](https://julialang.org/downloads/)
+2. Open up Julia REPL (hit `]` once to enter Pkg mode, hit backspace to exit it)
+```julia
+julia>]
+(v1.8) pkg> add UnROOT
+```
 ## Quick Start (see [docs](https://JuliaHEP.github.io/UnROOT.jl/dev/) for more)
+
 ```julia
 julia> using UnROOT
 
