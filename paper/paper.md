@@ -31,14 +31,14 @@ bibliography: paper.bib
 high-performance iteration, array, and multi-threading interfaces.
 
 # Statement of Need
-The High-Energy Physics (HEP) community, especially the group doing analysis, 
-has facing the two-language
+The High-Energy Physics (HEP) community, especially in data analysis, 
+has been facing the two-language
 problem for a long time. Often, physicists would start prototyping with a
 `Python` front-end which glues to a `C/C++/Fortran` back-end. Soon they will hit
-a task which is extremely hard to express in columnar (i.e. "vectorized") style,
+a task which can be challenging to express in columnar (i.e. "vectorized") style,
 a type of problems which are normally tackled with libraries like
 `numpy` [@harris2020array] or `pandas` [@reback2020pandas]. This usually leads to
-either writing `C++` kernels and interface them with `Python`, or porting the
+either writing `C++` kernels and interfacing them with `Python`, or porting the
 prototype to `C++` and start to maintain two code bases including the wrapper
 code. Specific to HEP, `AwkwardArray` [@pivarski_jim_2018_6522027] can be seen
 as a compromise between the two solutions, where the user writes in a special
@@ -50,10 +50,10 @@ critical, like identifying bottlenecks, creating an architecture which is both
 performant and maintainable at the same time while still being user-friendly and
 logically structured. Using a `Python` front-end and dancing across language
 barriers also hinders the ability to parallelize tasks down to 
-event level, the existing usage often rely on chunk or even file level
+event level, the existing usage often relies on chunk or even file level
 parallelization. Finally, newer techniques such as automatic differentiation
-also works more smoothly without language barriers, allows physicists to DIY
-algorithms themselves. With Julia's active auto diff community [^1], we expect 
+also works more smoothly without language barriers, allowing physicists to develope
+algorithms. With Julia's active auto diff community [^1], we expect 
 `UnROOT.jl` to be one of the pillar stone for physicists.
 
 `UnROOT.jl` attempts to solve all of the above by choosing Julia, a
@@ -87,10 +87,9 @@ decompress and deserialize instances of the commonly used `TH1`, `TH2`,
 branches are supported as well, including their nested variants. Additionally,
 `UnROOT.jl` provides a way to hook into the deserialisation process of custom
 types where the automatic parsing fails. By the time of writing, `UnROOT` is
-already used successfully in the data analysis of the KM3NeT neutrino
-telescope [@Adri_n_Mart_nez_2016]. And just like `RDataFrame`,
-it can be directly used on "NTuple" `TTree` such as the 
-NANOAOD format used by the CMS collaboration [@Ehataht:2020ebp].
+already used successfully in the data analysis of the KM3NeT neutrino telescope.
+And just like `RDataFrame`, it can be directly used on "NTuple" `TTree` such as
+the NANOAOD format used by the CMS collaboration [@Ehataht:2020ebp].
 
 Opening and loading a `TTree` lazily -- i.e. without reading the whole data into
 memory -- is simple:
@@ -149,7 +148,7 @@ all events with exactly two muons and two electrons, due to loop fusion:
 findall(@. t.nMuon==2 & t.nElectron==2)
 ```
 
-And query-style filtering can be done with 0 code addition from `UnROOT.jl`'s end
+And query-style filtering can be done with no code addition from `UnROOT.jl`'s end
 thanks to Julia's composability due to multiple dispatch [^4]:
 ```julia
 julia> using Query, DataFrame
