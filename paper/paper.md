@@ -87,10 +87,9 @@ decompress and deserialize instances of the commonly used `TH1`, `TH2`,
 branches are supported as well, including their nested variants. Additionally,
 `UnROOT.jl` provides a way to hook into the deserialisation process of custom
 types where the automatic parsing fails. By the time of writing, `UnROOT` is
-already used successfully in the data analysis of the KM3NeT neutrino
-telescope [@Adri_n_Mart_nez_2016]. And just like `RDataFrame`,
-it can be directly used on "NTuple" `TTree` such as the 
-NANOAOD format used by the CMS collaboration [@Ehataht:2020ebp].
+already used successfully in the data analysis of the KM3NeT neutrino telescope.
+And just like `RDataFrame`, it can be directly used on "NTuple" `TTree` such as
+the NANOAOD format used by the CMS collaboration [@Ehataht:2020ebp].
 
 Opening and loading a `TTree` lazily -- i.e. without reading the whole data into
 memory -- is simple:
