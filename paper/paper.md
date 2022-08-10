@@ -26,73 +26,73 @@ date: 08 October 2021
 bibliography: paper.bib
 ---
 # Summary
-`UnROOT.jl` is a pure Julia implementation of CERN ROOT [@Brun:1997pa] files I/O
-(`.root`) that is fast, memory-efficient, and composes well with Julia's
+`UnROOT.jl` is a pure Julia implementation of CERN's ROOT [@Brun:1997pa] file I/O
+(`.root`) software, which is fast and memory-efficient, and composes well with Julia's
 high-performance iteration, array, and multi-threading interfaces.
 
 # Statement of Need
 The High-Energy Physics (HEP) community, especially in data analysis, 
 has been facing the two-language
 problem for a long time. Often, physicists would start prototyping with a
-`Python` front-end which glues to a `C/C++/Fortran` back-end. Soon they will hit
-a task which can be challenging to express in columnar (i.e. "vectorized") style,
-a type of problems which are normally tackled with libraries like
-`numpy` [@harris2020array] or `pandas` [@reback2020pandas]. This usually leads to
-either writing `C++` kernels and interfacing them with `Python`, or porting the
-prototype to `C++` and start to maintain two code bases including the wrapper
+`Python` front-end which glues to a `C/C++/Fortran` back-end. Soon they would hit
+a task that could be challenging to express in columnar (i.e., "vectorized") style,
+a type of problem that is normally tackled with libraries like
+`numpy` [@harris2020array] or `pandas` [@reback2020pandas]. This usually would lead to
+them either writing `C++` kernels and interfacing them with `Python`, or porting the
+prototype to `C++` and starting to maintain two code bases including the wrapper
 code. Specific to HEP, `AwkwardArray` [@pivarski_jim_2018_6522027] can be seen
 as a compromise between the two solutions, where the user writes in a special
-columnar style that has some flexibility of addressing the jaggedness of HEP data.
+columnar style that has some flexibility for addressing the jaggedness of HEP data.
 
-All traditional options represent incresing engineering effort for authors and 
+All traditional options represent increasing engineering effort for authors and 
 users, often in multiple programming languages. Many steps of this process are
-critical, like identifying bottlenecks, creating an architecture which is both
-performant and maintainable at the same time while still being user-friendly and
+critical, such as identifying bottlenecks and creating an architecture that is simultaneously
+performant and maintainable while still being user-friendly and
 logically structured. Using a `Python` front-end and dancing across language
 barriers also hinders the ability to parallelize tasks down to 
-event level, the existing usage often relies on chunk or even file level
+event level, as the existing usage often relies on chunk or even file level
 parallelization. Finally, newer techniques such as automatic differentiation
-also works more smoothly without language barriers, allowing physicists to develope
+also work more smoothly without language barriers, allowing physicists to develop
 algorithms. With Julia's active auto diff community [^1], we expect 
-`UnROOT.jl` to be one of the pillar stone for physicists.
+`UnROOT.jl` to be one of the cornerstones for physicists.
 
 `UnROOT.jl` attempts to solve all of the above by choosing Julia, a
-high-performance language with simple and expressive syntax [@Julia]. Julia is
-designed to solve the two-language problem in general. This has been studied for
-HEP specifically as well [@JuliaPerformance]. Analysis software written in Julia
+high-performance language with a simple and expressive syntax [@Julia]. Julia is
+designed to solve the two-language problem in general. This has also been studied for
+HEP specifically [@JuliaPerformance]. Analysis software written in Julia
 can freely escape to a `for-loop` whenever vectorized-style processing is not
 flexible enough, without any performance degradation. At the same time,
 `UnROOT.jl` transparently supports multi-threading and multi-processing by
-simply providing data structures which are a subtype of `AbstractArray`, the
-built-in abstract type for array-like objects, which allows to interface with
-array-routines from other packages easily, thanks to multiple dispatch, one of
+providing data structures that are a subtype of `AbstractArray`, the
+built-in abstract type for array-like objects, which allows easy interfacing with
+array-routines from other packages, thanks to multiple dispatch, one of
 the main features of Julia.
 
 # Features and Functionality
 
-The `ROOT` dataformat is flexible and mostly self-descriptive. Users can define
-their own data structures (C++ classes) which derive from `ROOT` classes and
-serialise them into directories, trees and branches. The information about the
-deserialisation is written to the output file (therefore: self-descriptive) but
+The `ROOT` data format is flexible and mostly self-descriptive. Users can define
+their own data structures (C++ classes) that derive from `ROOT` classes and
+serialise them into directories, trees, and branches. The information about the
+deserialisation is written to the output file (therefore, it's self-descriptive) but
 there are some basic structures and constants needed to bootstrap the parsing
 process. One of the biggest advantages of the `ROOT` data format is the ability
 to store jagged structures like nested arrays of structs with different
 sub-array lengths. In high-energy physics, such structures are preferred to
-represent e.g. particle interactions and detector responses as signals from 
+represent, for example, particle interactions and detector responses as signals from 
 different hardware components, combined into a tree of events.
 
 `UnROOT.jl` understands the core structure of `ROOT` files, and is able to
 decompress and deserialize instances of the commonly used `TH1`, `TH2`,
-`TDirectory`, `TTree` etc. ROOT classes. All basic C++ types for `TTree`
+`TDirectory`, `TTree`, etc. ROOT classes. All basic C++ types for `TTree`
 branches are supported as well, including their nested variants. Additionally,
 `UnROOT.jl` provides a way to hook into the deserialisation process of custom
-types where the automatic parsing fails. By the time of writing, `UnROOT` is
-already used successfully in the data analysis of the KM3NeT neutrino telescope.
+types where the automatic parsing fails. At the time of this article, `UnROOT` is
+already being used successfully in the data analysis of the KM3NeT neutrino telescope.
 And just like `RDataFrame`, it can be directly used on "NTuple" `TTree` such as
 the NANOAOD format used by the CMS collaboration [@Ehataht:2020ebp].
 
-Opening and loading a `TTree` lazily -- i.e. without reading the whole data into
-memory -- is simple:
+Opening and loading a `TTree` lazily, i.e., without reading the whole data into
+memory, is simple:
 
 ```julia
 julia> using UnROOT
@@ -120,8 +120,8 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
 ```
 
 As seen in the above example, the entries in the columns are multi-dimensional
-and jagged. The `LazyTree` object acts as a table which suports sequential
-or parallel iteration, selections and filtering based on ranges or masks, and
+and jagged. The `LazyTree` object acts as a table that suports sequential
+or parallel iteration, selections, and filtering based on ranges or masks, and
 operations on whole columns:
 
 ```julia
@@ -136,12 +136,12 @@ end
 mytree.Muon_pt # a column as a lazy vector of vectors
 ```
 
-The `LazyTree` is designed as `<: AbstractArray` which makes it compose well
-with the rest of the Julia ecosystem. For example, syntactic loop fusion [^2] or
+The `LazyTree` is designed as `<: AbstractArray`, which makes it compose well
+with the rest of the Julia ecosystem. For example, syntactic loop fusion [^2] and
 Query-style tabular manipulations provided by packages like `Query.jl` [^3] without
 any additional code support just work out-of-the-box.
 
-For example, the following code would only iterate through the tree once to find
+For example, the following code will only iterate through the tree once to find
 all events with exactly two muons and two electrons, due to loop fusion:
 ```julia
 # t <: LazyTree
@@ -164,7 +164,7 @@ julia> @from evt in mytree begin
 
 # Synthetic Benchmark against C++ ROOT
 Benchmark against various C++ ROOT solution can be found in our 
-benchmark repo[^5], here we summarize the results:
+benchmark repo[^5]. Here we summarize the results:
 
 ### Single-threaded composite benchmark
 | Language | Cold Run | Warmed Run |
@@ -185,11 +185,11 @@ benchmark repo[^5], here we summarize the results:
 
 # Usage Comparison with Existing Software
 
-This section focusses on the comparison with other existing ROOT I/O solutions
-in the Julia universe, however, one honorable mention is `uproot`
+This section focuses on comparison with other existing ROOT I/O solutions
+in the Julia universe. However, one honorable mention is `uproot`
 [@jim_pivarski_2021_5539722], which is a purely Python-based ROOT I/O library
-and played (still plays) an important role for the development of `UnROOT.jl` as
-it is by the time of writing the most complete and best documented ROOT I/O
+that played (and still plays) an important role in the development of `UnROOT.jl` as
+it was at the time of this article the most complete and best documented ROOT I/O
 implementation.
 
 - `UpROOT.jl` is a wrapper for the aforementioned `uproot` Python package and
@@ -198,11 +198,11 @@ implementation.
   `AwkwardArray` [@pivarski_jim_2018_6522027] to efficiently deal with jagged
   data in `ROOT` files. Most of the features of `uproot` are available in the
   Julia context, but there are intrinsic performance and usability drawbacks due
-  to the three language architecture.
+  to the three-language architecture.
 
 - `ROOT.jl` [^7] is one of the oldest Julia `ROOT` packages. It uses C++ bindings to
   directly wrap the `ROOT` framework and therefore is not limited ot I/O.
-  Unfortunately, the `Cxx.jl` [^8] package which is used to generate the C++ glue
+  Unfortunately, the `Cxx.jl` [^8] package that is used to generate the C++ glue
   code does not support Julia 1.4 or later. The multi-threaded features are also
   limited.
 
