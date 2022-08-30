@@ -41,12 +41,9 @@ julia> using PythonCall
 
 julia> const up = pyimport("uproot")
 
-julia> file = up.recreate("example.root")
-Python WritableDirectory: <WritableDirectory '/' at 0x7fcfd11cacd0>
-
-julia> file["mytree"] = Dict("branch1"=>1:1000, "branch2"=>rand(1000))
-
-julia> file.close()
+julia> pywith(up.recreate("./example.root")) do file
+           file["mytree"] = Dict("branch1"=>1:1000, "branch2"=>rand(1000))
+       end
 
 # read it back with UnROOT.jl
 julia> using UnROOT
