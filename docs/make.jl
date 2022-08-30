@@ -23,5 +23,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/JulieHEP/UnROOT.jl",
+    repo="github.com/JuliaHEP/UnROOT.jl",
 )
