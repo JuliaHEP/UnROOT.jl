@@ -10,12 +10,9 @@ end</code></pre><p>usually is the best approach.</p><h2 id="Writting-out-.root-f
 
 julia&gt; const up = pyimport(&quot;uproot&quot;)
 
-julia&gt; file = up.recreate(&quot;example.root&quot;)
-Python WritableDirectory: &lt;WritableDirectory &#39;/&#39; at 0x7fcfd11cacd0&gt;
-
-julia&gt; file[&quot;mytree&quot;] = Dict(&quot;branch1&quot;=&gt;1:1000, &quot;branch2&quot;=&gt;rand(1000))
-
-julia&gt; file.close()
+julia&gt; pywith(up.recreate(&quot;./example.root&quot;)) do file
+           file[&quot;mytree&quot;] = Dict(&quot;branch1&quot;=&gt;1:1000, &quot;branch2&quot;=&gt;rand(1000))
+       end
 
 # read it back with UnROOT.jl
 julia&gt; using UnROOT
@@ -32,4 +29,4 @@ julia&gt; LazyTree(&quot;./example.root&quot;, &quot;mytree&quot;)
  6   │ 6        0.00916447384387542
  7   │ 7        0.5636229077934333
  8   │ 8        0.32617388561103156
-  ⋮  │    ⋮              ⋮</code></pre><h3 id="Write-out-a-histogram"><a class="docs-heading-anchor" href="#Write-out-a-histogram">Write out a histogram</a><a id="Write-out-a-histogram-1"></a><a class="docs-heading-anchor-permalink" href="#Write-out-a-histogram" title="Permalink"></a></h3><p>A histogram is just a tuple of <code>(bincontent, binedges)</code>, see  <a href="https://moelf.github.io/FHist.jl/dev/writingtoroot/">FHist.jl docs</a> for details.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Introduction</a><a class="docs-footer-nextpage" href="../performancetips/">Performance Tips »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 30 August 2022 04:40">Tuesday 30 August 2022</span>. Using Julia version 1.8.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  ⋮  │    ⋮              ⋮</code></pre><h3 id="Write-out-a-histogram"><a class="docs-heading-anchor" href="#Write-out-a-histogram">Write out a histogram</a><a id="Write-out-a-histogram-1"></a><a class="docs-heading-anchor-permalink" href="#Write-out-a-histogram" title="Permalink"></a></h3><p>A histogram is just a tuple of <code>(bincontent, binedges)</code>, see  <a href="https://moelf.github.io/FHist.jl/dev/writingtoroot/">FHist.jl docs</a> for details.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Introduction</a><a class="docs-footer-nextpage" href="../performancetips/">Performance Tips »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 30 August 2022 14:59">Tuesday 30 August 2022</span>. Using Julia version 1.8.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
