@@ -60,8 +60,8 @@ julia> Threads.@threads for event in mytree # multi-threading
 ```
 
 Only one basket per branch will be cached so you don't have to worry about running out of RAM.
-At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
-is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
+At the same time, `event` inside the for-loop is not materialized until a field is accessed. This means you should avoid double-access, 
+see [performance tips](https://juliahep.github.io/UnROOT.jl/dev/performancetips/#Don't-%22double-access%22)
 
 XRootD is also supported, depending on the protocol:
 -   the "url" has to start with `http://` or `https://`:
