@@ -59,7 +59,7 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
         io,
-        innertable(tree);
+        Tables.columns(tree);
         header=_hs,
         alignment=:l,
         vlines=[1],
@@ -94,7 +94,7 @@ end
 
 # stop crazy stracktrace
 function Base.show(io::IO, 
-    ::Type{<:LazyTree{<:UnROOT.TypedTables.Table{NamedTuple{Ns, Vs}}}}) where {T, Ns, Vs}
+    ::Type{<:LazyTree{<:NamedTuple{Ns, Vs}}}) where {T, Ns, Vs}
     elip = length(Ns) > 5 ? "..." : ""
     println(io, "LazyTree with $(length(Ns)) branches:")
     println(io, join(first(Ns, 5), ", "), elip)
@@ -105,8 +105,8 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     maxrows = 10
     maxcols = 30
     nrow = length(tree)
-    t = @view innertable(tree)[1:min(maxrows,nrow)]
-    ncol = length(Tables.columns(t))
+    t = Tables.columns(@view tree[1:min(maxrows,nrow)])
+    ncol = length(t)
     withcommas(value) = reverse(join(join.(Iterators.partition(reverse(string(value)),3)),","))
     write(io, "<p>")
     write(io, "$(withcommas(nrow)) rows × $(ncol) columns")
@@ -118,6 +118,7 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
         write(io, " (omitted printing of $(ncol-maxcols) columns)")
     end
     write(io, "</p>")
+    println()
     PrettyTables.pretty_table(
         io,
         t;
@@ -137,7 +138,7 @@ _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
     header = _symtup2str(pn)
-    subheader = _symtup2str(Tables.columntype.(Ref(innertable(t)), pn))
+    subheader = _symtup2str(Tables.columntype.(Ref(Tables.columns(t)), pn))
     (header, subheader)
 end
 function _treeformat(val, trunc)

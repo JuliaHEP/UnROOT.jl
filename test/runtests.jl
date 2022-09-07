@@ -4,11 +4,7 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-@static if VERSION > v"1.5.0"
-    import Pkg
-    Pkg.add("Polyester")
-    using ThreadsX, Polyester
-end
+using ThreadsX, Polyester
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -603,18 +599,10 @@ end
 end
 
 @testset "Type stability" begin
-    # function isfullystable(func)
-    #     io = IOBuffer()
-    #     print(io, (@code_typed func()).first);
-    #     typed = String(take!(io))
-    #     println(typed)
-    #     return !occursin("::Any", typed)
-    # end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["MET_pt"])[1:10]
 
-    # LazyArray has a BoundsArray that is ::Any but is "fine"
     function f1()
         s = 0.0f0
         for evt in t
