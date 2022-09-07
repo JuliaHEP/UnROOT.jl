@@ -242,7 +242,7 @@ Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
 Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
 Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, LazyEvent(Tables.columns(e.itr), row))
 # interfacing Table
-Base.names(lt::LazyTree) = map(String,propertynames(lt))
+Base.names(lt::LazyTree) = [String(x) for x in propertynames(lt)]
 Base.length(lt::LazyTree) = length(first(Tables.columns(lt)))
 Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(first(Tables.columns(lt))) # all column has the same size

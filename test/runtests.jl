@@ -341,6 +341,7 @@ end
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
     tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    @test sort(names(tree)) == [String(x) for x in sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])]
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
@@ -769,24 +770,22 @@ end
     s2 = sum(tt.nMuon)
     @test s2 == 2*s1
     alloc1 = @allocated sum(length, t.Muon_pt)
-    alloc2 = @allocated sum(evt->length(evt.nMuon), tt)
+    alloc2 = @allocated sum(evt->length(evt.Muon_pt), tt)
     @test alloc2 < 2.1 * alloc1
     close(rootfile)
 end
 
-@static if VERSION > v"1.5.0"
-    @testset "Broadcast fusion" begin
-        rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
-        t = LazyTree(rootfile, "Events", "nMuon")
-        testf(evt) = evt.nMuon == 4
-        testf2(evt) = evt.nMuon == 4
-        alloc1 = @allocated a1 = testf.(t)
-        alloc1 += @allocated a2 = testf2.(t)
-        alloc1 += @allocated idx1 = findall(a1 .& a2)
-        alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
-        @assert !isempty(idx1)
-        @test idx1 == idx2
-        # compiler optimization is good on 1.8
-        @test alloc1 > 1.4*alloc2
-    end
+@testset "Broadcast fusion" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    t = LazyTree(rootfile, "Events", "nMuon")
+    @test t[2] == t[CartesianIndex(2)]
+    testf(evt) = evt.nMuon == 4
+    testf2(evt) = evt.nMuon == 4
+    alloc1 = @allocated a1 = testf.(t)
+    alloc1 += @allocated a2 = testf2.(t)
+    alloc1 += @allocated idx1 = findall(a1 .& a2)
+    alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
+    @assert !isempty(idx1)
+    @test idx1 == idx2
+    @test alloc1 > 1.4*alloc2
 end
