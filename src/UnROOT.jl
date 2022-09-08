@@ -15,13 +15,7 @@ import IterTools: groupby
 
 import LibDeflate: zlib_decompress!, Decompressor
 
-import Tables, TypedTables, PrettyTables
-
-@static if VERSION < v"1.6"
-    Base.first(itr, n::Integer) = collect(Iterators.take(itr, n))
-    Base.first(a::AbstractVector{S}, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
-    Base.first(a::S, n::Integer) where S<: AbstractString = a[1:(length(a) > n ? n : end)]
-end
+import Tables, PrettyTables
 
 """
     OffsetBuffer
