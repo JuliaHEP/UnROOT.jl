@@ -64,7 +64,7 @@ function _show(io::IO, tree::LazyTree; kwargs...)
         alignment=:l,
         vlines=[1],
         hlines=[:header],
-        crop_num_lines_at_beginning=2,
+        reserved_display_lines=2,
         row_number_alignment=:l,
         row_number_column_title="Row",
         show_row_number=true,
@@ -101,11 +101,12 @@ function Base.show(io::IO,
 end
 
 function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
-    _hs = _make_header(tree)
     maxrows = 10
     maxcols = 30
     nrow = length(tree)
     t = Tables.columns(@view tree[1:min(maxrows,nrow)])
+    # _hs has headers and subheaders
+    _hs = first.(_make_header(tree), maxcols)
     ncol = length(t)
     withcommas(value) = reverse(join(join.(Iterators.partition(reverse(string(value)),3)),","))
     write(io, "<p>")
@@ -118,7 +119,7 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
         write(io, " (omitted printing of $(ncol-maxcols) columns)")
     end
     write(io, "</p>")
-    println()
+    println(typeof(t))
     PrettyTables.pretty_table(
         io,
         t;
@@ -127,9 +128,8 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
         row_number_column_title="",
         show_row_number=true,
         compact_printing=false,
-        filters_col     = ((_,i) -> i <= maxcols,),
         formatters=(v, i, j) -> _treeformat(v, 100),
-        tf = PrettyTables.HTMLTableFormat(css = """th { color: #000; background-color: #fff; }"""),
+        tf = PrettyTables.HtmlTableFormat(css = """th { color: #000; background-color: #fff; }"""),
         backend=Val(:html),
     )
     nothing
@@ -138,7 +138,7 @@ _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
     header = _symtup2str(pn)
-    subheader = _symtup2str(Tables.columntype.(Ref(Tables.columns(t)), pn))
+    subheader = _symtup2str(eltype.(values(Tables.columns(t))))
     (header, subheader)
 end
 function _treeformat(val, trunc)

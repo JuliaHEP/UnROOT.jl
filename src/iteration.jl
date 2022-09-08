@@ -228,11 +228,13 @@ function Base.view(lt::LazyTree, idx...)
 end
 
 # a specific event
-Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = getproperty(lt, s)
+Base.getindex(lt::LazyTree, ::typeof(!), s) = lt[:, s]
 Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(lt, s)
+Base.getindex(lt::LazyTree, ::Colon, s::Int) = getproperty(lt, propertynames(lt)[s])
+Base.getindex(lt::LazyTree, ::Colon, ss) = LazyTree(NamedTuple(propertynames(lt)[s]=>lt[:, s] for s in ss))
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
-Base.getindex(lt::LazyTree, row, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
+Base.getindex(lt::LazyTree, row, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
