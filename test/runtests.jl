@@ -782,9 +782,8 @@ end
     testf(evt) = evt.nMuon == 4
     testf2(evt) = evt.nMuon == 4
     # precompile
-    a1 = testf.(t)
-    a2 = testf2.(t)
-    findall(a1 .& a2)
+    testf.(t)
+    testf2.(t)
     findall(@. testf(t) & testf2(t))
     ##########
     alloc1 = @allocated a1 = testf.(t)
