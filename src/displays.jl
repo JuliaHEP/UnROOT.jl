@@ -118,8 +118,7 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     elseif (ncol > maxcols)
         write(io, " (omitted printing of $(ncol-maxcols) columns)")
     end
-    write(io, "</p>")
-    println(typeof(t))
+    println(io, "</p>")
     PrettyTables.pretty_table(
         io,
         t;

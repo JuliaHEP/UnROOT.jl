@@ -781,11 +781,17 @@ end
     @test t[2] == t[CartesianIndex(2)]
     testf(evt) = evt.nMuon == 4
     testf2(evt) = evt.nMuon == 4
+    # precompile
+    a1 = testf.(t)
+    a2 = testf2.(t)
+    findall(a1 .& a2)
+    findall(@. testf(t) & testf2(t))
+    ##########
     alloc1 = @allocated a1 = testf.(t)
     alloc1 += @allocated a2 = testf2.(t)
     alloc1 += @allocated idx1 = findall(a1 .& a2)
     alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
     @assert !isempty(idx1)
     @test idx1 == idx2
-    @test alloc1 > 1.4*alloc2
+    @test alloc1 > 1.9*alloc2
 end
