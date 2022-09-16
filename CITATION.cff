@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "Cite this paper whenever you use this package"
+authors:
+- family-names: "Gál"
+  given-names: "Tamás"
+  orcid: "https://orcid.org/0000-0001-7821-8673"
+- family-names: "Ling"
+  given-names: "Jerry"
+  orcid: "https://orcid.org/0000-0002-3359-0380"
+- family-names: "Amin"
+  given-names: "Nick"
+  orcid: "https://orcid.org/0000-0003-2560-0013"
+title: "UnROOT: an I/O library for the CERN ROOT file format written in Julia"
+version: "v1"
+license: "MIT"
+doi: "10.21105/joss.04452"
+date-released: 2021-10-11
+url: "https://github.com/JuliaHEP/UnROOT.jl/"
