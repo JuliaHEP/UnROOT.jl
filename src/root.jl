@@ -202,7 +202,7 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
-reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
+reinterpret(vt::Type{Vector{T}}, data::Vector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
 """
     interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}

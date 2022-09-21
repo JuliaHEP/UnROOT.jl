@@ -24,7 +24,8 @@ function UnROOT.interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) whe
     ]
 end
 
-function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
+# VorView is defined in the `src/custom.jl`
+function Base.reinterpret(::Type{LVF64}, v::VorView) where T
     # x,y,z,t in ROOT
     v4 = ntoh.(reinterpret(Float64, v[1+32:end]))
     # t,x,y,z in LorentzVectors.jl

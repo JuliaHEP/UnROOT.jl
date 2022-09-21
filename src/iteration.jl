@@ -234,7 +234,8 @@ Base.getindex(lt::LazyTree, ::Colon, s::Int) = getproperty(lt, propertynames(lt)
 Base.getindex(lt::LazyTree, ::Colon, ss) = LazyTree(NamedTuple(propertynames(lt)[s]=>lt[:, s] for s in ss))
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
-Base.getindex(lt::LazyTree, row, ::Colon) = lt[row]
+Base.getindex(lt::LazyTree, row::Int, ::Colon) = lt[row]
+Base.getindex(lt::LazyTree, row::AbstractVector, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
@@ -258,8 +259,8 @@ function LazyArrays.Vcat(ts::LazyTree...)
 end
 Base.vcat(ts::LazyTree...) = Vcat(ts...)
 Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
-Base.mapreduce(f::Function, ::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
-Base.mapreduce(f::Function, ::typeof(Vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f, ::typeof(vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f, ::typeof(Vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()

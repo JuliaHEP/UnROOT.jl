@@ -42,7 +42,10 @@ Base.eltype(x::FixLenVector) = eltype(x.vec)
 Base.iterate(x::FixLenVector) = iterate(x.vec)
 Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
 Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
-function Base.reinterpret(::Type{FixLenVector{N, T}}, v::AbstractVector{UInt8}) where {N, T}
+
+const VorView = Union{Vector{UInt8}, SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}}
+
+function Base.reinterpret(::Type{FixLenVector{N, T}}, v::VorView) where {N, T}
     vs = reinterpret(T, v)
     @. vs = ntoh(vs)
     FixLenVector(SVector{N, T}(vs))
@@ -57,7 +60,7 @@ end
 # TLorentzVector
 const LVF64 = LorentzVector{Float64}
 Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
-function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
+function Base.reinterpret(::Type{LVF64}, v::VorView)
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
     v4 = (reinterpret(Float64, @view v[1+32:end]))
