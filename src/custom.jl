@@ -140,7 +140,7 @@ function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     T(dom_id, channel_id, tdc, tot, trigger_mask)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) J <: UnROOT.JaggType
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQTriggeredHit, skipbytes=10)
 end
 
@@ -172,6 +172,6 @@ function readtype(io::IO, T::Type{_KM3NETDAQEventHeader})
     T(detector_id, run, frame_index, UTC_seconds, UTC_16nanosecondcycles, trigger_counter, trigger_mask, overlays)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) J <: UnROOT.JaggType
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQEventHeader, jagged=false)
 end
