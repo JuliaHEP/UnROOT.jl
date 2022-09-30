@@ -99,7 +99,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offset
     offset .+= 1
     VectorOfVectors(real_data, offset)
 end
-function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where {T, J <: JaggType}
+function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where J <: JaggType
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes
     [
      reinterpret(LVF64, x) for x in Base.Iterators.partition(rawdata, 64)
@@ -117,7 +117,7 @@ end
 function readtype(io::IO, T::Type{_KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQHit, skipbytes=10)
 end
 
@@ -140,7 +140,7 @@ function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     T(dom_id, channel_id, tdc, tot, trigger_mask)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQTriggeredHit, skipbytes=10)
 end
 
@@ -172,6 +172,6 @@ function readtype(io::IO, T::Type{_KM3NETDAQEventHeader})
     T(detector_id, run, frame_index, UTC_seconds, UTC_16nanosecondcycles, trigger_counter, trigger_mask, overlays)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQEventHeader, jagged=false)
 end
