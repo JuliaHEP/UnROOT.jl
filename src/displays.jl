@@ -94,7 +94,7 @@ end
 
 # stop crazy stracktrace
 function Base.show(io::IO, 
-    ::Type{<:LazyTree{<:NamedTuple{Ns, Vs}}}) where {T, Ns, Vs}
+    ::Type{<:LazyTree{<:NamedTuple{Ns, Vs}}}) where {Ns, Vs}
     elip = length(Ns) > 5 ? "..." : ""
     println(io, "LazyTree with $(length(Ns)) branches:")
     println(io, join(first(Ns, 5), ", "), elip)
