@@ -117,7 +117,7 @@ end
 function readtype(io::IO, T::Type{_KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) J <: UnROOT.JaggType
+function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQHit, skipbytes=10)
 end
 
