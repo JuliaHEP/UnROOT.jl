@@ -93,6 +93,8 @@ end
         @test 100 == rootfile.header.fBEGIN
         @test 1 == length(rootfile.directory.keys)
         @test "t1" ∈ keys(rootfile)
+        @test haskey(rootfile, "t1")
+        @test haskey(rootfile.directory, "t1")
         for key in keys(rootfile)
             rootfile[key]
         end
