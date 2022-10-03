@@ -186,8 +186,8 @@ function Base.keys(d::ROOTDirectory)
     [key.fName for key in d.keys]
 end
 
-function Base.haskey(f::ROOTDirectory, k)
-    k ∈ keys(f)
+function Base.haskey(d::ROOTDirectory, k)
+    any(==(k), (key.fName for key in d.keys))
 end
 
 Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
