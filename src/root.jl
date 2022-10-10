@@ -407,14 +407,31 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
             end
         end
     else
-        _type = primitivetype(leaf)
-        if leaf.fLen > 1 # treat NTuple as Nojagg since size is static
-            _type = FixLenVector{Int(leaf.fLen), _type}
-            return _type, Nojagg
-        end
-        _type = _jaggtype === Nojagg ? _type : Vector{_type}
+        # since no classname were found, we now try to determine
+        # type based on leaf information
+        _type, _jaggtype = leaf_jaggtype(leaf, _jaggtype)
     end
     return _type, _jaggtype
+end
+
+function leaf_jaggtype(leaf, _jaggtype)
+        _type = primitivetype(leaf)
+        leafLen = leaf.fLen
+        if leafLen > 1 # treat NTuple as Nojagg since size is static
+            _fTitle = replace(leaf.fTitle, "[$(leafLen)]" => "")
+            # looking for more `[var]`
+            m = match(r"\[\D+\]", _fTitle)
+            _type = FixLenVector{Int(leafLen), _type}
+            if isnothing(m)
+                return _type, Nojagg
+            else
+                #FIXME this only handles [var][fix] case
+                return Vector{_type}, Nooffsetjagg
+            end
+        end
+        _type = _jaggtype === Nojagg ? _type : Vector{_type}
+
+        return _type, _jaggtype
 end
 
 
