@@ -318,8 +318,9 @@ end
     @test v2[2].int32_array == data[3].int32_array
 end
 
-@testset "Doubly jagged branches" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_doubly_jagged.root"))
+@testset "Doubly jagged [var][var] branches" begin
+    # this is vector<vector<blah>>
+    rootfile = UnROOT.samplefile("tree_with_doubly_jagged.root")
     vvi = [[[2], [3, 5]], [[7, 9, 11], [13]], [[17], [19], []], [], [[]]]
     vvf = [[[2.5], [3.5, 5.5]], [[7.5, 9.5, 11.5], [13.5]], [[17.5], [19.5], []], [], [[]]]
     @test UnROOT.array(rootfile, "t1/bi") == vvi
@@ -329,6 +330,33 @@ end
     @test rootfile["t1/bf"] == vvf
     @test eltype(eltype(eltype(rootfile["t1/bf"]))) === Float32
     close(rootfile)
+end
+
+@testset "Doubly jagged [var][fix] branches" begin
+    # issue #187
+    # this is vector<Int[N]>
+    f = UnROOT.samplefile("tree_with_varfix_doubly_jagged.root")
+    tree = LazyTree(f, "outtree")
+    @test tree.nparticles == [4,3,2]
+    @test length.(tree.P) == [4,3,2]
+    @test eltype(tree.P[1]) <: AbstractVector
+    # also compared to uproot
+    @test tree[1].P == [
+                        [0.9411764705882353, 0.8888888888888888, 0.8421052631578947, 0.8],
+                        [1.0, 0.9285714285714286, 0.8666666666666667, 0.8125],
+                        [1.1111111111111112, 1.0, 0.9090909090909091, 0.8333333333333334],
+                        [1.4, 1.1666666666666667, 1.0, 0.875]
+                       ]
+    @test tree[3].P == [
+                        [0.8222222222222222,
+                         0.8043478260869565,
+                         0.7872340425531915,
+                         0.7708333333333334],
+                        [0.8292682926829268,
+                         0.8095238095238095,
+                         0.7906976744186046,
+                         0.7727272727272727]
+                       ]
 end
 
 @testset "NanoAOD" begin

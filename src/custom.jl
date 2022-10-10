@@ -43,7 +43,15 @@ Base.iterate(x::FixLenVector) = iterate(x.vec)
 Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
 Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
 
+#N.B this is a hack, we deal with ntoh in reinterpret step
+Base.ntoh(x::FixLenVector) = x
 const VorView = Union{Vector{UInt8}, SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}}
+
+function Base.reinterpret(::Type{Vector{FixLenVector{N, T}}}, data::Vector{UInt8}) where {N,T}
+    vs = reinterpret(T, data)
+    @. vs = ntoh(vs)
+    return FixLenVector.(reinterpret(SVector{N, T}, vs))
+end
 
 function Base.reinterpret(::Type{FixLenVector{N, T}}, v::VorView) where {N, T}
     vs = reinterpret(T, v)
