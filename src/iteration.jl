@@ -121,6 +121,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
+basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
+basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
@@ -137,8 +139,6 @@ Base.firstindex(ba::LazyBranch) = 1
 Base.lastindex(ba::LazyBranch) = ba.L
 Base.eltype(ba::LazyBranch{T,J,B}) where {T,J,B} = T
 
-basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
-basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.show(io::IO, lb::LazyBranch)
     summary(io, lb)
@@ -191,67 +191,83 @@ function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     return (ba[idx], idx + 1)
 end
 
-struct LazyEvent{T<:TypedTables.Table}
+struct LazyEvent{T}
     tree::T
     idx::Int64
 end
+Base.propertynames(lt::LazyEvent) = propertynames(getfield(lt, :tree))
 struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
+
+Tables.columns(t::LazyTree) = Core.getfield(t, :treetable)
+Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))
+
 function LazyTree(path::String, x...)
     LazyTree(ROOTFile(path), x...)
 end
 
-@inline innertable(t::LazyTree) = Core.getfield(t, :treetable)
-
-Base.propertynames(lt::LazyTree) = propertynames(innertable(lt))
-Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(innertable(lt), s)
+Base.propertynames(lt::LazyTree) = propertynames(Tables.columns(lt))
+Base.getproperty(lt::LazyTree, s::Symbol) = getproperty(Tables.columns(lt), s)
 
 Base.broadcastable(lt::LazyTree) = lt
 Base.IndexStyle(::Type{<:LazyTree}) = IndexLinear()
-Base.getindex(lt::LazyTree, row::Int) = LazyEvent(innertable(lt), row)
+Base.getindex(lt::LazyTree, row::Int) = LazyEvent(Tables.columns(lt), row)
 # kept lazy for broadcasting purpose
-Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(innertable(lt), row[1])
-function Base.getindex(lt::LazyTree, rang::UnitRange)
-    return LazyTree(innertable(lt)[rang])
+Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(Tables.columns(lt), row[1])
+function Base.getindex(lt::LazyTree, rang)
+    bnames = propertynames(lt)
+    branches = asyncmap(b->getproperty(lt, b)[rang], bnames)
+    return LazyTree(NamedTuple{bnames}(branches))
+end
+
+function Base.view(lt::LazyTree, idx...)
+    bnames = propertynames(lt)
+    return LazyTree(map(x->view(x, idx...), Tables.columns(lt)))
 end
 
 # a specific event
-Base.getindex(lt::LazyTree, ::typeof(!), s::Symbol) = lt[:, s]
-Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(innertable(lt), s) # the real deal
+Base.getindex(lt::LazyTree, ::typeof(!), s) = lt[:, s]
+Base.getindex(lt::LazyTree, ::Colon, s::Symbol) = getproperty(lt, s)
+Base.getindex(lt::LazyTree, ::Colon, s::Int) = getproperty(lt, propertynames(lt)[s])
+Base.getindex(lt::LazyTree, ::Colon, ss) = LazyTree(NamedTuple(propertynames(lt)[s]=>lt[:, s] for s in ss))
 Base.getindex(lt::LazyTree, row::Int, col::Symbol) = lt[:, col][row]
 Base.getindex(lt::LazyTree, rows::UnitRange, col::Symbol) = lt[:, col][rows]
+Base.getindex(lt::LazyTree, row::Int, ::Colon) = lt[row]
+Base.getindex(lt::LazyTree, row::AbstractVector, ::Colon) = lt[row]
 Base.getindex(lt::LazyTree, ::Colon) = lt[1:end]
-Base.firstindex(lt::LazyTree) = 1
-Base.lastindex(lt::LazyTree) = length(lt)
-Base.eachindex(lt::LazyTree) = 1:lastindex(lt)
 
 # allow enumerate() to be chunkable (eg with Threads.@threads)
 Base.step(e::Iterators.Enumerate{LazyTree{T}}) where T = 1
 Base.firstindex(e::Iterators.Enumerate{LazyTree{T}}) where T = firstindex(e.itr)
 Base.lastindex(e::Iterators.Enumerate{LazyTree{T}}) where T = lastindex(e.itr)
 Base.eachindex(e::Iterators.Enumerate{LazyTree{T}}) where T = eachindex(e.itr)
-Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, LazyEvent(innertable(e.itr), row))
+Base.getindex(e::Iterators.Enumerate{LazyTree{T}}, row::Int) where T = (row, LazyEvent(Tables.columns(e.itr), row))
 # interfacing Table
-Base.names(lt::LazyTree) = collect(String.(propertynames(innertable(lt))))
-Base.length(lt::LazyTree) = length(innertable(lt))
+Base.names(lt::LazyTree) = [String(x) for x in propertynames(lt)]
+Base.length(lt::LazyTree) = length(first(Tables.columns(lt)))
 Base.ndims(::Type{<:LazyTree}) = 1
-Base.size(lt::LazyTree) = size(innertable(lt))
+Base.size(lt::LazyTree) = size(first(Tables.columns(lt))) # all column has the same size
 
 function LazyArrays.Vcat(ts::LazyTree...)
-    cs = Tables.columns.(innertable.(ts))
-    LazyTree(TypedTables.Table(map(Vcat, cs...)))
+    branch_names = propertynames(first(ts))
+    res_branches = map(branch_names) do bname
+        LazyArrays.Vcat(getproperty.(ts, bname)...)
+    end
+    LazyTree(NamedTuple{branch_names}(res_branches))
 end
 Base.vcat(ts::LazyTree...) = Vcat(ts...)
 Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
-Base.mapreduce(f::Function, ::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
-Base.mapreduce(f::Function, ::typeof(Vcat), ts::AbstractVector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f, ::typeof(vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.mapreduce(f, ::typeof(Vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
     for b in obj.fBranches.elements
         push!(out, b.fName)
-        for subname in getbranchnamesrecursive(b)
+        subs = getbranchnamesrecursive(b)
+        !isempty(subs) && pop!(out)
+        for subname in subs
             push!(out, "$(b.fName)/$(subname)")
         end
     end
@@ -263,12 +279,16 @@ end
     LazyTree(f::ROOTFile, s::AbstractString, branches::Vector{Union{AbstractString, Regex}})
 
 Constructor for `LazyTree`, which is close to an `DataFrame` (interface wise),
-and a lazy `TypedTables.Table` (speed wise). Looping over a `LazyTree` is fast and type
+and a lazy Table (speed wise). Looping over a `LazyTree` is fast and type
 stable. Internally, `LazyTree` contains a typed table whose branch are [`LazyBranch`](@ref).
 This means that at any given time only `N` baskets are cached, where `N` is the number of branches.
 
 !!! note
     Accessing with `[start:stop]` will return a `LazyTree` with concrete internal table.
+
+!!! warning
+    Split branches are re-named, and the exact renaming may change. See 
+    [Issue 156](https://github.com/JuliaHEP/UnROOT.jl/pull/156) for context.
 
 # Example
 ```julia
@@ -286,18 +306,35 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
     tree isa TTree || error("$s is not a tree name.")
-    if length(branches) > 30
-        @warn "Your tree is quite wide, with $(length(branches)) branches, this will take compiler a moment."
-    end
     d = Dict{Symbol,LazyBranch}()
-    _m(s::AbstractString) = isequal(s)
     _m(r::Regex) = Base.Fix1(occursin, r)
-    branches = mapreduce(b -> filter(_m(b), getbranchnamesrecursive(tree)), ∪, branches)
-    SB = Symbol.(branches)
-    for b in SB
-        d[b] = f["$s/$b"]
+    all_bnames = getbranchnamesrecursive(tree)
+    res_bnames = mapreduce(∪, branches) do b
+        if b isa Regex
+            filter(_m(b), all_bnames)
+        elseif b isa String
+            expand = filter(n->startswith(n, "$b/$b"), all_bnames)
+            isempty(expand) ? filter(isequal(b), all_bnames) : expand
+        else
+            error("branch selection must be string or regex")
+        end
     end
-    return LazyTree(TypedTables.Table(d))
+    for b in res_bnames
+        # split by `.` or `/`
+        norm_name = b
+        v = split(b, r"\.|\/")
+        if length(v) >= 2 # only normalize name when branches are split
+            head = v[1]
+            tail = v[2:end]
+            # remove duplicated info
+            replace!(tail, head => "")
+            # remove known split branch information
+            replace!(tail, "fCoordinates" => "")
+            norm_name = join([head; join(tail)], "_")
+        end
+        d[Symbol(norm_name)] = f["$s/$b"]
+    end
+    return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
 end
 
 function LazyTree(f::ROOTFile, s::AbstractString)
@@ -320,11 +357,13 @@ end
 @inline function Base.getproperty(evt::LazyEvent, s::Symbol)
     @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
 end
-Base.collect(evt::LazyEvent) = @inbounds Core.getfield(evt, :tree)[Core.getfield(evt, :idx)]
+Base.Tuple(evt::LazyEvent) = Tuple(getproperty(evt, s) for s in propertynames(evt))
+Base.NamedTuple(evt::LazyEvent) = NamedTuple{propertynames(evt)}(Tuple(evt))
+Base.collect(evt::LazyEvent) = NamedTuple(evt)
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
-    return LazyEvent(innertable(tree), idx), idx + 1
+    return LazyEvent(Tables.columns(tree), idx), idx + 1
 end
 
 function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
@@ -332,7 +371,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
     offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return vcat([basketarray(ba, i) for i in ib1:ib2]...)[range]
+    return Vcat(asyncmap(i->basketarray(ba, i), ib1:ib2)...)[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
@@ -358,6 +397,3 @@ function _clusterbytes(lbs::AbstractVector{<:LazyBranch}; compressed=false)
     end
     return bytes
 end
-
-Tables.columns(t::LazyTree) = Tables.columns(innertable(t))
-Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))

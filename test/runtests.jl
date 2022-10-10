@@ -4,11 +4,7 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-@static if VERSION > v"1.5.0"
-    import Pkg
-    Pkg.add("Polyester")
-    using ThreadsX, Polyester
-end
+using ThreadsX, Polyester
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -91,10 +87,14 @@ end
 
 
 @testset "ROOTFile" begin
+    @test_throws SystemError ROOTFile("non_existent_fname.root")
+
     ROOTFile(joinpath(SAMPLES_DIR, "tree_with_histos.root")) do rootfile
         @test 100 == rootfile.header.fBEGIN
         @test 1 == length(rootfile.directory.keys)
         @test "t1" ∈ keys(rootfile)
+        @test haskey(rootfile, "t1")
+        @test haskey(rootfile.directory, "t1")
         for key in keys(rootfile)
             rootfile[key]
         end
@@ -300,8 +300,27 @@ end
     close(rootfile)
 end
 
-@testset "Doubly jagged branches" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_doubly_jagged.root"))
+@testset "View" begin
+    data = LazyTree(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"), "t1")
+    data[1:2]
+    @view data[1:2]
+    alloc1 = @allocated v = data[3:90]
+    alloc2 = @allocated v = @view data[3:90]
+    v = @view data[3:80]
+    @test alloc2 < alloc1/100
+    @static if VERSION >= v"1.8"
+        @test alloc2 < 50
+    end
+    @test all(v.int32_array .== data.int32_array[3:80])
+
+    v2 = @view data[[1,3,5]]
+    @test v2[1].int32_array == data[1].int32_array
+    @test v2[2].int32_array == data[3].int32_array
+end
+
+@testset "Doubly jagged [var][var] branches" begin
+    # this is vector<vector<blah>>
+    rootfile = UnROOT.samplefile("tree_with_doubly_jagged.root")
     vvi = [[[2], [3, 5]], [[7, 9, 11], [13]], [[17], [19], []], [], [[]]]
     vvf = [[[2.5], [3.5, 5.5]], [[7.5, 9.5, 11.5], [13.5]], [[17.5], [19.5], []], [], [[]]]
     @test UnROOT.array(rootfile, "t1/bi") == vvi
@@ -311,6 +330,33 @@ end
     @test rootfile["t1/bf"] == vvf
     @test eltype(eltype(eltype(rootfile["t1/bf"]))) === Float32
     close(rootfile)
+end
+
+@testset "Doubly jagged [var][fix] branches" begin
+    # issue #187
+    # this is vector<Int[N]>
+    f = UnROOT.samplefile("tree_with_varfix_doubly_jagged.root")
+    tree = LazyTree(f, "outtree")
+    @test tree.nparticles == [4,3,2]
+    @test length.(tree.P) == [4,3,2]
+    @test eltype(tree.P[1]) <: AbstractVector
+    # also compared to uproot
+    @test tree[1].P == [
+                        [0.9411764705882353, 0.8888888888888888, 0.8421052631578947, 0.8],
+                        [1.0, 0.9285714285714286, 0.8666666666666667, 0.8125],
+                        [1.1111111111111112, 1.0, 0.9090909090909091, 0.8333333333333334],
+                        [1.4, 1.1666666666666667, 1.0, 0.875]
+                       ]
+    @test tree[3].P == [
+                        [0.8222222222222222,
+                         0.8043478260869565,
+                         0.7872340425531915,
+                         0.7708333333333334],
+                        [0.8292682926829268,
+                         0.8095238095238095,
+                         0.7906976744186046,
+                         0.7727272727272727]
+                       ]
 end
 
 @testset "NanoAOD" begin
@@ -325,6 +371,7 @@ end
     @test HLT_Mu3_PFJet40[1:3] == [false, true, false]
     tree = LazyTree(rootfile, "Events", [r"Muon_(pt|eta|phi)$", "Muon_charge", "Muon_pt"])
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])
+    @test sort(names(tree)) == [String(x) for x in sort([:Muon_pt, :Muon_eta, :Muon_phi, :Muon_charge])]
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
@@ -526,16 +573,16 @@ end
 # Issues
 
 @testset "issues" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue7.root"))
+    rootfile = UnROOT.samplefile("issue7.root")
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeF/nums")
     close(rootfile)
 
-    # issue 55
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
+    # issue #55 and #156
+    rootfile = UnROOT.samplefile("cms_ntuple_wjet.root")
     pts1 = UnROOT.array(rootfile, "variable/met_p4/fCoordinates/fCoordinates.fPt"; raw=false)
-    pts2 = LazyTree(rootfile, "variable", [r"met_p4/fCoordinates/.*", "mll"])[!, Symbol("met_p4/fCoordinates/fCoordinates.fPt")]
+    pts2 = LazyTree(rootfile, "variable", [r"met_p4/fCoordinates/.*", "mll"])[!, Symbol("met_p4_fPt")]
     pts3 = rootfile["variable/good_jets_p4/good_jets_p4.fCoordinates.fPt"]
     @test 24 == length(pts1)
     @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts1[1:4]
@@ -544,7 +591,7 @@ end
     close(rootfile)
 
     # issue 61
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
+    rootfile = UnROOT.samplefile("issue61.root")
     @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
 
@@ -583,12 +630,6 @@ end
 end
 
 @testset "Type stability" begin
-    function isfullystable(func)
-        io = IOBuffer()
-        print(io, (@code_typed func()).first);
-        typed = String(take!(io))
-        return !occursin("::Any", typed)
-    end
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["MET_pt"])[1:10]
@@ -602,11 +643,14 @@ end
     end
     f2() = sum(t.MET_pt)
 
-    @test isfullystable(f1)
-    @test isfullystable(f2)
+    @inferred f1()
+    @inferred f2()
 
     close(rootfile)
 end
+
+const nthreads = Threads.nthreads()
+nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 @testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
@@ -625,8 +669,11 @@ end
 
 
     if get(ENV, "CI", "false") == "true"
-        # Make sure CI runs with more than 1 thread
-        @test Threads.nthreads() > 1
+        if nthreads >= 1
+            @test Threads.nthreads()>1 
+        else
+            @warn "CI wasn't run with multi thread"
+        end
     end
     nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
@@ -643,46 +690,46 @@ end
     @test !isempty(hash(t.Muon_pt.b))
 end
 
-@static if VERSION > v"1.5.1"
-    t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
-    @testset "Multi threading" begin
-        nthreads = Threads.nthreads()
-        nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
-        nmus = zeros(Int, nthreads)
+t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+@testset "Multi threading" begin
+    nmus = zeros(Int, nthreads)
+    Threads.@threads for (i, evt) in enumerate(t)
+        nmus[Threads.threadid()] += length(t.Muon_pt[i])
+    end
+    @test sum(nmus) == 878
+
+    nmus .= 0
+    Threads.@threads for evt in t
+        nmus[Threads.threadid()] += length(evt.Muon_pt)
+    end
+    if nthreads > 1
+        @test count(>(0), nmus) > 1# test @threads is actually threading
+    end
+    @test sum(nmus) == 878
+
+
+    nmus .= 0
+    Threads.@threads for evt in t
+        nmus[Threads.threadid()] += length(evt.Muon_pt)
+    end
+    if nthreads > 1
+        @test count(>(0), nmus) > 1
+    end
+    @test sum(nmus) == 878
+
+    nmus .= 0
+    t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
+    @batch for evt in vcat(t,t_dummy) # avoid using the same underlying file handler
+        nmus[Threads.threadid()] += length(evt.Muon_pt)
+    end
+    @test sum(nmus) == 2*878
+
+    for j in 1:3
+        inds = [Vector{Int}() for _ in 1:nthreads]
         Threads.@threads for (i, evt) in enumerate(t)
-            nmus[Threads.threadid()] += length(t.Muon_pt[i])
+            push!(inds[Threads.threadid()], i)
         end
-        @test sum(nmus) == 878
-
-        nmus .= 0
-        Threads.@threads for evt in t
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        nthreads > 1 && @test count(>(0), nmus) > 1  # test @threads is actually threading
-        @test sum(nmus) == 878
-
-
-        nmus .= 0
-        @batch for evt in t
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        nthreads > 1 && @test count(>(0), nmus) > 1  # test @threads is actually threading
-        @test sum(nmus) == 878
-
-        nmus .= 0
-        t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
-        @batch for evt in vcat(t,t_dummy) # avoid using the same underlying file handler
-            nmus[Threads.threadid()] += length(evt.Muon_pt)
-        end
-        @test sum(nmus) == 2*878
-
-        for j in 1:3
-            inds = [Vector{Int}() for _ in 1:nthreads]
-            Threads.@threads for (i, evt) in enumerate(t)
-                push!(inds[Threads.threadid()], i)
-            end
-            @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
-        end
+        @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
     end
 end
 
@@ -704,12 +751,37 @@ end
     @test all(onesrow .== 1)
 end
 
+@testset "C-array types" begin
+    tree = LazyTree(UnROOT.samplefile("issue165_multiple_baskets.root"), "arrays")
+    ele = tree.carr[3]
+    @test length(tree.carr) == 3
+    @test length(ele) == 9
+    @test eltype(ele) == Float64
+    @test length(typeof(ele)) == 9
+    @test all(ele .≈ 
+            [0.7775048011809144, 0.8664217530127716, 0.4918492038230641, 
+             0.24464299401484568, 0.38991686533667, 0.15690925771226608, 
+             0.3850047958013624, 0.9268160513261408, 0.9298329730191421])
+    @test all(ele .== [ele...])
+end
+
 @testset "basketarray_iter()" begin
     f = UnROOT.samplefile("tree_with_vector_multiple_baskets.root")
     t = LazyTree(f,"t1")
     @test (UnROOT.basketarray_iter(f, f["t1"]["b1"]) .|> length) == [1228, 1228, 44]
     @test (UnROOT.basketarray_iter(t.b1) .|> length) == [1228, 1228, 44]
     @test length(UnROOT.basketarray(t.b1, 1)) == 1228
+end
+
+@testset "SourceStream remote" begin
+    r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
+    @test r["Events"].fEntries == 29308627
+    show(devnull, r) # test display
+
+    t = LazyTree("https://scikit-hep.org/uproot3/examples/Zmumu.root", "events")
+    @test t.eta1[1] ≈ -1.21769
+    @test t.eta1[end] ≈ -1.57044
+    show(devnull, t) # test display
 end
 
 @testset "Cluster ranges" begin
@@ -734,24 +806,27 @@ end
     s2 = sum(tt.nMuon)
     @test s2 == 2*s1
     alloc1 = @allocated sum(length, t.Muon_pt)
-    alloc2 = @allocated sum(evt->length(evt.nMuon), tt)
+    alloc2 = @allocated sum(evt->length(evt.Muon_pt), tt)
     @test alloc2 < 2.1 * alloc1
     close(rootfile)
 end
 
-@static if VERSION > v"1.5.0"
-    @testset "Broadcast fusion" begin
-        rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
-        t = LazyTree(rootfile, "Events", "nMuon")
-        testf(evt) = evt.nMuon == 4
-        testf2(evt) = evt.nMuon == 4
-        alloc1 = @allocated a1 = testf.(t)
-        alloc1 += @allocated a2 = testf2.(t)
-        alloc1 += @allocated idx1 = findall(a1 .& a2)
-        alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
-        @assert !isempty(idx1)
-        @test idx1 == idx2
-        # compiler optimization is good on 1.8
-        @test alloc1 > 1.4*alloc2
-    end
+@testset "Broadcast fusion" begin
+    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    t = LazyTree(rootfile, "Events", "nMuon")
+    @test t[2] == t[CartesianIndex(2)]
+    testf(evt) = evt.nMuon == 4
+    testf2(evt) = evt.nMuon == 4
+    # precompile
+    testf.(t)
+    testf2.(t)
+    findall(@. testf(t) & testf2(t))
+    ##########
+    alloc1 = @allocated a1 = testf.(t)
+    alloc1 += @allocated a2 = testf2.(t)
+    alloc1 += @allocated idx1 = findall(a1 .& a2)
+    alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
+    @assert !isempty(idx1)
+    @test idx1 == idx2
+    @test alloc1 > 1.9*alloc2
 end

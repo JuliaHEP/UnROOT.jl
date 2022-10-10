@@ -2,23 +2,21 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::IOStream
+    fobj::SourceStream
     refs::Dict{Int32, Any}
 end
 
 struct ROOTFile
-    filename::AbstractString
+    filename::String
     format_version::Int32
     header::FileHeader
-    fobj::IOStream
+    fobj::SourceStream
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
-    lk::ReentrantLock
 end
 function close(f::ROOTFile)
-    # TODO: should we take care of the lock?
     close(f.fobj)
 end
 function ROOTFile(f::Function, args...; pv...)
@@ -29,8 +27,7 @@ function ROOTFile(f::Function, args...; pv...)
         close(rootfile)
     end
 end
-lock(f::ROOTFile) = lock(f.lk)
-unlock(f::ROOTFile) = unlock(f.lk)
+
 function Base.hash(rf::ROOTFile, h::UInt)
     hash(rf.fobj, h)
 end
@@ -58,45 +55,58 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
+const HEAD_BUFFER_SIZE = 2048
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
-    fobj = Base.open(filename)
-    preamble = unpack(fobj, FilePreamble)
-    String(preamble.identifier) == "root" || error("Not a ROOT file!")
+    fobj = if startswith(filename, r"https?://")
+        HTTPStream(filename)
+    elseif startswith(filename, "root://")
+        sep_idx = findlast("//", filename)
+        baseurl = filename[8:first(sep_idx)-1]
+        filepath = filename[last(sep_idx):end]
+        XRDStream(baseurl, filepath, "go")
+    else
+        !isfile(filename) && throw(SystemError("opening file $filename", 2))
+        MmapStream(filename)
+    end
+    header_bytes = read(fobj, HEAD_BUFFER_SIZE)
+    if header_bytes[1:4] != [0x72, 0x6f, 0x6f, 0x74]
+        error("$filename is not a ROOT file.")
+    end
+    head_buffer = IOBuffer(header_bytes)
+    preamble = unpack(head_buffer, FilePreamble)
     format_version = preamble.fVersion
 
-    if format_version < 1000000
+    header = if format_version < 1000000
         @debug "32bit ROOT file"
-        header = unpack(fobj, FileHeader32)
+        unpack(head_buffer, FileHeader32)
     else
         @debug "64bit ROOT file"
-        header = unpack(fobj, FileHeader64)
+        unpack(head_buffer, FileHeader64)
     end
 
     # Streamers
-    if header.fSeekInfo != 0
-        @debug "Reading streamer info."
-        seek(fobj, header.fSeekInfo)
-        streamers = Streamers(fobj)
-    else
-        @debug "No streamer info present, skipping."
-    end
+    seek(fobj, header.fSeekInfo)
+    stream_buffer = OffsetBuffer(IOBuffer(read(fobj, 10^5)), Int(header.fSeekInfo))
+    streamers = Streamers(stream_buffer)
 
-    seek(fobj, header.fBEGIN)
-    tkey = unpack(fobj, TKey)
+    seek(head_buffer, header.fBEGIN + header.fNbytesName)
+    dir_header = unpack(head_buffer, ROOTDirectoryHeader)
+    dirkey = dir_header.fSeekKeys
+    seek(fobj, dirkey)
+    tail_buffer = @async IOBuffer(read(fobj, 10^7))
 
-    # Reading the header key for the top ROOT directory
-    seek(fobj, header.fBEGIN + header.fNbytesName)
-    dir_header = unpack(fobj, ROOTDirectoryHeader)
+    seek(head_buffer, header.fBEGIN)
+    tkey = unpack(head_buffer, TKey)
 
-    seek(fobj, dir_header.fSeekKeys)
-    header_key = unpack(fobj, TKey)
+    wait(tail_buffer)
+    unpack(tail_buffer.result, TKey)
 
-    n_keys = readtype(fobj, Int32)
-    keys = [unpack(fobj, TKey) for _ in 1:n_keys]
+    n_keys = readtype(tail_buffer.result, Int32)
+    keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, ReentrantLock())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs)
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -146,14 +156,8 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    lock(f)
-    try
-        S = streamer(f.fobj, tkey, f.streamers.refs)
-        return S
-    catch
-    finally
-        unlock(f)
-    end
+    S = streamer(f.fobj, tkey, f.streamers.refs)
+    return S
 end
 
 # FIXME unify with above?
@@ -174,8 +178,16 @@ function Base.keys(f::ROOTFile)
     keys(f.directory)
 end
 
+function Base.haskey(f::ROOTFile, k)
+    haskey(f.directory, k)
+end
+
 function Base.keys(d::ROOTDirectory)
     [key.fName for key in d.keys]
+end
+
+function Base.haskey(d::ROOTDirectory, k)
+    any(==(k), (key.fName for key in d.keys))
 end
 
 Base.keys(t::TTree) = [b.fName for b in t.fBranches.elements]
@@ -198,7 +210,7 @@ function Base.getindex(t::TTree, s::Vector{T}) where {T<:AbstractString}
     [t[n] for n in s]
 end
 
-reinterpret(vt::Type{Vector{T}}, data::AbstractVector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
+reinterpret(vt::Type{Vector{T}}, data::Vector{UInt8}) where T <: Union{AbstractFloat, Integer} = reinterpret(T, data)
 
 """
     interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
@@ -364,6 +376,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                     Bool 
                 elseif elname == "unsigned int" 
                     UInt32
+                elseif elname == "signed char"
+                    Int8
                 elseif elname == "unsigned char" 
                     UInt8
                 elseif elname == "unsigned short"
@@ -394,11 +408,31 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
             end
         end
     else
-        _type = primitivetype(leaf)
-        _type = _jaggtype === Nojagg ? _type : Vector{_type}
+        # since no classname were found, we now try to determine
+        # type based on leaf information
+        _type, _jaggtype = leaf_jaggtype(leaf, _jaggtype)
     end
-
     return _type, _jaggtype
+end
+
+function leaf_jaggtype(leaf, _jaggtype)
+        _type = primitivetype(leaf)
+        leafLen = leaf.fLen
+        if leafLen > 1 # treat NTuple as Nojagg since size is static
+            _fTitle = replace(leaf.fTitle, "[$(leafLen)]" => "")
+            # looking for more `[var]`
+            m = match(r"\[\D+\]", _fTitle)
+            _type = FixLenVector{Int(leafLen), _type}
+            if isnothing(m)
+                return _type, Nojagg
+            else
+                #FIXME this only handles [var][fix] case
+                return Vector{_type}, Nooffsetjagg
+            end
+        end
+        _type = _jaggtype === Nojagg ? _type : Vector{_type}
+
+        return _type, _jaggtype
 end
 
 
@@ -408,9 +442,9 @@ function readbranchraw(f::ROOTFile, branch)
     datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(zeros(Int32, 1), branch.fEntries+1) # this is always Int32
     position = 0
-    foreach(branch.fBasketSeek) do seek
-        seek==0 && return
-        data, offset = readbasketseek(f, branch, seek)
+    for (seek, nb) in zip(branch.fBasketSeek, nbytes)
+        seek==0 && break
+        data, offset = readbasketseek(f, branch, seek, nb)
         append!(datas, data)
         # FIXME: assuming offset has always 0 or at least 2 elements ;)
         append!(offsets, (@view offset[2:end]) .+ position)
@@ -434,7 +468,7 @@ end
 # 3GB cache for baskets
 """
     readbasket(f::ROOTFile, branch, ith)
-    readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
+    readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nbytes)
 
 The fundamental building block of reading read data from a .root file. Read read one
 basket's raw bytes and offsets at a time. These raw bytes and offsets then (potentially) get
@@ -442,19 +476,15 @@ processed by [`interped_data`](@ref).
 
 See also: [`auto_T_JaggT`](@ref), [`basketarray`](@ref)
 """
-readbasket(f::ROOTFile, branch, ith) = readbasketseek(f, branch, branch.fBasketSeek[ith])
+function readbasket(f::ROOTFile, branch, ith) 
+    readbasketseek(f, branch, branch.fBasketSeek[ith], branch.fBasketBytes[ith])
+end
 
-function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int)
-    lock(f)
-    local basketkey, compressedbytes
-    try
-        seek(f.fobj, seek_pos)
-        basketkey = unpack(f.fobj, TBasketKey)
-        compressedbytes = compressed_datastream(f.fobj, basketkey)
-    catch
-        finally
-        unlock(f)
-    end
+function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nb)
+    local rawbuffer
+    rawbuffer = OffsetBuffer(IOBuffer(read_seek_nb(f.fobj, seek_pos, nb)), seek_pos)
+    basketkey = unpack(rawbuffer, TBasketKey)
+    compressedbytes = compressed_datastream(rawbuffer, basketkey)
 
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
 

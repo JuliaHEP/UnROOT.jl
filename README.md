@@ -3,14 +3,23 @@
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tamasgal.github.io/UnROOT.jl/dev)
-[![Build Status](https://github.com/tamasgal/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/tamasgal/UnROOT.jl/actions)
-[![Codecov](https://codecov.io/gh/tamasgal/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/tamasgal/UnROOT.jl)
+[![JOSS](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c/status.svg)](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliahep.github.io/UnROOT.jl/dev)
+[![Build Status](https://github.com/JuliaHEP/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/JuliaHEP/UnROOT.jl/actions)
+[![Codecov](https://codecov.io/gh/JuliaHEP/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaHEP/UnROOT.jl)
 
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
-## Quick Start (see [docs](https://tamasgal.github.io/UnROOT.jl/dev/) for more)
+## Installation Guide
+1. Download the latest [Julia release](https://julialang.org/downloads/)
+2. Open up Julia REPL (hit `]` once to enter Pkg mode, hit backspace to exit it)
+```julia
+julia>]
+(v1.8) pkg> add UnROOT
+```
+## Quick Start (see [docs](https://JuliaHEP.github.io/UnROOT.jl/dev/) for more)
+
 ```julia
 julia> using UnROOT
 
@@ -51,23 +60,32 @@ julia> Threads.@threads for event in mytree # multi-threading
 ```
 
 Only one basket per branch will be cached so you don't have to worry about running out of RAM.
-At the same time, `event` inside the for-loop is not materialized until a field is accessed. If your event
-is fairly small or you need all of them anyway, you can `collect(event)` first inside the loop.
+At the same time, `event` inside the for-loop is not materialized until a field is accessed. This means you should avoid double-access, 
+see [performance tips](https://juliahep.github.io/UnROOT.jl/dev/performancetips/#Don't-%22double-access%22)
+
+XRootD is also supported, depending on the protocol:
+-   the "url" has to start with `http://` or `https://`:
+-   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
+```julia
+julia> r = @time ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
+  0.034877 seconds (5.13 k allocations: 533.125 KiB)
+ROOTFile with 1 entry and 18 streamers.
+
+julia> r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
+ROOTFile with 1 entry and 19 streamers.
+```
 
 ## Branch of custom struct
 
 We provide an experimental interface for hooking up UnROOT with your custom types
-that only takes 2 steps, as explained [in the docs](https://tamasgal.github.io/UnROOT.jl/dev/advanced/custom_branch/).
+that only takes 2 steps, as explained [in the docs](https://JuliaHEP.github.io/UnROOT.jl/dev/advanced/custom_branch/).
 As a show case for this functionality, the `TLorentzVector` support in UnROOT is implemented
 with the said plug-in system.
 
-## Main challenges
-- ROOT data is generally stored as big endian and is a
-  self-descriptive format, i.e. so-called streamers are stored in the files
-  which describe the actual structure of the data in the corresponding branches.
-  These streamers are read during runtime and need to be used to generate
-  Julia structs and `unpack` methods on the fly.
-- Performance is very important for a low level I/O library.
+## Support & Contributiing
+- Use Github issues for any bug reporting or feature request; feel free to make PRs, 
+bug fixing, feature tuning, quality of life, docs, examples etc.
+- See `CONTRIBUTING.md` for more information and recommended workflows in contributing to this package.
 
 
 ## TODOs
@@ -98,6 +116,7 @@ of inspiration and information for reverse engineering the ROOT binary
 structures.
 
 ## Behind the scene
+
 <details><summary>Some additional debug output: </summary>
 <p>
 
@@ -190,10 +209,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- markdownlint-disable -->
 <table>
   <tr>
-    <td align="center"><a href="http://www.tamasgal.com"><img src="https://avatars.githubusercontent.com/u/1730350?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tamas Gal</b></sub></a><br /><a href="https://github.com/tamasgal/UnROOT.jl/commits?author=tamasgal" title="Code">💻</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=tamasgal" title="Documentation">📖</a> <a href="#infra-tamasgal" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#data-tamasgal" title="Data">🔣</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=tamasgal" title="Tests">⚠️</a></td>
-    <td align="center"><a href="https://github.com/Moelf"><img src="https://avatars.githubusercontent.com/u/5306213?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jerry Ling</b></sub></a><br /><a href="https://github.com/tamasgal/UnROOT.jl/commits?author=Moelf" title="Code">💻</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=Moelf" title="Tests">⚠️</a> <a href="#data-Moelf" title="Data">🔣</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=Moelf" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/8me"><img src="https://avatars.githubusercontent.com/u/17862090?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Johannes Schumann</b></sub></a><br /><a href="https://github.com/tamasgal/UnROOT.jl/commits?author=8me" title="Code">💻</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=8me" title="Tests">⚠️</a> <a href="#data-8me" title="Data">🔣</a></td>
-    <td align="center"><a href="https://github.com/aminnj"><img src="https://avatars.githubusercontent.com/u/5760027?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nick Amin</b></sub></a><br /><a href="https://github.com/tamasgal/UnROOT.jl/commits?author=aminnj" title="Code">💻</a> <a href="https://github.com/tamasgal/UnROOT.jl/commits?author=aminnj" title="Tests">⚠️</a> <a href="#data-aminnj" title="Data">🔣</a></td>
+    <td align="center"><a href="http://www.tamasgal.com"><img src="https://avatars.githubusercontent.com/u/1730350?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tamas Gal</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Documentation">📖</a> <a href="#infra-tamasgal" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#data-tamasgal" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/Moelf"><img src="https://avatars.githubusercontent.com/u/5306213?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jerry Ling</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Tests">⚠️</a> <a href="#data-Moelf" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/8me"><img src="https://avatars.githubusercontent.com/u/17862090?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Johannes Schumann</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Tests">⚠️</a> <a href="#data-8me" title="Data">🔣</a></td>
+    <td align="center"><a href="https://github.com/aminnj"><img src="https://avatars.githubusercontent.com/u/5760027?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nick Amin</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Tests">⚠️</a> <a href="#data-aminnj" title="Data">🔣</a></td>
     <td align="center"><a href="https://giordano.github.io"><img src="https://avatars.githubusercontent.com/u/765740?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mosè Giordano</b></sub></a><br /><a href="#infra-giordano" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
     <td align="center"><a href="https://github.com/oschulz"><img src="https://avatars.githubusercontent.com/u/546147?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Oliver Schulz</b></sub></a><br /><a href="#ideas-oschulz" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/mmikhasenko"><img src="https://avatars.githubusercontent.com/u/22725744?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Misha Mikhasenko</b></sub></a><br /><a href="#data-mmikhasenko" title="Data">🔣</a></td>

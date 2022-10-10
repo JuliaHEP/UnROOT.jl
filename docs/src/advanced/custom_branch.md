@@ -3,17 +3,17 @@ It is possible to parse Branches with custom structure as long as you know how t
 As an example, the `TLorentzVector` is added using this mechanism and we will walk through the steps needed:
 
 ### 1. Provide a map between `fClassName` of your struct (as seen in .root) to a Julia type.
-Pass a `Dict{String, Type}` to `ROOTFile(filepath; customstructs)`. The `TLorentzVector` is shipped [by default](https://github.com/tamasgal/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L21):
+Pass a `Dict{String, Type}` to `ROOTFile(filepath; customstructs)`. The `TLorentzVector` is shipped [by default](https://github.com/JuliaHEP/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L21):
 ```julia
 ROOTFile(filepath; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
 ```
 
-This `Dict` will subsequently be used by the `auto_T_JaggT` function [at here](https://github.com/tamasgal/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L213-L222) such that when we encounter a branch with this `fClassName`, we will return your `Type` as the detected element type of this branch.
+This `Dict` will subsequently be used by the `auto_T_JaggT` function [at here](https://github.com/JuliaHEP/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L213-L222) such that when we encounter a branch with this `fClassName`, we will return your `Type` as the detected element type of this branch.
 
 ### 2. Extend the raw bytes interpreting function `UnROOT.interped_data`
-By default, given a branch element type and a "jaggness" type, a general function [is defined](https://github.com/tamasgal/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L149) which will try to parse the raw bytes into Julia data structure. The `::Type{T}` will match what you have provided in the `Dict` in the previous step.
+By default, given a branch element type and a "jaggness" type, a general function [is defined](https://github.com/JuliaHEP/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/root.jl#L149) which will try to parse the raw bytes into Julia data structure. The `::Type{T}` will match what you have provided in the `Dict` in the previous step.
 
-Thus, to "teach" UnROOT how to interpret bytes for your type `T`, you would want to defined a more specific `UnROOT.interped_data` than the default one. Taking the `TLorentzVector` [as example](https://github.com/tamasgal/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/custom.jl#L23) again, we define a function:
+Thus, to "teach" UnROOT how to interpret bytes for your type `T`, you would want to defined a more specific `UnROOT.interped_data` than the default one. Taking the `TLorentzVector` [as example](https://github.com/JuliaHEP/UnROOT.jl/blob/06b692523bbff3f467f6b7fe3544e411a719bc9e/src/custom.jl#L23) again, we define a function:
 ```julia
 using LorentzVector
 const LVF64 = LorentzVector{Float64}
@@ -24,7 +24,8 @@ function UnROOT.interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) whe
     ]
 end
 
-function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
+# VorView is defined in the `src/custom.jl`
+function Base.reinterpret(::Type{LVF64}, v::VorView) where T
     # x,y,z,t in ROOT
     v4 = ntoh.(reinterpret(Float64, v[1+32:end]))
     # t,x,y,z in LorentzVectors.jl
@@ -32,7 +33,7 @@ function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
 end
 ```
 
-The `Base.reinterpret` function is just a helper function, you could instead write everything inside `UnROOT.interped_data`. We then builds on these, to interpret Jagged TLV branch: https://github.com/tamasgal/UnROOT.jl/blob/4747f6f5fd97ed1a872765485b4eb9e99ec5a650/src/custom.jl#L47
+The `Base.reinterpret` function is just a helper function, you could instead write everything inside `UnROOT.interped_data`. We then builds on these, to interpret Jagged TLV branch: https://github.com/JuliaHEP/UnROOT.jl/blob/4747f6f5fd97ed1a872765485b4eb9e99ec5a650/src/custom.jl#L47
 
 ### More details
 To expand a bit what we're doing here, the `rawdata` for a single `TLV` is always `64 bytes` long and the first `32 bytes` are TObject header which we don't care (which is why we don't care about `rawoffsets` here). The last `32 bytes` make up 4 `Float64` and we simply parse them and return a collection of (julia) `LorentzVector{Float64}`.

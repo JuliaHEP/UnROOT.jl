@@ -151,6 +151,7 @@ function decompress_datastreambytes(compbytes, tkey)
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         rawbytes = read(io, compbytes)
+        @debug cname
 
         if cname == "L4"
             # skip checksum which is 8 bytes
@@ -238,7 +239,7 @@ end
 
 const ROOTDirectoryHeader = Union{ROOTDirectoryHeader32, ROOTDirectoryHeader64}
 
-function unpack(io::IOStream, ::Type{ROOTDirectoryHeader})
+function unpack(io, ::Type{ROOTDirectoryHeader})
     fVersion = readtype(io, Int16)
     skip(io, -2)
 

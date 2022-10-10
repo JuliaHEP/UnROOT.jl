@@ -14,7 +14,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
     # then all TKeys in the file which are not for a TTree
     seen = Set{String}()
     ch = Vector{Union{TTree,TKeyNode,ROOTDirectory}}()
-    T === ROOTFile ? lock(f) : nothing
     for k in keys(f)
         try
             obj = f[k]
@@ -35,7 +34,6 @@ function children(f::T) where T <: Union{ROOTFile,ROOTDirectory}
             push!(ch, kn)
         end
     end
-    T === ROOTFile ? unlock(f) : nothing
     ch
 end
 function children(t::TTree)
@@ -61,12 +59,12 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     _ds = displaysize(io)
     PrettyTables.pretty_table(
         io,
-        innertable(tree);
+        Tables.columns(tree);
         header=_hs,
         alignment=:l,
         vlines=[1],
         hlines=[:header],
-        crop_num_lines_at_beginning=2,
+        reserved_display_lines=2,
         row_number_alignment=:l,
         row_number_column_title="Row",
         show_row_number=true,
@@ -77,13 +75,39 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     )
     nothing
 end
+
+
+function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
+    print(io, summary(br))
+    println(io, ": ")
+    if length(br) < 200
+        Base.print_array(IOContext(io, :limit => true), br[:])
+    else
+        head = @async br[1:100]
+        tail = @async br[end-99:end]
+        wait(head)
+        wait(tail)
+        Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
+    end
+    nothing
+end
+
+# stop crazy stracktrace
+function Base.show(io::IO, 
+    ::Type{<:LazyTree{<:NamedTuple{Ns, Vs}}}) where {Ns, Vs}
+    elip = length(Ns) > 5 ? "..." : ""
+    println(io, "LazyTree with $(length(Ns)) branches:")
+    println(io, join(first(Ns, 5), ", "), elip)
+end
+
 function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
-    _hs = _make_header(tree)
     maxrows = 10
     maxcols = 30
     nrow = length(tree)
-    t = @view innertable(tree)[1:min(maxrows,nrow)]
-    ncol = length(Tables.columns(t))
+    t = Tables.columns(@view tree[1:min(maxrows,nrow)])
+    # _hs has headers and subheaders
+    _hs = first.(_make_header(tree), maxcols)
+    ncol = length(t)
     withcommas(value) = reverse(join(join.(Iterators.partition(reverse(string(value)),3)),","))
     write(io, "<p>")
     write(io, "$(withcommas(nrow)) rows × $(ncol) columns")
@@ -94,7 +118,7 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     elseif (ncol > maxcols)
         write(io, " (omitted printing of $(ncol-maxcols) columns)")
     end
-    write(io, "</p>")
+    println(io, "</p>")
     PrettyTables.pretty_table(
         io,
         t;
@@ -103,9 +127,8 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
         row_number_column_title="",
         show_row_number=true,
         compact_printing=false,
-        filters_col     = ((_,i) -> i <= maxcols,),
         formatters=(v, i, j) -> _treeformat(v, 100),
-        tf = PrettyTables.HTMLTableFormat(css = """th { color: #000; background-color: #fff; }"""),
+        tf = PrettyTables.HtmlTableFormat(css = """th { color: #000; background-color: #fff; }"""),
         backend=Val(:html),
     )
     nothing
@@ -114,7 +137,7 @@ _symtup2str(symtup, trunc=15) = collect(first.(string.(symtup), trunc))
 function _make_header(t)
     pn = propertynames(t)
     header = _symtup2str(pn)
-    subheader = _symtup2str(Tables.columntype.(Ref(innertable(t)), pn))
+    subheader = _symtup2str(eltype.(values(Tables.columns(t))))
     (header, subheader)
 end
 function _treeformat(val, trunc)

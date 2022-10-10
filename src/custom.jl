@@ -31,11 +31,44 @@ end
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
+struct FixLenVector{N, T} <: AbstractVector{T}
+    vec::SVector{N, T}
+end
+(::Type{FixLenVector{N, T}})() where {N, T} = FixLenVector(zero(SVector{N, T}))
+Base.length(x::FixLenVector) = length(x.vec)
+Base.length(::Type{FixLenVector{N, T}}) where {N, T} = N
+Base.size(x::FixLenVector) = size(x.vec)
+Base.eltype(x::FixLenVector) = eltype(x.vec)
+Base.iterate(x::FixLenVector) = iterate(x.vec)
+Base.iterate(x::FixLenVector, n) = iterate(x.vec, n)
+Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
+
+#N.B this is a hack, we deal with ntoh in reinterpret step
+Base.ntoh(x::FixLenVector) = x
+const VorView = Union{Vector{UInt8}, SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}}
+
+function Base.reinterpret(::Type{Vector{FixLenVector{N, T}}}, data::Vector{UInt8}) where {N,T}
+    vs = reinterpret(T, data)
+    @. vs = ntoh(vs)
+    return FixLenVector.(reinterpret(SVector{N, T}, vs))
+end
+
+function Base.reinterpret(::Type{FixLenVector{N, T}}, v::VorView) where {N, T}
+    vs = reinterpret(T, v)
+    @. vs = ntoh(vs)
+    FixLenVector(SVector{N, T}(vs))
+end
+function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{Nojagg}) where {T <: FixLenVector}
+    n = sizeof(T)
+    [
+     reinterpret(T, x) for x in Base.Iterators.partition(rawdata, n)
+    ]
+end
 
 # TLorentzVector
 const LVF64 = LorentzVector{Float64}
 Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
-function Base.reinterpret(::Type{LVF64}, v::AbstractVector{UInt8}) where T
+function Base.reinterpret(::Type{LVF64}, v::VorView)
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
     v4 = reinterpret(Float64, @view v[1+32:end])
@@ -74,7 +107,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offset
     offset .+= 1
     VectorOfVectors(real_data, offset)
 end
-function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where {T, J <: JaggType}
+function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where J <: JaggType
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes
     [
      reinterpret(LVF64, x) for x in Base.Iterators.partition(rawdata, 64)
@@ -92,7 +125,7 @@ end
 function readtype(io::IO, T::Type{_KM3NETDAQHit})
     T(readtype(io, Int32), read(io, UInt8), read(io, Int32), read(io, UInt8))
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQHit}}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQHit, skipbytes=10)
 end
 
@@ -115,7 +148,7 @@ function readtype(io::IO, T::Type{_KM3NETDAQTriggeredHit})
     T(dom_id, channel_id, tdc, tot, trigger_mask)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{Vector{_KM3NETDAQTriggeredHit}}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQTriggeredHit, skipbytes=10)
 end
 
@@ -147,6 +180,6 @@ function readtype(io::IO, T::Type{_KM3NETDAQEventHeader})
     T(detector_id, run, frame_index, UTC_seconds, UTC_16nanosecondcycles, trigger_counter, trigger_mask, overlays)
 end
 
-function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) where {T, J <: UnROOT.JaggType}
+function UnROOT.interped_data(rawdata, rawoffsets, ::Type{_KM3NETDAQEventHeader}, ::Type{J}) where J <: UnROOT.JaggType
     UnROOT.splitup(rawdata, rawoffsets, _KM3NETDAQEventHeader, jagged=false)
 end
