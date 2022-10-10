@@ -669,8 +669,11 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
 
 
     if get(ENV, "CI", "false") == "true"
-        # Make sure CI runs with more than 1 thread
-        @test Threads.nthreads()>1 skip=(nthreads == 1)
+        if nthreads >= 1
+            @test Threads.nthreads()>1 
+        else
+            @warn "CI wasn't run with multi thread"
+        end
     end
     nmus = zeros(Int, Threads.nthreads())
     Threads.@threads for i in 1:length(t)
@@ -699,7 +702,9 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
     Threads.@threads for evt in t
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
-    @test count(>(0), nmus) > 1  skip = (nthreads==1)# test @threads is actually threading
+    if nthreads > 1
+        @test count(>(0), nmus) > 1# test @threads is actually threading
+    end
     @test sum(nmus) == 878
 
 
@@ -707,7 +712,9 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
     Threads.@threads for evt in t
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
-    @test count(>(0), nmus) > 1  skip = (nthreads==1)# test @threads is actually threading
+    if nthreads > 1
+        @test count(>(0), nmus) > 1
+    end
     @test sum(nmus) == 878
 
     nmus .= 0
