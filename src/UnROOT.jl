@@ -44,11 +44,12 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
-let
-    t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
-    t2 = vcat(t,t)
-    show(devnull, t)
-    show(devnull, t[1])
+@static if VERSION >= v"1.9"
+    let
+        t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
+        show(devnull, t)
+        show(devnull, t[1])
+    end
 end
 
 end # module
