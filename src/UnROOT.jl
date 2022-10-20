@@ -1,6 +1,6 @@
 module UnROOT
 
-using LazyArrays
+using SplitApplyCombine: combinedimsview
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
@@ -46,6 +46,7 @@ include("displays.jl")
 
 let
     t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
+    t2 = vcat(t,t)
     show(devnull, t)
     show(devnull, t[1])
 end

@@ -250,17 +250,16 @@ Base.length(lt::LazyTree) = length(first(Tables.columns(lt)))
 Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(first(Tables.columns(lt))) # all column has the same size
 
-function LazyArrays.Vcat(ts::LazyTree...)
+function _lazyvcat(ts::AbstractVector{<:LazyTree})
     branch_names = propertynames(first(ts))
     res_branches = map(branch_names) do bname
-        LazyArrays.Vcat(getproperty.(ts, bname)...)
+        vec(combinedimsview(getproperty.(ts, bname)))
     end
     LazyTree(NamedTuple{branch_names}(res_branches))
 end
-Base.vcat(ts::LazyTree...) = Vcat(ts...)
-Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
-Base.mapreduce(f, ::typeof(vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
-Base.mapreduce(f, ::typeof(Vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
+Base.vcat(ts::LazyTree...) = _lazyvcat(collect(ts))
+Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = _lazyvcat(ts)
+Base.mapreduce(f, ::typeof(vcat), ts::Vector{<:LazyTree}) = _lazyvcat(f.(ts))
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
@@ -372,7 +371,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
     offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return Vcat(asyncmap(i->basketarray(ba, i), ib1:ib2)...)[range]
+    return vec(combinedimsview(asyncmap(i->basketarray(ba, i), ib1:ib2)))[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])

@@ -796,7 +796,7 @@ end
     @test sum(UnROOT._clusterbytes([t.b2]; compressed=true)) == 23710.0 # same as uproot4
 end
 
-@testset "Vcat/chaining" begin
+@testset "vcat/chaining" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
     tt = vcat(t,t)
