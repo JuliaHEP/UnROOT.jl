@@ -803,7 +803,9 @@ end
     t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
     tt = UnROOT.chaintrees([t,t])
     @test all(vcat(t, t).Muon_pt .== tt.Muon_pt)
-    @test (@allocated UnROOT.chaintrees([t,t])) < 1000
+    @static if VERSION >= v"1.7"
+        @test (@allocated UnROOT.chaintrees([t,t])) < 1000
+    end
     @test length(tt) == 2*length(t)
     s1 = sum(t.nMuon)
     s2 = sum(tt.nMuon)
