@@ -250,17 +250,47 @@ Base.length(lt::LazyTree) = length(first(Tables.columns(lt)))
 Base.ndims(::Type{<:LazyTree}) = 1
 Base.size(lt::LazyTree) = size(first(Tables.columns(lt))) # all column has the same size
 
-function LazyArrays.Vcat(ts::LazyTree...)
+"""
+    chaintrees(ts)
+
+Chain a collection of `LazyTree`s together to form a larger tree, every tree should
+have identical branch names and types, we're not trying to re-implement SQL here.
+
+## Example
+
+```julia
+julia> typeof(tree)
+LazyTree with 1 branches:
+a
+
+julia> tree2 = UnROOT.chaintrees([tree,tree]);
+
+julia> eltype(tree.a) == eltype(tree2.a)
+true
+
+julia> length(tree)
+100
+
+julia> length(tree2)
+200
+
+julia> eltype(tree)
+UnROOT.LazyEvent{NamedTuple{(:a,), Tuple{LazyBranch{Int32, UnROOT.Nojagg, Vector{Int32}}}}}
+
+julia> eltype(tree2)
+UnROOT.LazyEvent{NamedTuple{(:a,), Tuple{SentinelArrays.ChainedVector{Int32, LazyBranch{Int32, UnROOT.Nojagg, Vector{Int32}}}}}}
+```
+"""
+function chaintrees(ts)
     branch_names = propertynames(first(ts))
     res_branches = map(branch_names) do bname
-        LazyArrays.Vcat(getproperty.(ts, bname)...)
+        ChainedVector(getproperty.(ts, bname))
     end
     LazyTree(NamedTuple{branch_names}(res_branches))
 end
-Base.vcat(ts::LazyTree...) = Vcat(ts...)
-Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = Vcat((ts)...)
-Base.mapreduce(f, ::typeof(vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
-Base.mapreduce(f, ::typeof(Vcat), ts::Vector{<:LazyTree}) = Vcat(f.(ts)...)
+
+Base.vcat(ts::LazyTree...) = chaintrees(collect(ts))
+Base.reduce(::typeof(vcat), ts::AbstractVector{<:LazyTree}) = chaintrees(ts)
 
 function getbranchnamesrecursive(obj)
     out = Vector{String}()
@@ -372,7 +402,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
     offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return Vcat(asyncmap(i->basketarray(ba, i), ib1:ib2)...)[range]
+    return ChainedVector(asyncmap(i->basketarray(ba, i), ib1:ib2))[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])

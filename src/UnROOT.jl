@@ -1,6 +1,6 @@
 module UnROOT
 
-using LazyArrays
+import SentinelArrays: ChainedVector
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
@@ -43,5 +43,13 @@ include("root.jl")
 include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
+
+@static if VERSION >= v"1.9"
+    let
+        t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
+        show(devnull, t)
+        show(devnull, t[1])
+    end
+end
 
 end # module
