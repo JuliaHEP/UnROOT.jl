@@ -4,7 +4,7 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-using ThreadsX, Polyester
+using ThreadsX
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -719,10 +719,12 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
 
     nmus .= 0
     t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
-    @batch for evt in vcat(t,t_dummy) # avoid using the same underlying file handler
+    chained_tree = vcat(t,t_dummy)
+    Threads.@threads for evt in chained_tree # avoid using the same underlying file handler
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
     @test sum(nmus) == 2*878
+    @test mapreduce(length, +, [t,t_dummy]) == length(t) + length(t_dummy)
 
     for j in 1:3
         inds = [Vector{Int}() for _ in 1:nthreads]

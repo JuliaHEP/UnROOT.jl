@@ -1,6 +1,6 @@
 module UnROOT
 
-using SplitApplyCombine: combinedimsview
+import SentinelArrays: ChainedVector
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
