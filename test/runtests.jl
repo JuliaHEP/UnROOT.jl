@@ -801,7 +801,8 @@ end
 @testset "vcat/chaining" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
-    tt = vcat(t,t)
+    tt = UnROOT.chaintrees([t,t])
+    @test all(vcat(t, t).Muon_pt .== tt.Muon_pt)
     @test (@allocated UnROOT.chaintrees([t,t])) < 1000
     @test length(tt) == 2*length(t)
     s1 = sum(t.nMuon)
