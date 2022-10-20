@@ -802,7 +802,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
     tt = vcat(t,t)
-    @test (@allocated vcat(t,t)) < 1000
+    @test (@allocated UnROOT.chaintrees([t,t])) < 1000
     @test length(tt) == 2*length(t)
     s1 = sum(t.nMuon)
     s2 = sum(tt.nMuon)
