@@ -44,4 +44,9 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
+let
+    t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")[1]
+    println(t)
+end
+
 end # module
