@@ -28,6 +28,43 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, jagged=true
     out
 end
 
+
+# running length coded string
+function runlength_offset(data)
+    count=Int32(0)
+    maxlength = length(data)
+    i = 1
+    while true
+        i >= maxlength && break
+        i += data[i]+1
+        count+=Int32(1)
+    end
+    count
+end
+
+function runlength_string(::Type{T}, data) where T
+    out = T[]
+    maxlength = length(data)
+    i = 1
+    while true
+        i >= maxlength && break
+        _len = data[i]
+        stop = i + _len
+        s = T(@view data[i+1 : stop])
+        i = stop+1
+        push!(out, s)
+    end
+    out
+end
+
+function interped_data(data::Vector{UInt8}, rawoffsets::Vector{Int32}, ::Type{Vector{T}}, ::Type{Offsetjagg}) where {T<:AbstractString}
+    rawoffsets .+= 1
+    v = VectorOfVectors(data, rawoffsets)
+    newoffsets = [Int32(1); accumulate(+, runlength_offset.(v))]
+    res = runlength_string(T, @view data[11:end]) # offsetjagg skip 10 bytes
+    return VectorOfVectors(res, newoffsets)
+end
+
 # Custom struct interpretation
 abstract type CustomROOTStruct end
 
@@ -47,13 +84,13 @@ Base.getindex(x::FixLenVector, n) = getindex(x.vec, n)
 Base.ntoh(x::FixLenVector) = x
 const VorView = Union{Vector{UInt8}, SubArray{UInt8, 1, Vector{UInt8}, Tuple{UnitRange{Int64}}, true}}
 
-function Base.reinterpret(::Type{Vector{FixLenVector{N, T}}}, data::Vector{UInt8}) where {N,T}
+function reinterpret(::Type{Vector{FixLenVector{N, T}}}, data::Vector{UInt8}) where {N,T}
     vs = reinterpret(T, data)
     @. vs = ntoh(vs)
     return FixLenVector.(reinterpret(SVector{N, T}, vs))
 end
 
-function Base.reinterpret(::Type{FixLenVector{N, T}}, v::VorView) where {N, T}
+function reinterpret(::Type{FixLenVector{N, T}}, v::VorView) where {N, T}
     vs = reinterpret(T, v)
     @. vs = ntoh(vs)
     FixLenVector(SVector{N, T}(vs))
@@ -68,7 +105,7 @@ end
 # TLorentzVector
 const LVF64 = LorentzVector{Float64}
 Base.show(io::IO, lv::LorentzVector) = print(io, "LV(x=$(lv.x), y=$(lv.y), z=$(lv.z), t=$(lv.t))")
-function Base.reinterpret(::Type{LVF64}, v::VorView)
+function reinterpret(::Type{LVF64}, v::VorView)
     # first 32 bytes are TObject header we don't care
     # x,y,z,t in ROOT
     v4 = (reinterpret(Float64, @view v[1+32:end]))
