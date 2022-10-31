@@ -4,8 +4,9 @@ import SentinelArrays: ChainedVector
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
-import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh, reinterpret
+import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh
 ntoh(b::Bool) = b
+reinterpret(a,b) = Base.reinterpret(a,b)
 
 import AbstractTrees: children, printnode, print_tree
 
@@ -44,7 +45,7 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
-@static if VERSION >= v"1.9"
+if VERSION >= v"1.9"
     let
         t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
         show(devnull, t)

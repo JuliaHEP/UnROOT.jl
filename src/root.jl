@@ -364,10 +364,9 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                 _jaggtype = Offsetjaggjagg
             end
 
-            try
+            if haskey(customstructs, elname)
                 _custom = customstructs[elname]
                 return Vector{_custom}, _jaggtype
-            catch
             end
             elname = endswith(elname, "_t") ? lowercase(chop(elname; tail=2)) : elname  # Double_t -> double
             try
@@ -387,6 +386,8 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                     Int64
                 elseif elname == "ulong64"
                     UInt64
+                elseif elname == "string"
+                    String #length encoded, NOT null terminated
                 else
                     _type = getfield(Base, Symbol(:C, elname))
                 end
