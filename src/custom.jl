@@ -30,24 +30,13 @@ end
 
 
 # running length coded string
-function runlength_offset(data)
-    count=Int32(0)
-    maxlength = length(data)
-    i = 1
-    while true
-        i >= maxlength && break
-        i += data[i]+1
-        count+=Int32(1)
-    end
-    count
-end
-
 function runlength_string(::Type{T}, data) where T
     out = T[]
     maxlength = length(data)
-    i = 1
+    # offsetjagg skip 10 bytes
+    i = 11
     while true
-        i >= maxlength && break
+        i+1 > maxlength && break
         _len = data[i]
         stop = i + _len
         s = T(@view data[i+1 : stop])
@@ -60,9 +49,10 @@ end
 function interped_data(data::Vector{UInt8}, rawoffsets::Vector{Int32}, ::Type{Vector{T}}, ::Type{Offsetjagg}) where {T<:AbstractString}
     rawoffsets .+= 1
     v = VectorOfVectors(data, rawoffsets)
-    newoffsets = [Int32(1); accumulate(+, runlength_offset.(v))]
-    res = runlength_string(T, @view data[11:end]) # offsetjagg skip 10 bytes
-    return VectorOfVectors(res, newoffsets)
+    res = runlength_string.(T, v)
+    dummy = VectorOfVectors(res)
+    # to maintain Int32 indexing
+    return VectorOfVectors(dummy.data, Vector{Int32}(dummy.elem_ptr))
 end
 
 # Custom struct interpretation

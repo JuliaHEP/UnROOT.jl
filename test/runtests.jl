@@ -767,6 +767,14 @@ end
     @test all(ele .== [ele...])
 end
 
+@testset "C vector{string}" begin
+    tree = LazyTree(UnROOT.samplefile("tree_with_vector_string.root"), "t1")
+    @test length(tree.vs) == 3
+    @test tree.vs[1] == ["ab"]
+    @test tree.vs[2] == ["bcc", "cdd"]
+    @test tree.vs[3] == ["Weight", "MEWeight", "WeightNormalisation", "NTrials", "UserHook", "MUR0.5_MUF0.5_PDF303200_PSMUR0.5_PSMUF0.5", "ME_ONLY_MUR0.5_MUF0.5_PDF303200_PSMUR0.5_PSMUF0.5", "MUR0.5_MUF1_PDF303200_PSMUR0.5_PSMUF1", "ME_ONLY_MUR0.5_MUF1_PDF303200_PSMUR0.5_PSMUF1", "MUR1_MUF0.5_PDF303200_PSMUR1_PSMUF0.5"]
+end
+
 @testset "basketarray_iter()" begin
     f = UnROOT.samplefile("tree_with_vector_multiple_baskets.root")
     t = LazyTree(f,"t1")
