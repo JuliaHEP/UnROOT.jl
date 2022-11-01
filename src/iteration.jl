@@ -342,10 +342,10 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     all_bnames = getbranchnamesrecursive(tree)
     res_bnames = mapreduce(∪, branches) do b
         if b isa Regex
-            filter!(_m(b), all_bnames)
+            filter(_m(b), all_bnames)
         elseif b isa String
             expand = any(n->startswith(n, "$b/$b"), all_bnames)
-            expand ? filter!(n->startswith(n, "$b/$b"), all_bnames) : [b]
+            expand ? filter(n->startswith(n, "$b/$b"), all_bnames) : [b]
         else
             error("branch selection must be string or regex")
         end
