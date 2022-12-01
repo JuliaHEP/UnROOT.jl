@@ -87,7 +87,7 @@ function Base.show(io::IO, ::MIME"text/plain", br::LazyBranch)
         tail = @async br[end-99:end]
         wait(head)
         wait(tail)
-        Base.print_array(IOContext(io, :limit => true), Vcat(head.result, tail.result))
+        Base.print_array(IOContext(io, :limit => true), vcat(head.result, tail.result))
     end
     nothing
 end
