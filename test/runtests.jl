@@ -431,6 +431,13 @@ end
     show(_io, MIME"text/html"(), t)
     _iostring = String(take!(_io))
     @test occursin("</table>", _iostring)
+
+    # test show a single LazyBranch
+    _io = IOBuffer()
+    show(_io, MIME"text/plain"(), t.nMuon)
+    _iostring = String(take!(_io))
+    @test occursin("LazyBranch{", _iostring)
+    @test occursin("0x00000000", _iostring)
     close(f)
 end
 
