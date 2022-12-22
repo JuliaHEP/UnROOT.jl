@@ -306,6 +306,8 @@ struct TObjArray
     elements
 end
 Base.getindex(obj::TObjArray, index) = obj.elements[index]
+Base.length(a::TObjArray) = length(a.elements)
+Base.iterate(a::TObjArray, state=1) = state > length(a) ? nothing : (a.elements[state], state+1)
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjArray})
     @debug "Unpacking: $(tkey)"
