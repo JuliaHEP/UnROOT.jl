@@ -151,7 +151,8 @@ function decompress_datastreambytes(compbytes, tkey)
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         rawbytes = read(io, compbytes)
-        @debug cname
+        @debug "Compression type: $(cname)"
+        @debug "Compressed/uncompressed size in bytes: $(compbytes) / $(uncompbytes)"
 
         if cname == "L4"
             # skip checksum which is 8 bytes
