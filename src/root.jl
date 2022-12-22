@@ -135,15 +135,7 @@ end
 
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
-    S = _getindex(f, s)
-    if S isa Union{TBranch, TBranchElement}
-        try # if we can't construct LazyBranch, just give up (maybe due to custom class)
-            return LazyBranch(f, S)
-        catch
-            @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
-        end
-    end
-    S
+    _getindex(f, s)
 end
 
 @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
