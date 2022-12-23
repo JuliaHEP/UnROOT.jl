@@ -89,6 +89,20 @@ function readfields!(io, fields, T::Type{TH2_4}) end
     fIOBits
 end
 
+# https://github.com/root-project/root/blob/e9fa243af91217e9b108d828009c81ccba7666b5/tree/ntuple/v7/inc/ROOT/RMiniFile.hxx#L65
+struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
+    fCheckSum::Int32
+    fVersion::UInt32
+    fSize::UInt32
+    fSeekHeader::UInt64
+    fNBytesHeader::UInt32
+    fLenHeader::UInt32
+    fSeekFooter::UInt64
+    fNBytesFooter::UInt32
+    fLenFooter::UInt32
+    fReserved::UInt64
+end
+
 function parsefields!(io, fields, T::Type{ROOT_3a3a_TIOFeatures})
     preamble = Preamble(io, T)
     skip(io, 4)
