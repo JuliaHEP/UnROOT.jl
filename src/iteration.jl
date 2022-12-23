@@ -404,7 +404,7 @@ function LazyTree(f::ROOTFile, tree::TTree, s, branches)
             replace!(tail, "fCoordinates" => "")
             norm_name = join([head; join(tail)], "_")
         end
-        d[Symbol(norm_name)] = f["$s/$b"]
+        d[Symbol(norm_name)] = LazyBranch(f, f["$s/$b"])
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
 end
