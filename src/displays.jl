@@ -46,6 +46,9 @@ function children(t::TTree)
         return ks
     end
 end
+children(t::Union{TTree, TBranchElement}) = t.fBranches
+Base.show(io::IO, ::MIME"text/plain", b::Union{TTree, TBranchElement}) = print_tree(io, b)
+printnode(io::IO, t::TBranchElement) = print(io, "$(t.fName)")
 printnode(io::IO, t::TTree) = print(io, "$(t.fName) (TTree)")
 printnode(io::IO, f::ROOTFile) = print(io, f.filename)
 printnode(io::IO, f::ROOTDirectory) = print(io, "$(f.name) (TDirectory)")
