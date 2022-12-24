@@ -72,20 +72,15 @@ function _rntuple_read(io, ::Type{String})
 end
 
 
-abstract type RNTupleFramed end
-abstract type RNTupleEnveloped end
-
-@with_kw struct RNTupleEnvelope{T}
-    Version::UInt16
-    MinVersion::UInt16
-    Payload::T
-    CRC32::UInt32
-end
+struct RNTupleEnvelope{T} end
 function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
+    bytes = read(io)
+    seek(io, 0)
     Version, MinVersion = (read(io, UInt16) for _=1:2)
     Payload = _rntuple_read(io, T)
-    CRC32 = read(io, UInt32)
-    RNTupleEnvelope{T}(; Version, MinVersion, Payload, CRC32)
+
+    @assert crc32(@view bytes[begin:end-4]) == reinterpret(UInt32, last(bytes, 4))[1]
+    return Payload
 end
 
 struct RNTupleFrame{T} end
@@ -123,14 +118,28 @@ function _rntuple_read(io, ::Type{FieldRecord})
     FieldRecord(; FieldVersion, TypeVersion, ParentFieldID, StructralRole, Flags, FieldName, TypeName, TypeAlias, Description)
 end
 
-@with_kw struct RNTupleHeader <: RNTupleEnveloped
+@with_kw struct ColumnRecord
+    Type::UInt16
+    Nbits::UInt16
+    FieldID::UInt32
+    Flags::UInt32
+end
+function _rntuple_read(io, ::Type{ColumnRecord})
+    Type = read(io, UInt16)
+    Nbits = read(io, UInt16)
+    FieldID = read(io, UInt32)
+    Flags = read(io, UInt32)
+    ColumnRecord(; Type, Nbits, FieldID, Flags)
+end
+
+@with_kw struct RNTupleHeader
     FeatureFlag::UInt64
     RC_tag::UInt32
     Name::String
     Description::String
     Writer::String
     FieldRecords::Vector{FieldRecord}
-    # ColumnRecords::
+    ColumnRecords::Vector{ColumnRecord}
     # AliasColumns::
     # ExtraTypeInfos::
 end
@@ -139,21 +148,14 @@ function _rntuple_read(io, ::Type{RNTupleHeader})
     RC_tag = read(io, UInt32)
     Name, Description, Writer = (_rntuple_read(io, String) for _=1:3)
     FieldRecords = _rntuple_read(io, RNTupleListFrame{FieldRecord})
-    RNTupleHeader(; FeatureFlag, RC_tag, Name, Description, Writer, FieldRecords)
+    ColumnRecords = _rntuple_read(io, RNTupleListFrame{ColumnRecord})
+    RNTupleHeader(; FeatureFlag, RC_tag, Name, Description, Writer, FieldRecords, ColumnRecords)
 end
 
 function RNTupleHeader(io, anchor::ROOT_3a3a_Experimental_3a3a_RNTuple)
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
     _io = IOBuffer(header_bytes)
     _rntuple_read(_io, RNTupleEnvelope{RNTupleHeader})
-end
-
-
-@with_kw struct ColumnDescription
-    Type::UInt16
-    Nbits::UInt16
-    FieldID::UInt32
-    Flags::UInt32
 end
 
 @with_kw struct ClusterSummary
