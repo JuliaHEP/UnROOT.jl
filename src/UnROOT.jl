@@ -45,6 +45,8 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
+include("RNTuple/bootstrap.jl")
+
 if VERSION >= v"1.9"
     let
         t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
