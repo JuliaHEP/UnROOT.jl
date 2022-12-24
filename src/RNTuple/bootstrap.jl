@@ -66,18 +66,61 @@ function decompress_bytes(compbytes, NTarget)
     return uncomp_data
 end
 
+function _rntuple_read(io, ::Type{String})
+    len = read(io, UInt32)
+    String(read(io, len))
+end
+
+
 abstract type RNTupleFramed end
 abstract type RNTupleEnveloped end
 
-# struct RNTUpleEnvelope
-#     Version::UInt16
-#     MinVersion::UInt16
-#     CRC32::UInt32
-# end
+@with_kw struct RNTupleEnvelope{T}
+    Version::UInt16
+    MinVersion::UInt16
+    Payload::T
+    CRC32::UInt32
+end
+function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
+    Version, MinVersion = (read(io, UInt16) for _=1:2)
+    Payload = _rntuple_read(io, T)
+    CRC32 = read(io, UInt32)
+    RNTupleEnvelope{T}(; Version, MinVersion, Payload, CRC32)
+end
 
-function _read_rntuple_string(io)
-    len = read(io, UInt32)
-    String(read(io, len))
+struct RNTupleFrame{T} end
+function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
+    Size = read(io, UInt32)
+    @assert Size >= 0
+    return _rntuple_read(io, T)
+end
+
+struct RNTupleListFrame{T} end
+function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
+    Size, NumItems = (read(io, Int32) for _=1:2)
+    @assert Size < 0
+    return [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
+end
+
+@with_kw struct FieldRecord
+    FieldVersion::UInt32
+    TypeVersion::UInt32
+    ParentFieldID::UInt32
+    StructralRole::UInt16
+    Flags::UInt16
+    FieldName::String
+    TypeName::String
+    TypeAlias::String
+    Description::String
+end
+function _rntuple_read(io, ::Type{FieldRecord})
+    FieldVersion = read(io, UInt32)
+    TypeVersion = read(io, UInt32)
+    ParentFieldID = read(io, UInt32)
+    StructralRole = read(io, UInt16)
+    Flags = read(io, UInt16)
+    FieldName, TypeName, TypeAlias, Description = (_rntuple_read(io, String) for _=1:4)
+    FieldRecord(; FieldVersion, TypeVersion, ParentFieldID, StructralRole, Flags, FieldName, TypeName, TypeAlias, Description)
 end
 
 @with_kw struct RNTupleHeader <: RNTupleEnveloped
@@ -86,35 +129,23 @@ end
     Name::String
     Description::String
     Writer::String
-    # FieldRecords::
+    FieldRecords::Vector{FieldRecord}
     # ColumnRecords::
     # AliasColumns::
     # ExtraTypeInfos::
 end
-
-function _read_envelope(io)
-    Version, MinVersion = (read(io, UInt16) for _=1:2)
-    Version, MinVersion
+function _rntuple_read(io, ::Type{RNTupleHeader})
+    FeatureFlag = read(io, UInt64)
+    RC_tag = read(io, UInt32)
+    Name, Description, Writer = (_rntuple_read(io, String) for _=1:3)
+    FieldRecords = _rntuple_read(io, RNTupleListFrame{FieldRecord})
+    RNTupleHeader(; FeatureFlag, RC_tag, Name, Description, Writer, FieldRecords)
 end
 
 function RNTupleHeader(io, anchor::ROOT_3a3a_Experimental_3a3a_RNTuple)
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
     _io = IOBuffer(header_bytes)
-    Version, MinVersion = _read_envelope(_io)
-    FeatureFlag = read(_io, UInt64)
-    RC_tag = read(_io, UInt32)
-    Name, Description, Writer = (_read_rntuple_string(_io) for _=1:3)
-    RNTupleHeader(; FeatureFlag, RC_tag, Name, Description, Writer)
-
-end
-
-
-@with_kw struct FieldDescription
-    FieldVersion::UInt32
-    TypeVersion::UInt32
-    ParentFieldID::UInt32
-    StructralRole::UInt16
-    Flags::UInt16
+    _rntuple_read(_io, RNTupleEnvelope{RNTupleHeader})
 end
 
 
