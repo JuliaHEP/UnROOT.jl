@@ -155,7 +155,7 @@ end
     end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     @debug "Retrieving $s ('$(tkey.fClassName)')"
-    streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
+    streamer = getfield(@__MODULE__, Symbol(safename(tkey.fClassName)))
     S = streamer(f.fobj, tkey, f.streamers.refs)
     return S
 end
