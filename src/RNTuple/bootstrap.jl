@@ -12,23 +12,6 @@
     fReserved::UInt64
 end
 
-function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
-    io = datastream(io, tkey)
-    skip(io, 6)
-    ROOT_3a3a_Experimental_3a3a_RNTuple(
-                    fCheckSum = readtype(io, Int32),
-                    fVersion = readtype(io, UInt32),
-                    fSize = readtype(io, UInt32),
-                    fSeekHeader = readtype(io, UInt64),
-                    fNBytesHeader = readtype(io, UInt32),
-                    fLenHeader = readtype(io, UInt32),
-                    fSeekFooter = readtype(io, UInt64),
-                    fNBytesFooter = readtype(io, UInt32),
-                    fLenFooter = readtype(io, UInt32),
-                    fReserved = readtype(io, UInt64),
-                                       )
-end
-
 function decompress_bytes(compbytes, NTarget)
     # not compressed
     length(compbytes) >= NTarget && return compbytes
@@ -66,21 +49,29 @@ function decompress_bytes(compbytes, NTarget)
     return uncomp_data
 end
 
+#fall back
+_rntuple_read(io, T) = read(io, T)
+
 function _rntuple_read(io, ::Type{String})
     len = read(io, UInt32)
     String(read(io, len))
 end
 
 
-struct RNTupleEnvelope{T} end
+@with_kw struct RNTupleEnvelope{T}
+    version::UInt16
+    min_version::UInt16
+    payload::T
+    crc32::UInt32
+end
 function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
     bytes = read(io)
     seek(io, 0)
-    Version, MinVersion = (read(io, UInt16) for _=1:2)
-    Payload = _rntuple_read(io, T)
-
-    @assert crc32(@view bytes[begin:end-4]) == reinterpret(UInt32, last(bytes, 4))[1]
-    return Payload
+    version, min_version = (read(io, UInt16) for _=1:2)
+    payload = _rntuple_read(io, T)
+    _crc32 = crc32(@view bytes[begin:end-4]) 
+    @assert _crc32 == reinterpret(UInt32, @view bytes[end-3:end])[1]
+    return RNTupleEnvelope(;version, min_version, payload, crc32 = _crc32)
 end
 
 struct RNTupleFrame{T} end
@@ -96,74 +87,3 @@ function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
     @assert Size < 0
     return [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
 end
-
-@with_kw struct FieldRecord
-    FieldVersion::UInt32
-    TypeVersion::UInt32
-    ParentFieldID::UInt32
-    StructralRole::UInt16
-    Flags::UInt16
-    FieldName::String
-    TypeName::String
-    TypeAlias::String
-    Description::String
-end
-function _rntuple_read(io, ::Type{FieldRecord})
-    FieldVersion = read(io, UInt32)
-    TypeVersion = read(io, UInt32)
-    ParentFieldID = read(io, UInt32)
-    StructralRole = read(io, UInt16)
-    Flags = read(io, UInt16)
-    FieldName, TypeName, TypeAlias, Description = (_rntuple_read(io, String) for _=1:4)
-    FieldRecord(; FieldVersion, TypeVersion, ParentFieldID, StructralRole, Flags, FieldName, TypeName, TypeAlias, Description)
-end
-
-@with_kw struct ColumnRecord
-    Type::UInt16
-    Nbits::UInt16
-    FieldID::UInt32
-    Flags::UInt32
-end
-function _rntuple_read(io, ::Type{ColumnRecord})
-    Type = read(io, UInt16)
-    Nbits = read(io, UInt16)
-    FieldID = read(io, UInt32)
-    Flags = read(io, UInt32)
-    ColumnRecord(; Type, Nbits, FieldID, Flags)
-end
-
-@with_kw struct RNTupleHeader
-    FeatureFlag::UInt64
-    RC_tag::UInt32
-    Name::String
-    Description::String
-    Writer::String
-    FieldRecords::Vector{FieldRecord}
-    ColumnRecords::Vector{ColumnRecord}
-    # AliasColumns::
-    # ExtraTypeInfos::
-end
-function _rntuple_read(io, ::Type{RNTupleHeader})
-    FeatureFlag = read(io, UInt64)
-    RC_tag = read(io, UInt32)
-    Name, Description, Writer = (_rntuple_read(io, String) for _=1:3)
-    FieldRecords = _rntuple_read(io, RNTupleListFrame{FieldRecord})
-    ColumnRecords = _rntuple_read(io, RNTupleListFrame{ColumnRecord})
-    RNTupleHeader(; FeatureFlag, RC_tag, Name, Description, Writer, FieldRecords, ColumnRecords)
-end
-
-function RNTupleHeader(io, anchor::ROOT_3a3a_Experimental_3a3a_RNTuple)
-    header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
-    _io = IOBuffer(header_bytes)
-    _rntuple_read(_io, RNTupleEnvelope{RNTupleHeader})
-end
-
-@with_kw struct ClusterSummary
-    NumFirstEntry::UInt64
-    NumEntries::UInt64
-end
-
-@with_kw struct ClusterGroup
-    NumClusters::UInt32
-end
-
