@@ -46,9 +46,11 @@ include("custom.jl")
 include("displays.jl")
 
 include("RNTuple/bootstrap.jl")
+include("RNTuple/constants.jl")
 include("RNTuple/header.jl")
 include("RNTuple/footer.jl")
 include("RNTuple/highlevel.jl")
+include("RNTuple/displays.jl")
 
 if VERSION >= v"1.9"
     let
