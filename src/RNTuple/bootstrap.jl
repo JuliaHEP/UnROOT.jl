@@ -87,3 +87,11 @@ function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
     @assert Size < 0
     return [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
 end
+
+# without the inner Frame for each item
+struct RNTupleListNoFrame{T} end
+function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
+    Size, NumItems = (read(io, Int32) for _=1:2)
+    @assert Size < 0
+    return [_rntuple_read(io, T) for _=1:NumItems]
+end

@@ -65,7 +65,7 @@ end
 function _rntuple_read(io, ::Type{RNTupleFooter})
     feature_flag = read(io, UInt64)
     header_crc32 = read(io, UInt32)
-    extension_header_links = _rntuple_read(io, RNTupleListFrame{FieldRecord})
+    extension_header_links = _rntuple_read(io, RNTupleListNoFrame{FieldRecord})
     column_group_records = _rntuple_read(io, RNTupleListFrame{ColumnGroupRecord})
     cluster_summaries = _rntuple_read(io, RNTupleListFrame{ClusterSummary})
     cluster_group_records = _rntuple_read(io, RNTupleListFrame{ClusterGroupRecord})
