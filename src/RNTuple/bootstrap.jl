@@ -76,22 +76,34 @@ end
 
 struct RNTupleFrame{T} end
 function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
+    pos = position(io)
     Size = read(io, UInt32)
+    end_pos = pos + Size
     @assert Size >= 0
-    return _rntuple_read(io, T)
+    res = _rntuple_read(io, T)
+    seek(io, end_pos)
+    return res
 end
 
 struct RNTupleListFrame{T} end
 function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
+    pos = position(io)
     Size, NumItems = (read(io, Int32) for _=1:2)
     @assert Size < 0
-    return [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
+    end_pos = pos - Size
+    res = [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
+    seek(io, end_pos)
+    return res
 end
 
 # without the inner Frame for each item
 struct RNTupleListNoFrame{T} end
 function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
+    pos = position(io)
     Size, NumItems = (read(io, Int32) for _=1:2)
     @assert Size < 0
-    return [_rntuple_read(io, T) for _=1:NumItems]
+    end_pos = pos - Size
+    res = [_rntuple_read(io, T) for _=1:NumItems]
+    seek(io, end_pos)
+    return res
 end
