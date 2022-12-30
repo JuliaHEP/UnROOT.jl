@@ -1,4 +1,4 @@
-@with_kw struct FieldRecord
+struct FieldRecord
     field_version::UInt32
     type_version::UInt32
     parent_field_id::UInt32
@@ -16,11 +16,11 @@ function _rntuple_read(io, ::Type{FieldRecord})
     struct_role = read(io, UInt16)
     flags = read(io, UInt16)
     field_name, type_name, type_alias, field_desc = (_rntuple_read(io, String) for _=1:4)
-    FieldRecord(; field_version, type_version, parent_field_id, 
+    FieldRecord(field_version, type_version, parent_field_id, 
                 struct_role, flags, field_name, type_name, type_alias, field_desc)
 end
 
-@with_kw struct ColumnRecord
+struct ColumnRecord
     type::UInt16
     nbits::UInt16
     field_id::UInt32
@@ -31,7 +31,7 @@ function _rntuple_read(io, ::Type{ColumnRecord})
     nbits = read(io, UInt16)
     field_id = read(io, UInt32)
     flags = read(io, UInt32)
-    ColumnRecord(; type, nbits, field_id, flags)
+    ColumnRecord(type, nbits, field_id, flags)
 end
 
 @with_kw struct AliasRecord
