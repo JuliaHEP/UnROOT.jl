@@ -84,7 +84,7 @@ column since `pagedesc` only contains `num_elements` information.
     Boolean values are always stored as bit in RNTuple, so `nbits = 1`.
     
 """
-function read_pagedesc(io, pagedesc, nbits::Int)
+function read_pagedesc(io, pagedesc, nbits::Integer)
     uncomp_size = pagedesc.num_elements * nbits ÷ 8
     return _read_locator(io, pagedesc.locator, uncomp_size)
 end
