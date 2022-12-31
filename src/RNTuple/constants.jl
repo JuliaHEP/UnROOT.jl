@@ -1,7 +1,7 @@
 #https://github.com/root-project/root/blob/master/tree/ntuple/v7/doc/specifications.md
 const rntuple_col_type_dict = (
-    UInt64,
-    UInt32,
+    Int64,
+    Int32,
     Switch, # Switch
     UInt8,
     UInt8,  # char

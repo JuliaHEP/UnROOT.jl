@@ -37,7 +37,7 @@ function read_pagedesc(io, pagedescs::Vector, nbits::Integer)
 end
 
 struct PageLink end
-function _rntuple_read(io, ::Type{PageLink})
+function _rntuple_read(io, ::Type{PageLink})::Vector{Vector{Vector{PageDescription}}}
     _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
 end
 
@@ -117,10 +117,19 @@ function read_field(io, field::LeafField{T}, page_list, cluster_idx) where T
     reinterpret(T, bytes)
 end
 
+function read_field(io, field::VectorField{O, T}, page_list, cluster_idx) where {O, T}
+    offset = read_field(io, field.offset_col, page_list, cluster_idx)
+    content = read_field(io, field.content_col, page_list, cluster_idx)
+
+    o = one(eltype(offset))
+    jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
+    return VectorOfVectors(content, jloffset, ArraysOfArrays.no_consistency_checks)
+end
+
 function _read_field_cluster(rn, field_name, event_id)
     #TODO handle cluster groups
     bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
-    page_list = _rntuple_read(IOBuffer(bytes), UnROOT.RNTupleEnvelope{UnROOT.PageLink}).payload
+    page_list = _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
     cluster_idx = _find_cluster_idx(rn, event_id)
-    read_field(rn.io, rn.schema[field_name], page_list, cluster_idx)
+    read_field(rn.io, getproperty(rn.schema, field_name), page_list, cluster_idx)
 end
