@@ -13,3 +13,20 @@ function Base.show(io::IO, f::ColumnRecord)
     print(io, "field_id=$(lpad(Int(f.field_id), 2, "0")), ")
     print(io, "flags=$(f.flags)")
 end
+
+function Base.show(io::IO, lf::StringField)
+    print(io, "String(offset=$(lf.offset_col.content_col_idx), \
+          char=$(lf.content_col.content_col_idx))")
+end
+function Base.show(io::IO, lf::LeafField{T}) where T
+    print(io, "Leaf{$T}(col=$(lf.content_col_idx))")
+end
+function Base.show(io::IO, lf::VectorField)
+    print(io, "VectorField(offset=$(lf.offset_col), content=$(lf.content_col))")
+end
+function Base.show(io::IO, lf::StructField)
+    print(io, replace("StructField{$(lf.names .=> lf.content_cols))", " => " => "="))
+end
+function Base.show(io::IO, lf::UnionField)
+    print(io, "UnionField(switch=$(lf.switch_col), content=$(lf.content_cols))")
+end

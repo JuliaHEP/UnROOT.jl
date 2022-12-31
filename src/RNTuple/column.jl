@@ -7,13 +7,31 @@ end
 
 _parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
 
+"""
+    StringField
+
+Special base-case field for String leaf field. This is because RNTuple
+splits a leaf String field into two columns (instead of split in field records).
+So we need an offset column and a content column (that contains `Char`s).
+"""
 struct StringField{O, T}
     offset_col::O
     content_col::T
 end
+
+"""
+    struct LeafField{T}
+        content_col_idx::Int
+    end
+
+Base case of field nesting, this links to a column in the RNTuple by 0-based index.
+`T` is the `eltype` of this field which mostly uses Julia native types except for
+`Switch`.
+"""
 struct LeafField{T}
     content_col_idx::Int
 end
+
 function _search_col_type(field_id, column_records)
     col_id = Tuple(findall(column_records) do col
         col.field_id == field_id
@@ -36,6 +54,7 @@ struct VectorField{O, T}
     offset_col::O
     content_col::T
 end
+
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_vector})
     offset_col = _search_col_type(field_id, column_records)
 
@@ -54,6 +73,7 @@ struct StructField{N, T}
     names::N
     content_cols::T
 end
+
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_struct})
     element_ids = findall(field_records) do field
         field.parent_field_id == field_id
@@ -75,6 +95,7 @@ struct UnionField{S, T}
     switch_col::S
     content_cols::T
 end
+
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_union})
     switch_col = _search_col_type(field_id, column_records)
     element_ids = findall(field_records) do field

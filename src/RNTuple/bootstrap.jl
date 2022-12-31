@@ -109,6 +109,7 @@ function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
 end
 
 primitive type Switch <: Integer 64 end
+Base.show(io::IO, ::Type{Switch}) = print(io, "Switch")
 Switch(x::UInt64) = reinterpret(Switch, x)
 Switch(x::Int64) = reinterpret(Switch, x)
 # Switch(x) = reinterpret(Switch, UInt64(x))
