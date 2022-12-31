@@ -5,50 +5,78 @@ function read_col_page(io, col_record::ColumnRecord, page::PageDescription)
     reinterpret(T, bytes)
 end
 
+_parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
+
+struct StringField{O, T}
+    offset_col::O
+    content_col::T
+end
+struct LeafField{T}
+    content_col_idx::Int
+end
 function _search_col_type(field_id, column_records)
-    res = filter(column_records) do col
+    col_id = Tuple(findall(column_records) do col
         col.field_id == field_id
-    end
-    if length(res) == 2 && res[1].type == 2 && res[2].type == 5
-        return String
+    end)
+    if length(col_id) == 2 && 
+        column_records[col_id[1]].type == 2 && 
+        column_records[col_id[2]].type == 5
+        return StringField(LeafField{Int32}(col_id[1]), LeafField{Char}(col_id[2]))
     else
-        return rntuple_col_type_dict[only(res).type]
+        return LeafField{rntuple_col_type_dict[column_records[only(col_id)].type]}(only(col_id))
     end
 end
 
-_parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
+
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_leaf})
     return _search_col_type(field_id, column_records)
 end
 
+struct VectorField{O, T}
+    offset_col::O
+    content_col::T
+end
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_vector})
+    offset_col = _search_col_type(field_id, column_records)
+
     element_idx = findlast(field_records) do field
         field.parent_field_id == field_id
     end
-    sub_field = field_records[element_idx]
-
     # go back to 0-based
-    return Vector{_parse_field(element_idx-1, field_records, column_records, Val(sub_field.struct_role))}
+    content_col = _parse_field(element_idx-1, field_records, 
+                               column_records, Val(field_records[element_idx].struct_role))
+
+    return VectorField(offset_col, content_col)
 end
 
+# the parent field is only structral, no column attached
+struct StructField{N, T}
+    names::N
+    content_cols::T
+end
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_struct})
     element_ids = findall(field_records) do field
         field.parent_field_id == field_id
     end
     # need 1-based index here
-    setdiff!(element_ids, field_id+1)
+    setdiff!(element_ids, field_id+1) # ignore itself
     sub_fields = @view field_records[element_ids]
 
     names = Tuple(Symbol(sub_field.field_name) for sub_field in sub_fields)
-    types = [
+    content_cols = Tuple(
         _parse_field(element_idx-1, field_records, column_records, Val(sub_field.struct_role))
     for (element_idx, sub_field) in zip(element_ids, sub_fields)
-    ]
+    )
 
-    return NamedTuple{names, Tuple{types...}}
+    return StructField(names, content_cols)
 end
 
+struct UnionField{S, T}
+    switch_col::S
+    content_cols::T
+end
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_union})
+    switch_col = _search_col_type(field_id, column_records)
     element_ids = findall(field_records) do field
         field.parent_field_id == field_id
     end
@@ -56,12 +84,12 @@ function _parse_field(field_id, field_records, column_records, ::Val{rntuple_rol
     setdiff!(element_ids, field_id+1)
     sub_fields = @view field_records[element_ids]
 
-    types = [
+    content_cols = Tuple(
         _parse_field(element_idx-1, field_records, column_records, Val(sub_field.struct_role))
     for (element_idx, sub_field) in zip(element_ids, sub_fields)
-    ]
+    )
 
-    return Union{types...}
+    return UnionField(switch_col, content_cols)
 end
 
 function parse_fields(hr::RNTupleHeader)

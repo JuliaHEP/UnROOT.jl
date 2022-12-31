@@ -2,7 +2,7 @@
 const rntuple_col_type_dict = (
     UInt64,
     UInt32,
-    UInt64, # Switch
+    Switch, # Switch
     UInt8,
     UInt8,  # char
     Bool,   # it's actually `Bit` in ROOT, there's no byte in RNTuple spec
