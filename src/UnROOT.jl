@@ -49,8 +49,8 @@ include("RNTuple/bootstrap.jl")
 include("RNTuple/constants.jl")
 include("RNTuple/header.jl")
 include("RNTuple/footer.jl")
+include("RNTuple/fieldcolumn.jl")
 include("RNTuple/highlevel.jl")
-include("RNTuple/column.jl")
 include("RNTuple/displays.jl")
 
 if VERSION >= v"1.9"

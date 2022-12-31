@@ -1,10 +1,3 @@
-function read_col_page(io, col_record::ColumnRecord, page::PageDescription)
-    nbits = col_record.nbits
-    T = rntuple_col_type_dict[col_record.type]
-    bytes = read_pagedesc(io, page, nbits)
-    reinterpret(T, bytes)
-end
-
 _parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
 
 """
@@ -30,6 +23,7 @@ Base case of field nesting, this links to a column in the RNTuple by 0-based ind
 """
 struct LeafField{T}
     content_col_idx::Int
+    nbits::Int
 end
 
 function _search_col_type(field_id, column_records)
@@ -39,9 +33,10 @@ function _search_col_type(field_id, column_records)
     if length(col_id) == 2 && 
         column_records[col_id[1]].type == 2 && 
         column_records[col_id[2]].type == 5
-        return StringField(LeafField{Int32}(col_id[1]), LeafField{Char}(col_id[2]))
+        return StringField(LeafField{Int32}(col_id[1], 32), LeafField{Char}(col_id[2], 8))
     else
-        return LeafField{rntuple_col_type_dict[column_records[only(col_id)].type]}(only(col_id))
+        record = column_records[only(col_id)]
+        return LeafField{rntuple_col_type_dict[record.type]}(only(col_id), record.nbits)
     end
 end
 
