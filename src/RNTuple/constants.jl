@@ -46,7 +46,7 @@ const rntuple_col_nbits_dict = (
     16,  # split
 )
 
-const rntuple_role_leaf = 0
-const rntuple_role_vector = 1
-const rntuple_role_struct = 2
-const rntuple_role_union = 3
+const rntuple_role_leaf = 0x0000
+const rntuple_role_vector = 0x0001
+const rntuple_role_struct = 0x0002
+const rntuple_role_union = 0x0003
