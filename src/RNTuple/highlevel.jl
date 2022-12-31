@@ -110,6 +110,18 @@ function _find_cluster_idx(rn::RNTuple, event_id::Integer)
     return idx
 end
 
+function read_field(io, field::StringField{O, T}, page_list, cluster_idx) where {O, T}
+    nbits = field.content_col.nbits
+    pages = page_list[cluster_idx][field.content_col.content_col_idx]
+
+    offset = read_field(io, field.offset_col, page_list, cluster_idx)
+    content = read_pagedesc(io, pages, nbits)
+
+    o = one(eltype(offset))
+    jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
+    return String.(VectorOfVectors(content, jloffset, ArraysOfArrays.no_consistency_checks))
+end
+
 function read_field(io, field::LeafField{T}, page_list, cluster_idx) where T
     nbits = field.nbits
     pages = page_list[cluster_idx][field.content_col_idx]
