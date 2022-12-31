@@ -45,6 +45,8 @@ include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
 
+using StructArrays: StructArray
+
 include("RNTuple/bootstrap.jl")
 include("RNTuple/constants.jl")
 include("RNTuple/header.jl")
