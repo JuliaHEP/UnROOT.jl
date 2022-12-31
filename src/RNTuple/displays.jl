@@ -15,8 +15,7 @@ function Base.show(io::IO, f::ColumnRecord)
 end
 
 function Base.show(io::IO, lf::StringField)
-    print(io, "String(offset=$(lf.offset_col.content_col_idx), \
-          char=$(lf.content_col.content_col_idx))")
+    print(io, "String(offset=$(lf.offset_col.content_col_idx), char=$(lf.content_col.content_col_idx))")
 end
 function Base.show(io::IO, lf::LeafField{T}) where T
     print(io, "Leaf{$T}(col=$(lf.content_col_idx))")
