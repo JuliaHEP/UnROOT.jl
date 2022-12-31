@@ -126,10 +126,19 @@ function read_field(io, field::VectorField{O, T}, page_list, cluster_idx) where 
     return VectorOfVectors(content, jloffset, ArraysOfArrays.no_consistency_checks)
 end
 
+"""
+    Since each field of the struct is stored in a separate field of the RNTuple,
+    this function returns a `StructArray` for efficiency / performance reason.
+"""
+function read_field(io, field::StructField{N, T}, page_list, cluster_idx) where {N, T}
+    contents = Tuple(read_field(io, col, page_list, cluster_idx) for col in field.content_cols)
+    return StructArray(NamedTuple{field.names}(contents))
+end
+
 function _read_field_cluster(rn, field_name, event_id)
     #TODO handle cluster groups
     bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
     page_list = _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
     cluster_idx = _find_cluster_idx(rn, event_id)
-    read_field(rn.io, getproperty(rn.schema, field_name), page_list, cluster_idx)
+    read_field(rn.io, getfield(rn.schema, field_name), page_list, cluster_idx)
 end
