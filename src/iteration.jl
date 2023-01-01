@@ -336,7 +336,15 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
 """
 function LazyTree(f::ROOTFile, s::AbstractString, branches)
     tree = f[s]
-    tree isa TTree || error("$s is not a tree name.")
+    if tree isa TTree
+        return LazyTree(f, tree, s, branches)
+    elseif tree isa RNTuple
+        return LazyTree(tree, branches)
+    end
+    error("$s is not the name of a TTree or a RNTuple.")
+end
+
+function LazyTree(f::ROOTFile, tree::TTree, s, branches)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
