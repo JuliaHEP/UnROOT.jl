@@ -86,7 +86,7 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     return rnt
 end
 
-function _length(rn::RNTuple)::Int
+function Base.length(rn::RNTuple)::Int
     last_cluster = rn.footer.cluster_summaries[end]
     return last_cluster.num_first_entry + last_cluster.num_entries
 end
@@ -143,8 +143,40 @@ end
     this function returns a `StructArray` for efficiency / performance reason.
 """
 function read_field(io, field::StructField{N, T}, page_list, cluster_idx) where {N, T}
-    contents = Tuple(read_field(io, col, page_list, cluster_idx) for col in field.content_cols)
+    contents = (read_field(io, col, page_list, cluster_idx) for col in field.content_cols)
     return StructArray(NamedTuple{field.names}(contents))
+end
+
+struct UnionVector{T, N} <: AbstractVector{T}
+    kindex::Vector{UInt64}
+    tag::Vector{Int8}
+    contents::N
+    function UnionVector(kindex, tag, contents::N) where N
+        T = Union{eltype.(contents)...}
+        return new{T, N}(kindex, tag, contents)
+    end
+end
+Base.length(ary::UnionVector) = length(ary.tag)
+Base.size(ary::UnionVector) = (length(ary.tag), )
+Base.IndexStyle(ary::UnionVector) = IndexLinear()
+function Base.getindex(ary::UnionVector, i::Int)
+    ith_ele = ary.kindex[i]
+    ith_type = ary.tag[i]
+    return ary.contents[ith_type][ith_ele]
+end
+function Base.show(io::IO, ::Type{UnionVector{T, N}}) where {T, N}
+    print(io, "UnionVector{$T}")
+end
+
+function _split_switch_bits(content)
+    kindex = Int64.(content) .& 0x00000000000FFFFF .+ 1
+    tags = Int8.(UInt64.(content) .>> 44)
+    return kindex, tags
+end
+function read_field(io, field::UnionField{S, T}, page_list, cluster_idx) where {S, T}
+    switch = read_field(io, field.switch_col, page_list, cluster_idx)
+    content = Tuple(read_field(io, col, page_list, cluster_idx) for col in field.content_cols)
+    UnionVector(_split_switch_bits(switch)..., content)
 end
 
 function _read_field_cluster(rn, field_name, event_id)

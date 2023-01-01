@@ -110,5 +110,8 @@ end
 
 primitive type Switch <: Integer 64 end
 Base.show(io::IO, ::Type{Switch}) = print(io, "Switch")
+Base.:&(x::Switch, y::Switch) = Switch(UInt64(x) & UInt64(y))
 Switch(x::UInt64) = reinterpret(Switch, x)
 Switch(x::Int64) = reinterpret(Switch, x)
+Base.Int64(x::Switch) = reinterpret(Int64, x)
+Base.UInt64(x::Switch) = reinterpret(UInt64, x)
