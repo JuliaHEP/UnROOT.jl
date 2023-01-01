@@ -40,6 +40,7 @@ function Base.getindex(rf::RNTupleField, i::Int)
     return rf.buffers[tid][i]
 end
 
+
 """
     RNTuple
 
@@ -67,7 +68,7 @@ function _length(rn::RNTuple)::Int
     return last_cluster.num_first_entry + last_cluster.num_entries
 end
 
-function _keys(rn::RNTuple)
+function Base.keys(rn::RNTuple)
     keys = String[]
     fn = rn.header.field_records
     for (idx,f) in enumerate(fn)
@@ -77,4 +78,23 @@ function _keys(rn::RNTuple)
         end
     end
     return keys
+end
+
+function LazyTree(rn::RNTuple, selection)
+    field_names = keys(rn)
+    _m(r::Regex) = Base.Fix1(occursin, r)
+    filtered_names = mapreduce(∪, selection) do b
+        if b isa Regex
+            filter(_m(b), field_names)
+        elseif b isa String
+            [b]
+        else
+            error("branch selection must be string or regex")
+        end
+    end
+
+    N = Tuple(Symbol.(filtered_names))
+    T = Tuple(RNTupleField(rn, getproperty(rn.schema, Symbol(k))) for k in filtered_names)
+
+    return LazyTree(NamedTuple{N}(T))
 end
