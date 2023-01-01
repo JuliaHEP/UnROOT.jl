@@ -30,6 +30,22 @@ function read_field(io, field::LeafField{T}, page_list, cluster_idx) where T
     return res::_field_output_type(field)
 end
 
+_field_output_type(::Type{LeafField{Bool}}) = BitVector
+function read_field(io, field::LeafField{Bool}, page_list, cluster_idx)
+    nbits = field.nbits
+    pages = page_list[cluster_idx][field.content_col_idx]
+    total_num_elements = sum(p.num_elements for p in pages)
+
+    # pad to nearest 8*k bytes because each chunk needs to be UInt64
+    original_bytes = read_pagedesc(io, pages, nbits)
+    bytes = vcat(original_bytes, zeros(eltype(original_bytes), 8 - rem(total_num_elements, 8)))
+    chunks = reinterpret(UInt64, bytes)
+
+    res = BitVector(undef, total_num_elements)
+    copyto!(res.chunks, chunks) # don't want jam ReinterpretArray into BitVector
+    return res::_field_output_type(field)
+end
+
 _field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{eltype(_field_output_type(T)), _field_output_type(T), Vector{Int32}, Vector{Tuple{}}}
 function read_field(io, field::VectorField{O, T}, page_list, cluster_idx) where {O, T}
     offset = read_field(io, field.offset_col, page_list, cluster_idx)
