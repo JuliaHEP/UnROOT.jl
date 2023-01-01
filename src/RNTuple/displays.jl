@@ -1,3 +1,8 @@
+# stop crazy stracktrace
+function Base.show(io::IO, ::Type{<:RNTuple{O, NamedTuple{N, T}}}) where {O, N, T}
+    print(io, "RNTuple{$N}")
+end
+
 function Base.show(io::IO, f::FieldRecord)
     print(io, "parent=$(lpad(Int(f.parent_field_id), 2, "0")), ")
     print(io, "role=$(Int(f.struct_role)), ")
