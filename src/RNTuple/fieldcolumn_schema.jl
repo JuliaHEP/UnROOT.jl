@@ -65,7 +65,6 @@ end
 
 # the parent field is only structral, no column attached
 struct StructField{N, T}
-    names::N
     content_cols::T
 end
 
@@ -83,7 +82,7 @@ function _parse_field(field_id, field_records, column_records, ::Val{rntuple_rol
     for (element_idx, sub_field) in zip(element_ids, sub_fields)
     )
 
-    return StructField(names, content_cols)
+    return StructField{names, typeof(content_cols)}(content_cols)
 end
 
 struct UnionField{S, T}

@@ -73,3 +73,47 @@ function _rntuple_read(io, ::Type{RNTupleFooter})
     RNTupleFooter(; feature_flag, header_crc32, extension_header_links, column_group_records,
                  cluster_summaries, cluster_group_records, meta_data_links)
 end
+
+function _read_locator(io, locator, uncomp_size)
+    decompress_bytes(read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
+end
+
+function _read_envlink(io, link::EnvLink)
+    _read_locator(io, link.locator, link.uncomp_size)
+end
+
+@with_kw struct PageDescription
+    num_elements::UInt32
+    locator::Locator
+end
+function _rntuple_read(io, ::Type{PageDescription})
+    num_elements = _rntuple_read(io, UInt32)
+    locator = _rntuple_read(io, Locator)
+    return PageDescription(; num_elements, locator)
+end
+
+"""
+    read_pagedesc(io, pagedesc::PageDescription, nbits::Int)
+
+Read the decompressed raw bytes given a Page Description. The
+`nbits` need to be provided according to the element type of the
+column since `pagedesc` only contains `num_elements` information.
+
+!!! note
+    Boolean values are always stored as bit in RNTuple, so `nbits = 1`.
+    
+"""
+function read_pagedesc(io, pagedesc::PageDescription, nbits::Integer)
+    uncomp_size = pagedesc.num_elements * nbits ÷ 8
+    return _read_locator(io, pagedesc.locator, uncomp_size)
+end
+function read_pagedesc(io, pagedescs::Vector, nbits::Integer)
+    res = read_pagedesc.(Ref(io), pagedescs, nbits)
+    return reduce(vcat, res)
+end
+
+struct PageLink end
+function _rntuple_read(io, ::Type{PageLink})::Vector{Vector{Vector{PageDescription}}}
+    _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
+end
+
