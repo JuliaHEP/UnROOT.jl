@@ -109,11 +109,3 @@ function read_field(io, field::UnionField{S, T}, page_list, cluster_idx) where {
     res = UnionVector(_split_switch_bits(switch)..., content)
     return res::_field_output_type(field)
 end
-
-function _read_field_cluster(rn, field_name, event_id)
-    #TODO handle cluster groups
-    bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
-    page_list = _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
-    cluster_idx = _find_cluster_idx(rn, event_id)
-    read_field(rn.io, getfield(rn.schema, field_name), page_list, cluster_idx)
-end
