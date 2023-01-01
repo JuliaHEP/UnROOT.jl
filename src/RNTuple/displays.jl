@@ -28,8 +28,8 @@ end
 function Base.show(io::IO, lf::VectorField)
     print(io, "VectorField(offset=$(lf.offset_col), content=$(lf.content_col))")
 end
-function Base.show(io::IO, lf::StructField)
-    print(io, replace("StructField{$(lf.names .=> lf.content_cols))", " => " => "="))
+function Base.show(io::IO, lf::StructField{N, T}) where {N, T}
+    print(io, replace("StructField{$(N .=> lf.content_cols))", " => " => "="))
 end
 function Base.show(io::IO, lf::UnionField)
     print(io, "UnionField(switch=$(lf.switch_col), content=$(lf.content_cols))")
