@@ -33,14 +33,14 @@ function _rntuple_read(io, ::Type{ColumnGroupRecord})
 end
 
 
-@with_kw struct ClusterSummary
+struct ClusterSummary
     num_first_entry::UInt64
     num_entries::UInt64
 end
 function _rntuple_read(io, ::Type{ClusterSummary})
     num_first_entry = read(io, UInt64)
     num_entries = read(io, UInt64)
-    ClusterSummary(; num_first_entry, num_entries)
+    ClusterSummary(num_first_entry, num_entries)
 end
 
 @with_kw struct ClusterGroupRecord
