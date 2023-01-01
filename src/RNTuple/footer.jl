@@ -104,7 +104,7 @@ column since `pagedesc` only contains `num_elements` information.
     
 """
 function read_pagedesc(io, pagedesc::PageDescription, nbits::Integer)
-    uncomp_size = pagedesc.num_elements * nbits ÷ 8
+    uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp) # when nbits == 1 for bits, need RoundUp
     return _read_locator(io, pagedesc.locator, uncomp_size)
 end
 function read_pagedesc(io, pagedescs::Vector, nbits::Integer)
