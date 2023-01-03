@@ -1,11 +1,3 @@
-function _read_field_cluster(rn, field, event_id)
-    #TODO handle cluster groups
-    bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
-    page_list = _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
-    cluster_idx = _find_cluster_idx(rn, event_id)
-    read_field(rn.io, field, page_list, cluster_idx)
-end
-
 """
     mutable struct RNTupleField{R, F, O, E} <: AbstractVector{E}
 
@@ -21,25 +13,53 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::Vector{Union{Nothing, O}}
+    buffers::Vector{O}
+    buffer_ranges::Vector{UnitRange{Int64}}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
-        buffers = Union{Nothing, O}[nothing for _ = 1:Threads.nthreads()]
-        new{R, F, O, E}(rn, field, buffers)
+        buffers = Vector{O}(undef, Threads.nthreads())
+        buffer_ranges = [0:-1 for _ in 1:Threads.nthreads()]
+        new{R, F, O, E}(rn, field, buffers, buffer_ranges)
     end
 end
 Base.length(rf::RNTupleField) = _length(rf.rn)
 Base.size(rf::RNTupleField) = (length(rf), )
 Base.IndexStyle(::RNTupleField) = IndexLinear()
-function Base.getindex(rf::RNTupleField, i::Int)
+
+function Base.getindex(rf::RNTupleField, idx::Int)
     tid = Threads.threadid()
-    if isnothing(rf.buffers[tid])
-        rf.buffers[tid] = _read_field_cluster(rf.rn, rf.field, i) # this gets the entire cluster
+    br = @inbounds rf.buffer_ranges[tid]
+    localidx = if idx ∉ br
+        _localindex_newcluster!(rf, idx, tid)
+    else
+        idx - br.start + 1
     end
-    return rf.buffers[tid][i]
+    return rf.buffers[tid][localidx]
 end
 
+function _read_page_list(rn, nth_cluster_group=1)
+    #TODO add multiple cluster group support
+    bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
+    return _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
+end
+
+function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
+    page_list = _read_page_list(rf.rn, 1)
+    summaries = rf.rn.footer.cluster_summaries
+
+    for (cluster_idx, cluster) in enumerate(summaries)
+        first_entry = cluster.num_first_entry 
+        n_entries = cluster.num_entries
+        if first_entry + n_entries > idx
+            br = first_entry+1:(first_entry+n_entries+1)
+            rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
+            rf.buffer_ranges[tid] = br
+            return idx - br.start + 1
+        end
+    end
+    error("$idx-th event not found in cluster summaries")
+end
 
 """
     RNTuple

@@ -78,7 +78,7 @@ function _read_locator(io, locator, uncomp_size)
     decompress_bytes(read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
 end
 
-function _read_envlink(io, link::EnvLink)
+@memoize LRU(maxsize = 200) function _read_envlink(io, link::EnvLink)
     _read_locator(io, link.locator, link.uncomp_size)
 end
 

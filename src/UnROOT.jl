@@ -56,6 +56,13 @@ include("RNTuple/highlevel.jl")
 include("RNTuple/fieldcolumn_reading.jl")
 include("RNTuple/displays.jl")
 
+let f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
+    df = LazyTree(f1, "ntuple")
+    collect(df[1])
+    show(devnull, df)
+    show(devnull, df[1])
+end
+
 if VERSION >= v"1.9"
     let
         t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
