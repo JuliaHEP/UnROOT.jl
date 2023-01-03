@@ -36,6 +36,14 @@ end
 function Base.show(io::IO, lf::StructField{N, T}) where {N, T}
     print(io, replace("StructField{$(N .=> lf.content_cols))", " => " => "="))
 end
+
 function Base.show(io::IO, lf::UnionField)
     print(io, "UnionField(switch=$(lf.switch_col), content=$(lf.content_cols))")
+end
+function Base.summary(io::IO, uv::UnionVector{T, N}) where {T, N}
+    print(io, "$(length(uv))-element UnionVector{$T}")
+end
+
+function Base.summary(io::IO, rf::RNTupleField{R, F, O, E}) where {R, F, O, E}
+    print(io, "$(length(rf))-element RNTupleField{$E}")
 end

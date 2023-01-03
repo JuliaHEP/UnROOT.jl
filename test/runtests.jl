@@ -850,3 +850,5 @@ end
     @test idx1 == idx2
     @test alloc1 > 1.9*alloc2
 end
+
+include("rntuple_tests.jl")
