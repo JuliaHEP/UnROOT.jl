@@ -1,6 +1,19 @@
 _parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
 
 """
+    StdArrayField<N, T>
+
+Special base-case field for a leaf field representing `std::array<T, N>`. This is because RNTuple
+would serialize it as a leaf field but with `flags == 0x0001` in the field description.
+In total, there are two field descriptions associlated with `array<>`, one for meta-data (the `N`),
+the other one for the actual data.
+"""
+struct StdArrayField{N, T}
+    content_col::T
+    StdArrayField(N, col::T) where T = new{N, T}(col)
+end
+
+"""
     StringField
 
 Special base-case field for String leaf field. This is because RNTuple
@@ -31,18 +44,33 @@ function _search_col_type(field_id, column_records)
         col.field_id == field_id
     end)
     if length(col_id) == 2 && 
+        # String is the only known leaf field that splits in column records
         column_records[col_id[1]].type == 2 && 
         column_records[col_id[2]].type == 5
         return StringField(LeafField{Int32}(col_id[1], 32), LeafField{Char}(col_id[2], 8))
-    else
+    elseif length(col_id) == 1
         record = column_records[only(col_id)]
         return LeafField{rntuple_col_type_dict[record.type]}(only(col_id), record.nbits)
+    else
+        error("un-handled base case, report issue to authors")
     end
 end
 
 
 function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_leaf})
-    return _search_col_type(field_id, column_records)
+    # field_id in 0-based index
+    field = field_records[field_id + 1]
+    if iszero(field.repetition)
+        return _search_col_type(field_id, column_records)
+    else
+        # `std::array<>` for some reason splits in Field records and pretent to be a leaf field
+        element_idx = findlast(field_records) do field
+            field.parent_field_id == field_id
+        end
+        sub_field = field_records[element_idx]
+        content_col =  _parse_field(element_idx - 1, field_records, column_records, Val(sub_field.struct_role))
+        return StdArrayField(field.repetition, content_col)
+    end
 end
 
 struct VectorField{O, T}

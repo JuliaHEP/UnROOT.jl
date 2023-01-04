@@ -1,5 +1,16 @@
 _field_output_type(x::T) where T = _field_output_type(T)
 
+function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T} 
+    elT = eltype(_field_output_type(T))
+    return Base.ReinterpretArray{SVector{N, elT}, 1, UInt8, Vector{UInt8}, false}
+end
+function read_field(io, field::StdArrayField{N, T}, page_list) where {N, T}
+    content = read_field(io, field.content_col, page_list)
+
+    res = reinterpret(SVector{N, eltype(content)}, content)
+    return res::_field_output_type(field)
+end
+
 _field_output_type(::Type{StringField{O, T}}) where {O, T} = Vector{String}
 function read_field(io, field::StringField{O, T}, page_list) where {O, T}
     nbits = field.content_col.nbits
