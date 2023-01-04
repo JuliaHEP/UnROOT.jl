@@ -4,6 +4,7 @@ struct FieldRecord
     parent_field_id::UInt32
     struct_role::UInt16
     flags::UInt16
+    repetition::Int64
     field_name::String
     type_name::String
     type_alias::String
@@ -15,9 +16,14 @@ function _rntuple_read(io, ::Type{FieldRecord})
     parent_field_id = read(io, UInt32)
     struct_role = read(io, UInt16)
     flags = read(io, UInt16)
+    repetition = if flags == 0x0001
+        read(io, Int64)
+    else
+        0
+    end
     field_name, type_name, type_alias, field_desc = (_rntuple_read(io, String) for _=1:4)
     FieldRecord(field_version, type_version, parent_field_id, 
-                struct_role, flags, field_name, type_name, type_alias, field_desc)
+                struct_role, flags, repetition, field_name, type_name, type_alias, field_desc)
 end
 
 struct ColumnRecord

@@ -13,7 +13,7 @@ function Base.show(io::IO, f::FieldRecord)
     print(io, "role=$(Int(f.struct_role)), ")
     print(io, "name=$(rpad(f.field_name, 30, " ")), ")
     print(io, "type=$(rpad(f.type_name, 60, " "))")
-    # print(io, "alias=$(f.type_alias),")
+    print(io, "repetition=$(f.repetition),")
     # print(io, "desc=$(f.field_desc),")
 end
 

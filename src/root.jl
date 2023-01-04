@@ -146,8 +146,8 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
     S
 end
 
-@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-# function _getindex(f::ROOTFile, s)
+# @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
+function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
