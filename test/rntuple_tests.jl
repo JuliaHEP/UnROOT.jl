@@ -19,12 +19,12 @@
     rn2 = f2["ntuple"]
 
     header2 = rn2.header
-    @test length(header2.field_records) == 25
+    @test length(header2.field_records) == 41
     [f.field_name for f in header2.field_records[1:9]] == 
     ["string", "vector_int32", "vector_float_int32", "vector_string", 
      "vector_vector_string", "variant_int32_string", "vector_variant_int64_string", "tuple_int32_string", "vector_tuple_int32_string"]
-    @test length(header2.column_records) == 30
-    @test rn2.footer.header_crc32 == 0x075071b9
+    @test length(header2.column_records) == 42
+    @test rn2.footer.header_crc32 == 0x930a242f
 end
 
 @testset "RNTuple Schema Parsing" begin
@@ -38,11 +38,9 @@ end
     schema2 = f2["ntuple"].schema
     a = IOBuffer()
     show(a, schema2)
-    @test length(take!(a)) < 1500 # make sure schema is reasonably compact
-    @test length(schema2) == 9
+    @test length(take!(a)) < 1700 # make sure schema is reasonably compact
+    @test length(schema2) == 13
 
-    #this is:
-    #VectorField(offset=Leaf{Int32}(col=9), content=StructField{(:_0=Leaf{Int32}(col=28), :_1=String(offset=29, char=30))))
     sample = schema2.vector_tuple_int32_string
     @test sample isa UnROOT.VectorField
     @test sample.offset_col isa UnROOT.LeafField{Int32}
@@ -51,10 +49,10 @@ end
     @test sample.content_col isa UnROOT.StructField
     @test length(sample.content_col.content_cols) == 2
     @test sample.content_col.content_cols[1] isa UnROOT.LeafField{Int32}
-    @test sample.content_col.content_cols[1].content_col_idx == 28
+    @test sample.content_col.content_cols[1].content_col_idx == 36
     @test sample.content_col.content_cols[2] isa UnROOT.StringField
-    @test sample.content_col.content_cols[2].offset_col.content_col_idx == 29
-    @test sample.content_col.content_cols[2].content_col.content_col_idx == 30
+    @test sample.content_col.content_cols[2].offset_col.content_col_idx == 37
+    @test sample.content_col.content_cols[2].content_col.content_col_idx == 38
 end
 
 @testset "RNTuple Int32 reading" begin
@@ -69,14 +67,6 @@ end
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_bit.root")
     df = LazyTree(f1, "ntuple")
     @test df.one_bit == Bool[1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
-end
-
-@testset "RNTuple struct reading" begin
-    f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_vfloat_tlv_vtlv.root")
-    df = LazyTree(f1, "ntuple")
-    @test df.two_v_floats == Vector{Float32}[Float32[9.0, 8.0, 7.0, 6.0], Float32[5.0, 4.0, 3.0], Float32[2.0, 1.0], Float32[0.0, -1.0], Float32[-2.0]]
-    @test df.three_LV[1] === (pt = 19.0f0, eta = 19.0f0, phi = 19.0f0, mass = 19.0f0)
-    @test df.three_LV[end] === df.three_LV[5] === (pt = 16.0f0, eta = 16.0f0, phi = 16.0f0, mass = 16.0f0)
 end
 
 @testset "RNTuple std:: container types" begin
@@ -97,8 +87,18 @@ end
 
     @test values(df.tuple_int32_string[1]) == (Int32(1), "one")
     @test values(df.tuple_int32_string[5]) == (Int32(5), "five")
+    @test values(df.pair_int32_string[1]) == (Int32(1), "one")
+    @test values(df.pair_int32_string[5]) == (Int32(5), "five")
 
     @test df.vector_variant_int64_string == Vector{Union{Int64, String}}[Union{Int64, String}["one"], Union{Int64, String}["one", 2], Union{Int64, String}["one", 2, 3], Union{Int64, String}["one", 2, 3, 4], Union{Int64, String}["one", 2, 3, 4, 5]]
+
+    @test df.lorentz_vector[1] === (pt = 1.0f0, eta = 1.0f0, phi = 1.0f0, mass = 1.0f0)
+    @test df.lorentz_vector[end] === df.lorentz_vector[5] === (pt = 5.0f0, eta = 5.0f0, phi = 5.0f0, mass = 5.0f0)
+
+    @test length(df.array_lv) == 5
+    @test all(length.(df.array_lv) .== 3)
+    @test df.array_lv[1] == fill((pt=1.0, eta=1.0, phi=1.0, mass=1.0), 3)
+    @test df.array_lv[5] == fill((pt=5.0, eta=5.0, phi=5.0, mass=5.0), 3)
 end
 
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
