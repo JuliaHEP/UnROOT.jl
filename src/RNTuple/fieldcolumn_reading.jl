@@ -1,12 +1,17 @@
 _field_output_type(x::T) where T = _field_output_type(T)
 
-function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T} 
-    elT = eltype(_field_output_type(T))
+function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T<:LeafField}
+    content_type = _field_output_type(T)
+    elT = eltype(content_type)
     return Base.ReinterpretArray{SVector{N, elT}, 1, UInt8, Vector{UInt8}, false}
+end
+function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T} 
+    content_type = _field_output_type(T)
+    elT = eltype(content_type)
+    return Base.ReinterpretArray{SVector{N, elT}, 1, elT, content_type, false}
 end
 function read_field(io, field::StdArrayField{N, T}, page_list) where {N, T}
     content = read_field(io, field.content_col, page_list)
-
     res = reinterpret(SVector{N, eltype(content)}, content)
     return res::_field_output_type(field)
 end
