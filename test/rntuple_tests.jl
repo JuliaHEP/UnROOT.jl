@@ -69,6 +69,16 @@ end
     @test df.one_bit == Bool[1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
 end
 
+@testset "RNTuple multicluster" begin
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_multicluster.root")
+    df = LazyTree(f1, "ntuple")
+    @test unique(df.one_integers[1:end÷2]) == [2]
+    @test unique(df.one_integers[end÷2+1:end]) == [1]
+    @test df.one_integers[1] == 2
+    @test df.one_integers[end] == 1
+    @test length(df.one_integers) == 50000000 * 2
+end
+
 @testset "RNTuple std:: container types" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
     df = LazyTree(f1, "ntuple")
