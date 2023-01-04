@@ -51,8 +51,8 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
     for (cluster_idx, cluster) in enumerate(summaries)
         first_entry = cluster.num_first_entry 
         n_entries = cluster.num_entries
-        if first_entry + n_entries > idx
-            br = first_entry+1:(first_entry+n_entries+1)
+        if first_entry + n_entries >= idx
+            br = first_entry+1:(first_entry+n_entries)
             rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
             rf.buffer_ranges[tid] = br
             return idx - br.start + 1
