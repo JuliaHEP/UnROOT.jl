@@ -36,9 +36,6 @@ end
 
     f2 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
     schema2 = f2["ntuple"].schema
-    a = IOBuffer()
-    show(a, schema2)
-    @test length(take!(a)) < 1700 # make sure schema is reasonably compact
     @test length(schema2) == 13
 
     sample = schema2.vector_tuple_int32_string

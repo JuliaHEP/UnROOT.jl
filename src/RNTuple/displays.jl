@@ -47,3 +47,41 @@ end
 function Base.summary(io::IO, rf::RNTupleField{R, F, O, E}) where {R, F, O, E}
     print(io, "$(length(rf))-element RNTupleField{$E}")
 end
+
+function Base.show(io::IO, rn::RNTuple) 
+    println(io, "UnROOT.RNTuple:")
+    println(io, "  header: ")
+    println(io, "    name: \"$(rn.header.name)\"")
+    println(io, "    ntuple_description: \"$(rn.header.ntuple_description)\"")
+    println(io, "    writer_identifier: \"$(rn.header.writer_identifier)\"")
+    println("    schema: ")
+    _io = IOBuffer()
+    print_tree(_io, rn.schema; maxdepth=1, indicate_truncation=false)
+    for l in split(String(take!(_io)), '\n')
+        print(io, "      ")
+        println(io, l)
+    end
+    println(io, "  footer: ")
+    print(io, "    cluster_summaries: ")
+    show(io, rn.footer.cluster_summaries)
+end
+Base.show(io::IO, s::RNTupleSchema) = print_tree(io, s)
+printnode(io::IO, s::RNTupleSchema) = print(io, "RNTupleSchema with $(length(s)) top fields")
+children(s::RNTupleSchema) = Dict(pairs(getfield(s, :namedtuple)))
+
+printnode(io::IO, rn::LeafField) = print(io, rn)
+
+printnode(io::IO, ::StringField) = print(io, "String")
+children(rn::StringField) = (offset = rn.offset_col, content = rn.content_col)
+
+printnode(io::IO, ::VectorField) = print(io, "Vector")
+children(rn::VectorField) = (offset=rn.offset_col, content=rn.content_col)
+
+printnode(io::IO, ::StructField) = print(io, "Struct")
+children(rn::StructField{N, T}) where {N, T} = Dict(N .=> rn.content_cols)
+
+printnode(io::IO, ::UnionField) = print(io, "Union")
+children(rn::UnionField) = Dict(:switch => rn.switch_col, (keys(rn.content_cols) .=> rn.content_cols)...)
+
+printnode(io::IO, ::StdArrayField{N, T}) where{N,T} = print(io, "StdArray{$N}")
+children(rn::StdArrayField) = (content = rn.content_col,)

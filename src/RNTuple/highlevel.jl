@@ -27,6 +27,48 @@ Base.length(rf::RNTupleField) = _length(rf.rn)
 Base.size(rf::RNTupleField) = (length(rf), )
 Base.IndexStyle(::RNTupleField) = IndexLinear()
 
+"""
+    struct RNTupleSchema
+
+A wrapper struct for `print_tree` implementation of the schema display.
+
+# Example
+```julia
+julia> f = ROOTFile("./test/samples/RNTuple/test_ntuple_stl_containers.root");
+
+julia> f["ntuple"].schema
+RNTupleSchema with 13 top fields
+├─ :lorentz_vector ⇒ Struct
+│                    ├─ :pt ⇒ Leaf{Float32}(col=26)
+│                    ├─ :eta ⇒ Leaf{Float32}(col=27)
+│                    ├─ :phi ⇒ Leaf{Float32}(col=28)
+│                    └─ :mass ⇒ Leaf{Float32}(col=29)
+├─ :vector_tuple_int32_string ⇒ Vector
+│                               ├─ :offset ⇒ Leaf{Int32}(col=9)
+│                               └─ :content ⇒ Struct
+│                                             ├─ :_1 ⇒ String
+│                                             │        ├─ :offset ⇒ Leaf{Int32}(col=37)
+│                                             │        └─ :content ⇒ Leaf{Char}(col=38)
+│                                             └─ :_0 ⇒ Leaf{Int32}(col=36)
+├─ :string ⇒ String
+│            ├─ :offset ⇒ Leaf{Int32}(col=1)
+│            └─ :content ⇒ Leaf{Char}(col=2)
+├─ :vector_string ⇒ Vector
+│                   ├─ :offset ⇒ Leaf{Int32}(col=5)
+│                   └─ :content ⇒ String
+│                                 ├─ :offset ⇒ Leaf{Int32}(col=13)
+│                                 └─ :content ⇒ Leaf{Char}(col=14)
+...
+..
+.
+```
+"""
+struct RNTupleSchema{N}
+    namedtuple::N
+end
+Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :namedtuple), sym)
+Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
+
 function Base.getindex(rf::RNTupleField, idx::Int)
     tid = Threads.threadid()
     br = @inbounds rf.buffer_ranges[tid]
@@ -66,7 +108,40 @@ end
 
 This is the struct for holding all metadata (schema) needed to completely describe
 and RNTuple from ROOT, just like `TTree`, to obtain a table-like data object, you need
-to use `LazyTree` explicitly.
+to use `LazyTree` explicitly:
+
+
+# Example
+```julia
+julia> f = ROOTFile("./test/samples/RNTuple/test_ntuple_stl_containers.root");
+
+julia> f["ntuple"]
+UnROOT.RNTuple:
+  header:
+    name: "ntuple"
+    ntuple_description: ""
+    writer_identifier: "ROOT v6.29/01"
+    schema:
+      RNTupleSchema with 13 top fields
+      ├─ :lorentz_vector ⇒ Struct
+      ├─ :vector_tuple_int32_string ⇒ Vector
+      ├─ :string ⇒ String
+      ├─ :vector_string ⇒ Vector
+...
+..
+.
+
+julia> LazyTree(f, "ntuple")
+ Row │ string  vector_int32     array_float      vector_vector_i     vector_string       vector_vector_s     variant_int32_s  vector_variant_     ⋯
+     │ String  Vector{Int32}    StaticArraysCor  Vector{Vector{I     Vector{String}      Vector{Vector{S     Union{Int32, St  Vector{Union{In     ⋯
+─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 1   │ one     [1]              [1.0, 1.0, 1.0]  Vector{Int32}[Int3  ["one"]             [["one"]]           1                Union{Int64, Strin  ⋯
+ 2   │ two     [1, 2]           [2.0, 2.0, 2.0]  Vector{Int32}[Int3  ["one", "two"]      [["one"], ["two"]]  two              Union{Int64, Strin  ⋯
+ 3   │ three   [1, 2, 3]        [3.0, 3.0, 3.0]  Vector{Int32}[Int3  ["one", "two", "th  [["one"], ["two"],  three            Union{Int64, Strin  ⋯
+ 4   │ four    [1, 2, 3, 4]     [4.0, 4.0, 4.0]  Vector{Int32}[Int3  ["one", "two", "th  [["one"], ["two"],  4                Union{Int64, Strin  ⋯
+ 5   │ five    [1, 2, 3, 4, 5]  [5.0, 5.0, 5.0]  Vector{Int32}[Int3  ["one", "two", "th  [["one"], ["two"],  5                Union{Int64, Strin  ⋯
+                                                                                                                                  5 columns omitted
+```
 """
 struct RNTuple{O, S}
     io::O
@@ -74,11 +149,11 @@ struct RNTuple{O, S}
     footer::RNTupleFooter
     schema::S
     function RNTuple(io::O, header, footer, schema::S) where {O, S}
-        new{O, S}(
+        new{O, RNTupleSchema{S}}(
             io,
             header,
             footer,
-            schema,
+            RNTupleSchema(schema),
         )
     end
 end
