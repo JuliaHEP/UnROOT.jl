@@ -3,6 +3,7 @@ notebooks/* linguist-detectable=false
 
 # Scripts to generate data for tests
 test/samples/* linguist-detectable=false
+test/samples/RNTuple/* linguist-detectable=false
 
 # JOSS paper
 paper/** linguist-detectable=false
