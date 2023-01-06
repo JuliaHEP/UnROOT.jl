@@ -1,5 +1,5 @@
 # https://github.com/root-project/root/blob/e9fa243af91217e9b108d828009c81ccba7666b5/tree/ntuple/v7/inc/ROOT/RMiniFile.hxx#L65
-@with_kw struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
+Base.@kwdef struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
     fCheckSum::Int32
     fVersion::UInt32
     fSize::UInt32
@@ -15,7 +15,7 @@ end
 function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     local_io = datastream(io, tkey)
     skip(local_io, 6)
-    anchor = ROOT_3a3a_Experimental_3a3a_RNTuple(
+    anchor = ROOT_3a3a_Experimental_3a3a_RNTuple(;
                     fCheckSum = readtype(local_io, Int32),
                     fVersion = readtype(local_io, UInt32),
                     fSize = readtype(local_io, UInt32),
@@ -80,15 +80,64 @@ function decompress_bytes(compbytes, NTarget)
 end
 
 #fall back
-_rntuple_read(io, T) = read(io, T)
+_rntuple_read(io, ::Type{T}) where T = read(io, T)
 
 function _rntuple_read(io, ::Type{String})
     len = read(io, UInt32)
     String(read(io, len))
 end
 
+"""
+    macro SimpleStruct
 
-@with_kw struct RNTupleEnvelope{T}
+Make constructor on the fly using `_rntuple_read`
+
+# Example
+```
+julia> @SimpleStruct struct Locator
+           num_bytes::Int32
+           offset::UInt64
+       end
+```
+
+is equivalent to
+
+```
+struct Locator
+    num_bytes::Int32
+    offset::UInt64
+end
+function _rntuple_read(io, ::Type{Locator})
+    num_bytes = read(io, Int32)
+    offset = read(io, UInt64)
+    Locator(num_bytes, offset)
+end
+```
+"""
+macro SimpleStruct(ex)
+    _ex = deepcopy(ex)
+    Base.remove_linenums!(ex)
+    if ex.head != :struct
+        error("must be used on a struct")
+    end
+    T = ex.args[2]
+    field_exprs = ex.args[3].args
+    field_types = [e.args[2] for e in field_exprs]
+
+    _body_read = [Expr(:call, :_rntuple_read, :io, x)
+    for x in field_types]
+
+    body = Expr(:call, T, _body_read...)
+
+    _read_def = quote
+        function _rntuple_read(io, ::Type{$T})
+           $body
+        end
+    end
+    esc(Expr(:block, _ex, _read_def))
+end
+
+struct RNTupleEnvelope{T}
     version::UInt16
     min_version::UInt16
     payload::T
@@ -101,7 +150,7 @@ function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
     payload = _rntuple_read(io, T)
     _crc32 = crc32(@view bytes[begin:end-4]) 
     @assert _crc32 == reinterpret(UInt32, @view bytes[end-3:end])[1]
-    return RNTupleEnvelope(;version, min_version, payload, crc32 = _crc32)
+    return RNTupleEnvelope(version, min_version, payload, _crc32)
 end
 
 struct RNTupleFrame{T} end
@@ -116,6 +165,7 @@ function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
 end
 
 struct RNTupleListFrame{T} end
+_rntuple_read(io, ::Type{Vector{T}}) where T = _rntuple_read(io, RNTupleListFrame{T})
 function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
     pos = position(io)
     Size, NumItems = (read(io, Int32) for _=1:2)
@@ -141,7 +191,5 @@ end
 primitive type Switch <: Integer 64 end
 Base.show(io::IO, ::Type{Switch}) = print(io, "Switch")
 Base.:&(x::Switch, y::Switch) = Switch(UInt64(x) & UInt64(y))
-Switch(x::UInt64) = reinterpret(Switch, x)
-Switch(x::Int64) = reinterpret(Switch, x)
 Base.Int64(x::Switch) = reinterpret(Int64, x)
 Base.UInt64(x::Switch) = reinterpret(UInt64, x)

@@ -110,7 +110,22 @@ end
     @test df.array_lv[5] == fill((pt=5.0, eta=5.0, phi=5.0, mass=5.0), 3)
 end
 
-nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
+@testset "RNTuple Type stability" begin
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
+    t = LazyTree(f1, "ntuple")
+
+    function f1()
+        s = 0.0f0
+        for evt in t
+            s += evt.one_integers
+        end
+        s
+    end
+    f2() = sum(t.one_integers)
+
+    @inferred f1()
+    @inferred f2()
+end
 
 @testset "RNTuple Multi-threading" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")

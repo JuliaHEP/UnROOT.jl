@@ -5,6 +5,8 @@ using InteractiveUtils
 using MD5
 
 using ThreadsX
+const nthreads = Threads.nthreads()
+nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
@@ -637,7 +639,6 @@ end
 end
 
 @testset "Type stability" begin
-
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     t = LazyTree(rootfile, "Events", ["MET_pt"])[1:10]
 
@@ -656,8 +657,6 @@ end
     close(rootfile)
 end
 
-const nthreads = Threads.nthreads()
-nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 @testset "Parallel and enumerate interface" begin
     t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
