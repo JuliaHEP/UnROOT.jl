@@ -26,6 +26,11 @@ end
 Base.length(rf::RNTupleField) = _length(rf.rn)
 Base.size(rf::RNTupleField) = (length(rf), )
 Base.IndexStyle(::RNTupleField) = IndexLinear()
+# this is used for Table.partition()
+function _clusterranges(lbs::AbstractVector{<:RNTupleField})
+    ranges = map(_rntuple_clusterrange, first(lbs).rn.footer.cluster_summaries)
+    return ranges
+end
 
 """
     struct RNTupleSchema
@@ -86,6 +91,15 @@ function _read_page_list(rn, nth_cluster_group=1)
     return _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
 end
 
+"""
+The event number range a given cluster covers, in Julia's index
+"""
+function _rntuple_clusterrange(cluster)
+        first_entry = cluster.num_first_entry 
+        n_entries = cluster.num_entries
+        return first_entry+1:(first_entry+n_entries)
+end
+
 function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
     page_list = _read_page_list(rf.rn, 1)
     summaries = rf.rn.footer.cluster_summaries
@@ -94,7 +108,7 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
         first_entry = cluster.num_first_entry 
         n_entries = cluster.num_entries
         if first_entry + n_entries >= idx
-            br = first_entry+1:(first_entry+n_entries)
+            br = _rntuple_clusterrange(cluster)
             rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
             rf.buffer_ranges[tid] = br
             return idx - br.start + 1
