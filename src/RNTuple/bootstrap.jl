@@ -102,11 +102,13 @@ julia> @SimpleStruct struct Locator
 would automatically define the following reading method:
 ```
 function _rntuple_read(io, ::Type{Locator})
-    num_bytes = read(io, Int32)
-    offset = read(io, UInt64)
+    num_bytes = _rntuple_read(io, Int32)
+    offset = _rntuple_read(io, UInt64)
     Locator(num_bytes, offset)
 end
 ```
+
+Notice `_rntuple_read` falls back to `read` for all types that are not defined by us.
 """
 macro SimpleStruct(ex)
     _ex = deepcopy(ex)
