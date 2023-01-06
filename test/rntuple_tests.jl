@@ -1,3 +1,5 @@
+using Arrow, DataFrames
+
 @testset "RNTuple Anchodr/Header/Footer" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
     @test haskey(f1, "ntuple")
@@ -130,3 +132,18 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
     @test sum(accumulator) == sum(1:5e4)
 end
 
+@testset "RNTuple Tables.jl and Arrow integration " begin
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
+    rnt = LazyTree(f1, "ntuple")
+    df_direct = DataFrame(rnt)
+    df_col = DataFrame(UnROOT.Tables.columntable(UnROOT.Tables.columns(rnt)))
+    df_row = DataFrame(UnROOT.Tables.dictrowtable(UnROOT.Tables.rows(rnt)))
+    # row table and col table should arrive at the same result
+    @test df_col == df_row == df_direct
+
+    path = tempname()
+    Arrow.write(path, rnt)
+    df_arrow = DataFrame(Arrow.Table(path))
+    # RNTuple -> Arrow -> DataFrame should be same as RNTuple -> DataFrame
+    @test df_arrow == df_direct
+end
