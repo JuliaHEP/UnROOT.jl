@@ -90,7 +90,7 @@ end
 """
     macro SimpleStruct
 
-Make constructor on the fly using `_rntuple_read`
+Define reading method on the fly for `_rntuple_read`
 
 # Example
 ```
@@ -99,14 +99,8 @@ julia> @SimpleStruct struct Locator
            offset::UInt64
        end
 ```
-
-is equivalent to
-
+would automatically define the following reading method:
 ```
-struct Locator
-    num_bytes::Int32
-    offset::UInt64
-end
 function _rntuple_read(io, ::Type{Locator})
     num_bytes = read(io, Int32)
     offset = read(io, UInt64)
