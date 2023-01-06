@@ -116,7 +116,7 @@ julia> r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_na
 ROOTFile with 1 entry and 19 streamers.
 ```
 
-## Branch of custom struct
+## TBranch of custom struct
 
 We provide an experimental interface for hooking up UnROOT with your custom types
 that only takes 2 steps, as explained [in the docs](https://JuliaHEP.github.io/UnROOT.jl/dev/advanced/custom_branch/).
@@ -128,7 +128,7 @@ with the said plug-in system.
 bug fixing, feature tuning, quality of life, docs, examples etc.
 - See `CONTRIBUTING.md` for more information and recommended workflows in contributing to this package.
 
-
+<!-- 
 ## TODOs
 
 - [x] Parsing the file header
@@ -145,7 +145,7 @@ bug fixing, feature tuning, quality of life, docs, examples etc.
 - [ ] Clean up the `readtype`, `unpack`, `stream!` and `readobjany` construct
 - [ ] Refactor the code and add more docs
 - [ ] Class name detection of sub-branches
-- [ ] High-level histogram interface
+- [ ] High-level histogram interface -->
 
 ## Acknowledgements
 
@@ -156,90 +156,6 @@ Python library to read and write ROOT files, which was and is a great source
 of inspiration and information for reverse engineering the ROOT binary
 structures.
 
-## Behind the scene
-
-<details><summary>Some additional debug output: </summary>
-<p>
-
-
-``` julia
-julia> using UnROOT
-
-julia> f = ROOTFile("test/samples/tree_with_histos.root")
-Compressed stream at 1509
-ROOTFile("test/samples/tree_with_histos.root") with 1 entry and 4 streamers.
-
-julia> keys(f)
-1-element Array{String,1}:
- "t1"
-
-julia> keys(f["t1"])
-Compressed datastream of 1317 bytes at 1509 (TKey 't1' (TTree))
-2-element Array{String,1}:
- "mynum"
- "myval"
-
-julia> f["t1"]["mynum"]
-Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
-UnROOT.TBranch
-  cursor: UnROOT.Cursor
-  fName: String "mynum"
-  fTitle: String "mynum/I"
-  fFillColor: Int16 0
-  fFillStyle: Int16 1001
-  fCompress: Int32 101
-  fBasketSize: Int32 32000
-  fEntryOffsetLen: Int32 0
-  fWriteBasket: Int32 1
-  fEntryNumber: Int64 25
-  fIOFeatures: UnROOT.ROOT_3a3a_TIOFeatures
-  fOffset: Int32 0
-  fMaxBaskets: UInt32 0x0000000a
-  fSplitLevel: Int32 0
-  fEntries: Int64 25
-  fFirstEntry: Int64 0
-  fTotBytes: Int64 170
-  fZipBytes: Int64 116
-  fBranches: UnROOT.TObjArray
-  fLeaves: UnROOT.TObjArray
-  fBaskets: UnROOT.TObjArray
-  fBasketBytes: Array{Int32}((10,)) Int32[116, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  fBasketEntry: Array{Int64}((10,)) [0, 25, 0, 0, 0, 0, 0, 0, 0, 0]
-  fBasketSeek: Array{Int64}((10,)) [238, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  fFileName: String ""
-
-
-julia> seek(f.fobj, 238)
-IOStream(<file test/samples/tree_with_histos.root>)
-
-julia> basketkey = UnROOT.unpack(f.fobj, UnROOT.TKey)
-UnROOT.TKey64(116, 1004, 100, 0x6526eafb, 70, 0, 238, 100, "TBasket", "mynum", "t1")
-
-julia> s = UnROOT.datastream(f.fobj, basketkey)
-Compressed datastream of 100 bytes at 289 (TKey 'mynum' (TBasket))
-IOBuffer(data=UInt8[...], readable=true, writable=false, seekable=true, append=false, size=100, maxsize=Inf, ptr=1, mark=-1)
-
-julia> [UnROOT.readtype(s, Int32) for _ in 1:f["t1"]["mynum"].fEntries]
-Compressed datastream of 1317 bytes at 6180 (TKey 't1' (TTree))
-25-element Array{Int32,1}:
-  0
-  1
-  2
-  3
-  4
-  5
-  6
-  7
-  8
-  9
- 10
- 10
- 10
- 10
- 10
-```
-</p>
-</details>
 
 ## Contributors ✨
 
