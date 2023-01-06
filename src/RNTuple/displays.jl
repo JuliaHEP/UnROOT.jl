@@ -49,7 +49,7 @@ function Base.summary(io::IO, rf::RNTupleField{R, F, O, E}) where {R, F, O, E}
 end
 
 function Base.show(io::IO, rn::RNTuple) 
-    println(io, "UnROOT.RNTuple:")
+    println(io, "UnROOT.RNTuple with $(_length(rn)) rows, $(length(rn.schema)) fields, and metadata:")
     println(io, "  header: ")
     println(io, "    name: \"$(rn.header.name)\"")
     println(io, "    ntuple_description: \"$(rn.header.ntuple_description)\"")

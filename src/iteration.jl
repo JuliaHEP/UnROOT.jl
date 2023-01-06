@@ -192,17 +192,46 @@ function Base.iterate(ba::LazyBranch{T,J,B}, idx=1) where {T,J,B}
     return (ba[idx], idx + 1)
 end
 
-struct LazyEvent{T}
+struct LazyEvent{T} <: Tables.AbstractRow
     tree::T
     idx::Int64
 end
 Base.propertynames(lt::LazyEvent) = propertynames(getfield(lt, :tree))
-struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
+Tables.columnnames(row::LazyEvent) = propertynames(row)
+
+Tables.getcolumn(row::LazyEvent, i::Int) = Tables.getcolumn(getfield(row, :tree), i)[getfield(row, :idx)]
+Tables.getcolumn(row::LazyEvent, i::Symbol) = getproperty(row, i)
+
+@inline function Base.getproperty(evt::LazyEvent, s::Symbol)
+    @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
+end
+Base.Tuple(evt::LazyEvent) = Tuple(getproperty(evt, s) for s in propertynames(evt))
+Base.NamedTuple(evt::LazyEvent) = NamedTuple{propertynames(evt)}(Tuple(evt))
+Base.collect(evt::LazyEvent) = NamedTuple(evt)
+
+function Base.show(io::IO, evt::LazyEvent)
+    idx = Core.getfield(evt, :idx)
+    fields = propertynames(Core.getfield(evt, :tree))
+    nfields = length(fields)
+    sfields = nfields < 20 ? ": $(fields)" : ""
+    println(io, "UnROOT.LazyEvent at index $(idx) with $(nfields) columns:")
+    show(io, collect(evt))
+end
+
+struct LazyTree{T<:NamedTuple} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
 
-Tables.columns(t::LazyTree) = Core.getfield(t, :treetable)
+Base.eachcol(t::LazyTree) = values(getfield(t, :treetable))
+Tables.schema(t::LazyTree) = Tables.Schema(names(t), [eltype(col) for col in eachcol(t)])
 Tables.partitions(t::LazyTree) = (t[r] for r in _clusterranges(t))
+
+Tables.rowaccess(::LazyTree) = true
+Tables.rows(t::LazyTree) = t
+
+Tables.columnaccess(::LazyTree) = true
+# The internal NamedTuple already satisfies the Tables interface
+Tables.columns(t::LazyTree) = getfield(t, :treetable)
 
 function LazyTree(path::String, x...)
     LazyTree(ROOTFile(path), x...)
@@ -383,22 +412,6 @@ end
 function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex})
     return LazyTree(f, s, [branch])
 end
-
-function Base.show(io::IO, evt::LazyEvent)
-    idx = Core.getfield(evt, :idx)
-    fields = propertynames(Core.getfield(evt, :tree))
-    nfields = length(fields)
-    sfields = nfields < 20 ? ": $(fields)" : ""
-    println(io, "UnROOT.LazyEvent at index $(idx) with $(nfields) columns:")
-    show(io, collect(evt))
-end
-
-@inline function Base.getproperty(evt::LazyEvent, s::Symbol)
-    @inbounds getproperty(Core.getfield(evt, :tree), s)[Core.getfield(evt, :idx)]
-end
-Base.Tuple(evt::LazyEvent) = Tuple(getproperty(evt, s) for s in propertynames(evt))
-Base.NamedTuple(evt::LazyEvent) = NamedTuple{propertynames(evt)}(Tuple(evt))
-Base.collect(evt::LazyEvent) = NamedTuple(evt)
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
     idx > length(tree) && return nothing
