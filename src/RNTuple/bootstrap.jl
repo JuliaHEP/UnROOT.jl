@@ -111,16 +111,13 @@ end
 macro SimpleStruct(ex)
     _ex = deepcopy(ex)
     Base.remove_linenums!(ex)
-    if ex.head != :struct
-        error("must be used on a struct")
-    end
     T = ex.args[2]
     field_exprs = ex.args[3].args
     field_types = [e.args[2] for e in field_exprs]
-
-    _body_read = [Expr(:call, :_rntuple_read, :io, x)
-    for x in field_types]
-
+    _body_read = [
+                  Expr(:call, :_rntuple_read, :io, x)
+                  for x in field_types
+                 ]
     body = Expr(:call, T, _body_read...)
 
     _read_def = quote
