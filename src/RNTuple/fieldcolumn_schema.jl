@@ -1,4 +1,4 @@
-_parse_field(field_id, field_records, column_records, role) = error("Don't know how to handle role = $role")
+_parse_field(field_id, field_records, column_records, alias_columns, role) = error("Don't know how to handle role = $role")
 
 """
     StdArrayField<N, T>
@@ -39,10 +39,7 @@ struct LeafField{T}
     nbits::Int
 end
 
-function _search_col_type(field_id, column_records)
-    col_id = Tuple(findall(column_records) do col
-        col.field_id == field_id
-    end)
+function _search_col_type(field_id, column_records, col_id::Int...)
     if length(col_id) == 2 && 
         # String is the only known leaf field that splits in column records
         column_records[col_id[1]].type == 2 && 
@@ -56,19 +53,43 @@ function _search_col_type(field_id, column_records)
     end
 end
 
+function find_alias(field_id, alias_columns)::Int
+    for a in alias_columns
+        if a.field_id == field_id
+            return a.physical_id
+        end
+    end
+    return -1
+end
 
-function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_leaf})
+function _search_col_type(field_id, column_records::Vector, alias_columns::Vector)
+    col_id = Tuple(findall(column_records) do col
+        col.field_id == field_id
+    end)
+    physical_id = find_alias(field_id, alias_columns)
+
+    if physical_id != -1
+        _search_col_type(field_id, column_records, physical_id + 1)
+    elseif !isempty(col_id)
+        _search_col_type(field_id, column_records, col_id...)
+    else
+        error("Unreachable reached, no alias column and empty column match")
+    end
+end
+
+
+function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_leaf})
     # field_id in 0-based index
     field = field_records[field_id + 1]
     if iszero(field.repetition)
-        return _search_col_type(field_id, column_records)
+        return _search_col_type(field_id, column_records, alias_columns)
     else
         # `std::array<>` for some reason splits in Field records and pretent to be a leaf field
         element_idx = findlast(field_records) do field
             field.parent_field_id == field_id
         end
         sub_field = field_records[element_idx]
-        content_col =  _parse_field(element_idx - 1, field_records, column_records, Val(sub_field.struct_role))
+        content_col =  _parse_field(element_idx - 1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
         return StdArrayField(field.repetition, content_col)
     end
 end
@@ -78,15 +99,15 @@ struct VectorField{O, T}
     content_col::T
 end
 
-function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_vector})
-    offset_col = _search_col_type(field_id, column_records)
+function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_vector})
+    offset_col = _search_col_type(field_id, column_records, alias_columns)
 
     element_idx = findlast(field_records) do field
         field.parent_field_id == field_id
     end
     # go back to 0-based
     content_col = _parse_field(element_idx-1, field_records, 
-                               column_records, Val(field_records[element_idx].struct_role))
+                               column_records, alias_columns, Val(field_records[element_idx].struct_role))
 
     return VectorField(offset_col, content_col)
 end
@@ -96,7 +117,7 @@ struct StructField{N, T}
     content_cols::T
 end
 
-function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_struct})
+function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_struct})
     element_ids = findall(field_records) do field
         field.parent_field_id == field_id
     end
@@ -106,7 +127,7 @@ function _parse_field(field_id, field_records, column_records, ::Val{rntuple_rol
 
     names = Tuple(Symbol(sub_field.field_name) for sub_field in sub_fields)
     content_cols = Tuple(
-        _parse_field(element_idx-1, field_records, column_records, Val(sub_field.struct_role))
+        _parse_field(element_idx-1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
     for (element_idx, sub_field) in zip(element_ids, sub_fields)
     )
 
@@ -118,8 +139,8 @@ struct UnionField{S, T}
     content_cols::T
 end
 
-function _parse_field(field_id, field_records, column_records, ::Val{rntuple_role_union})
-    switch_col = _search_col_type(field_id, column_records)
+function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_union})
+    switch_col = _search_col_type(field_id, column_records, alias_columns)
     element_ids = findall(field_records) do field
         field.parent_field_id == field_id
     end
@@ -128,7 +149,7 @@ function _parse_field(field_id, field_records, column_records, ::Val{rntuple_rol
     sub_fields = @view field_records[element_ids]
 
     content_cols = Tuple(
-        _parse_field(element_idx-1, field_records, column_records, Val(sub_field.struct_role))
+        _parse_field(element_idx-1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
     for (element_idx, sub_field) in zip(element_ids, sub_fields)
     )
 
@@ -136,18 +157,21 @@ function _parse_field(field_id, field_records, column_records, ::Val{rntuple_rol
 end
 
 function parse_fields(hr::RNTupleHeader)
-    parse_fields(hr.field_records, hr.column_records)
+    parse_fields(hr.field_records, hr.column_records, hr.alias_columns)
 end
 
-function parse_fields(field_records, column_records)
+function parse_fields(field_records, column_records, alias_columns)
     fields = Dict{Symbol, Any}()
     for (idx, field) in enumerate(field_records)
         this_id = idx - 1 # 0-based
         if this_id == field.parent_field_id
             fields[Symbol(field.field_name)] = _parse_field(
-                this_id, 
-                field_records, column_records, Val(field.struct_role)
-            )
+                                                            this_id,
+                                                            field_records,
+                                                            column_records,
+                                                            alias_columns,
+                                                            Val(field.struct_role)
+                                                           )
         end
     end
     NamedTuple(fields)

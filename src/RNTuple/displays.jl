@@ -3,6 +3,10 @@ function Base.show(io::IO, ::Type{<:RNTuple{O, NamedTuple{N, T}}}) where {O, N, 
     print(io, "RNTuple{$N}")
 end
 
+function Base.show(io::IO, f::AliasRecord)
+    print(io, "AliasRecord(physical_id=$(f.physical_id), field_id=$(f.field_id))")
+end
+
 function Base.show(io::IO, f::ClusterSummary)
     print(io, "ClusterSummary(num_first_entry=$(f.num_first_entry), ")
     print(io, "num_entries=$(f.num_entries))")
