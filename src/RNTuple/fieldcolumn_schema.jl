@@ -28,6 +28,7 @@ end
 """
     struct LeafField{T}
         content_col_idx::Int
+        nbits::Int
     end
 
 Base case of field nesting, this links to a column in the RNTuple by 0-based index.
@@ -39,15 +40,33 @@ struct LeafField{T}
     nbits::Int
 end
 
+"""
+    struct RNTupleCardinality{T}
+        content_col_idx::Int
+        nbits::Int
+    end
+
+Special field. The cardinality is basically a counter, but the data column is
+a leaf column of Index32 or Index64. To get a number from Cardinality, one needs to
+compute `ary[i] - ary[i-1]`.
+"""
+struct RNTupleCardinality{T}
+    content_col_idx::Int
+    nbits::Int
+end
+RNTupleCardinality(l::LeafField{T}) where T = RNTupleCardinality{T}(l.content_col_idx, l.nbits)
+
+Base.eltype(::Type{LeafField{T}}) where T = T
+
 function _search_col_type(field_id, column_records, col_id::Int...)
     if length(col_id) == 2 && 
-        # String is the only known leaf field that splits in column records
         column_records[col_id[1]].type == 2 && 
         column_records[col_id[2]].type == 5
         return StringField(LeafField{Int32}(col_id[1], 32), LeafField{Char}(col_id[2], 8))
     elseif length(col_id) == 1
         record = column_records[only(col_id)]
-        return LeafField{rntuple_col_type_dict[record.type]}(only(col_id), record.nbits)
+        LeafType = rntuple_col_type_dict[record.type]
+        return LeafField{LeafType}(only(col_id), record.nbits)
     else
         error("un-handled base case, report issue to authors")
     end
@@ -82,7 +101,13 @@ function _parse_field(field_id, field_records, column_records, alias_columns, ::
     # field_id in 0-based index
     field = field_records[field_id + 1]
     if iszero(field.repetition)
-        return _search_col_type(field_id, column_records, alias_columns)
+        res = _search_col_type(field_id, column_records, alias_columns)
+        if eltype(res) <: Union{Index32, Index64}
+            # https://github.com/root-project/root/pull/12127
+            return RNTupleCardinality(res)
+        else
+            return res
+        end
     else
         # `std::array<>` for some reason splits in Field records and pretent to be a leaf field
         element_idx = findlast(field_records) do field

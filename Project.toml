@@ -6,6 +6,7 @@ version = "0.8.22"
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
+BitIntegers = "c3b6d118-76ef-56ca-8cc7-ebb389d030a1"
 CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
 CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZstd = "6b39b394-51ab-5f42-8807-6242bab2b4c2"

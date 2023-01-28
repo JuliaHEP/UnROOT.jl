@@ -1,3 +1,28 @@
+"""
+    _field_output_type(::Type{F}) where F
+
+This is function is used in two ways:
+
+- provide a output type prediction for each "field" in RNTuple so we can
+achieve type stability
+- it's also used to enforce the type stability in [`read_field`](@ref):
+
+```
+    # this is basically a type assertion for `res`
+    return res::_field_output_type(field)
+```
+"""
+function _field_output_type() end
+
+"""
+    read_field(io, field::F, page_list) where F
+
+Read a field from the `io` stream. The `page_list` is a list of PageLinks for the
+current cluster group. The type stability is achieved by type asserting
+based on type `F` via [`_field_output_type`](@ref) function.
+"""
+function read_field() end
+
 _field_output_type(x::T) where T = _field_output_type(T)
 
 function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T<:LeafField}
@@ -30,7 +55,30 @@ function read_field(io, field::StringField{O, T}, page_list) where {O, T}
     return res::_field_output_type(field)
 end
 
-_field_output_type(::Type{LeafField{T}}) where {T} = Base.ReinterpretArray{T, 1, UInt8, Vector{UInt8}, false}
+const T_Reinter{T} = Base.ReinterpretArray{T, 1, UInt8, Vector{UInt8}, false}
+
+struct CardinalityVector{T} <: AbstractVector{T}
+    contents::T_Reinter{T}
+end
+Base.length(ary::CardinalityVector) = length(ary.contents)
+Base.size(ary::CardinalityVector) = (length(ary.contents), )
+Base.IndexStyle(::CardinalityVector) = IndexLinear()
+function Base.getindex(ary::CardinalityVector{T}, i::Int) where {T}
+    ary.contents[i] - get(ary.contents, i-1, zero(T))
+end
+
+
+_field_output_type(::Type{RNTupleCardinality{T}}) where {T} = CardinalityVector{T}
+function read_field(io, field::RNTupleCardinality{T}, page_list) where T
+    nbits = field.nbits
+    pages = page_list[field.content_col_idx]
+    bytes = read_pagedesc(io, pages, nbits)
+    contents = reinterpret(T, bytes)
+    res = CardinalityVector(contents)
+    return res::_field_output_type(field)
+end
+
+_field_output_type(::Type{LeafField{T}}) where {T} = T_Reinter{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.nbits
     pages = page_list[field.content_col_idx]
@@ -55,7 +103,7 @@ function read_field(io, field::LeafField{Bool}, page_list)
     return res::_field_output_type(field)
 end
 
-_field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{eltype(_field_output_type(T)), _field_output_type(T), Vector{Int32}, Vector{Tuple{}}}
+_field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{eltype(_field_output_type(T)), _field_output_type(T), Vector{eltype(O)}, Vector{Tuple{}}}
 function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
     offset = read_field(io, field.offset_col, page_list)
     content = read_field(io, field.content_col, page_list)
@@ -71,9 +119,12 @@ function _field_output_type(::Type{StructField{N, T}}) where {N, T}
     types2 = Tuple{_field_output_type.(T.types)...}
     StructArray{NamedTuple{N, types}, 1, NamedTuple{N, types2}, Int64}
 end
+
 """
-    Since each field of the struct is stored in a separate field of the RNTuple,
-    this function returns a `StructArray` for efficiency / performance reason.
+    read_field(io, field::StructField{N, T}, page_list) where {N, T}
+
+Since each field of the struct is stored in a separate field of the RNTuple,
+this function returns a `StructArray` to maximize efficiency.
 """
 function read_field(io, field::StructField{N, T}, page_list) where {N, T}
     contents = (read_field(io, col, page_list) for col in field.content_cols)
@@ -100,14 +151,13 @@ function Base.getindex(ary::UnionVector, i::Int)
 end
 
 function _split_switch_bits(content)
-    kindex = Int64.(content) .& 0x00000000000FFFFF .+ 1
-    tags = Int8.(UInt64.(content) .>> 44)
+    kindex = content .& 0x00000000000FFFFF .+ 1
+    tags = Int8.(content .>> 44)
     return kindex, tags
 end
 function _field_output_type(::Type{UnionField{S, T}}) where {S, T}
-    type = Union{eltype.(_field_output_type.(T.types))...}
-    type2 = Tuple{_field_output_type.(T.types)...}
-    return UnionVector{type, type2}
+    types = _field_output_type.(T.types)
+    return UnionVector{Union{eltype.(types)...}, Tuple{types...}}
 end
 function read_field(io, field::UnionField{S, T}, page_list) where {S, T}
     switch = read_field(io, field.switch_col, page_list)

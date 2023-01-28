@@ -218,6 +218,10 @@ function Base.show(io::IO, evt::LazyEvent)
     show(io, collect(evt))
 end
 
+function Base.show(io::IO, ::Type{<:LazyEvent})
+    print(io, "UnROOT.LazyEvent")
+end
+
 struct LazyTree{T<:NamedTuple} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
