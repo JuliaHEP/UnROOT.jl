@@ -42,7 +42,7 @@ end
 
     sample = schema2.vector_tuple_int32_string
     @test sample isa UnROOT.VectorField
-    @test sample.offset_col isa UnROOT.LeafField{Int32}
+    @test sample.offset_col isa UnROOT.LeafField{UnROOT.Index32}
     @test sample.offset_col.content_col_idx == 9
 
     @test sample.content_col isa UnROOT.StructField
@@ -108,6 +108,16 @@ end
     @test all(length.(df.array_lv) .== 3)
     @test df.array_lv[1] == fill((pt=1.0, eta=1.0, phi=1.0, mass=1.0), 3)
     @test df.array_lv[5] == fill((pt=5.0, eta=5.0, phi=5.0, mass=5.0), 3)
+end
+
+@testset "RNTupleCardinality" begin
+    f1 = UnROOT.samplefile("RNTuple/Run2012BC_DoubleMuParked_Muons_rntuple_1000evts.root")
+    t = LazyTree(f1, "Events")
+    @test t.nMuon == 
+        length.(t.Muon_pt) ==
+        length.(t.Muon_eta) ==
+        length.(t.Muon_mass) == 
+        length.(t.Muon_charge)
 end
 
 @testset "RNTuple Type stability" begin

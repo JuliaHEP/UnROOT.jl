@@ -1,11 +1,12 @@
 name = "UnROOT"
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
-version = "0.8.22"
+version = "0.8.23"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
+BitIntegers = "c3b6d118-76ef-56ca-8cc7-ebb389d030a1"
 CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
 CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZstd = "6b39b394-51ab-5f42-8807-6242bab2b4c2"
@@ -28,6 +29,7 @@ xrootdgo_jll = "9d84c17e-11f2-50ef-8cc9-e9701362097f"
 [compat]
 AbstractTrees = "^0.3.0, 0.4"
 ArraysOfArrays = "^0.5.3, ^0.6"
+BitIntegers = "^0.2.6"
 CodecLz4 = "^0.3.0, ^0.4.0"
 CodecXz = "^0.6.0, ^0.7.0"
 CodecZstd = "^0.6.0, ^0.7.0"

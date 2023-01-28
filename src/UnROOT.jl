@@ -15,6 +15,7 @@ using Mixers, Parameters, Memoization, LRUCache
 import IterTools: groupby
 
 using LibDeflate: zlib_decompress!, Decompressor, crc32
+using BitIntegers: @define_integers
 
 import Tables, PrettyTables
 

@@ -1,7 +1,12 @@
+# the signed ones are not used
+@define_integers 64 SignedSwitch Switch
+@define_integers 32 SignedIndex32 Index32
+@define_integers 64 SignedIndex64 Index64
+
 #https://github.com/root-project/root/blob/master/tree/ntuple/v7/doc/specifications.md
 const rntuple_col_type_dict = (
-    Int64,
-    Int32,
+    Index64,
+    Index32,
     Switch, # Switch
     UInt8,
     UInt8,  # char
