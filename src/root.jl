@@ -290,7 +290,7 @@ end
 function _normalize_ftype(fType)
     # Taken from uproot4; thanks Jim ;)
     if Const.kOffsetL < fType < Const.kOffsetP
-        fType - kOffsetP
+        fType - Const.kOffsetP
     else
         fType
     end
