@@ -394,10 +394,6 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         else
             leaftype = _normalize_ftype(leaf.fType)
             _type = get(_leaftypeconstlookup, leaftype, nothing)
-            if isnothing(_type)
-                @error "Cannot interpret type."
-                return nothing
-            end
             if branch.fType == Const.kSubbranchSTLCollection
                 _type = Vector{_type}
             end
