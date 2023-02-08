@@ -31,6 +31,7 @@ struct TStreamerInfo{T}
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerInfo})
+    @debug "Unpacking: $(tkey)"
     preamble = Preamble(io, T)
     fName, fTitle = nametitle(io)
     fCheckSum = readtype(io, UInt32)
@@ -305,8 +306,11 @@ struct TObjArray
     elements
 end
 Base.getindex(obj::TObjArray, index) = obj.elements[index]
+Base.length(a::TObjArray) = length(a.elements)
+Base.iterate(a::TObjArray, state=1) = state > length(a) ? nothing : (a.elements[state], state+1)
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjArray})
+    @debug "Unpacking: $(tkey)"
     preamble = Preamble(io, T)
     skiptobj(io)
     name = readtype(io, String)

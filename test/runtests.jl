@@ -181,13 +181,13 @@ end
     close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lz4.root"))
-    arr = collect(rootfile["t1/float_array"])
+    arr = collect(LazyBranch(rootfile, rootfile["t1/float_array"]))
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
     close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_int_array_zstd.root"))
-    arr = collect(rootfile["t1/a"])
+    arr = collect(LazyBranch(rootfile, "t1/a"))
     @test arr == 0:99
     close(rootfile)
 end
@@ -249,7 +249,7 @@ end
 @testset "TLorentzVector" begin
     # 64bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TLorentzVector.root"))
-    branch = rootfile["t1/LV"]
+    branch = LazyBranch(rootfile, "t1/LV")
     tree = LazyTree(rootfile, "t1")
 
     @test branch[1].x == 1.0
@@ -262,7 +262,7 @@ end
 
     # jagged LVs
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "Jagged_TLorentzVector.root"))
-    branch = rootfile["t1/LVs"]
+    branch = LazyBranch(rootfile, "t1/LVs")
     tree = LazyTree(rootfile, "t1")
 
     @test eltype(branch) <: AbstractVector{LorentzVectors.LorentzVector{Float64}}
@@ -273,7 +273,7 @@ end
 
 @testset "TNtuple" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "TNtuple.root"))
-    arrs = [collect(rootfile["n1/$c"]) for c in "xyz"]
+    arrs = [collect(LazyBranch(rootfile, "n1/$c")) for c in "xyz"]
     @test length.(arrs) == fill(100, 3)
     @test arrs[1] ≈ 0:99
     @test arrs[2] ≈ arrs[1] .+ arrs[1] ./ 13
@@ -284,7 +284,7 @@ end
 @testset "Singly jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
-    data = rootfile["t1/int32_array"]
+    data = LazyBranch(rootfile, "t1/int32_array")
     @test data[1] == Int32[]
     @test data[1:2] == [Int32[], Int32[0]]
     @test data[end] == Int32[90, 91, 92, 93, 94, 95, 96, 97, 98]
@@ -293,7 +293,7 @@ end
     # 64bits T
     T = Float64
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array_double.root"))
-    data = rootfile["t1/double_array"]
+    data = LazyBranch(rootfile, "t1/double_array")
     @test data isa AbstractVector
     @test eltype(data) <: AbstractVector{T}
     @test data[1] == T[]
@@ -326,11 +326,11 @@ end
     vvi = [[[2], [3, 5]], [[7, 9, 11], [13]], [[17], [19], []], [], [[]]]
     vvf = [[[2.5], [3.5, 5.5]], [[7.5, 9.5, 11.5], [13.5]], [[17.5], [19.5], []], [], [[]]]
     @test UnROOT.array(rootfile, "t1/bi") == vvi
-    @test rootfile["t1/bi"] == vvi
-    @test eltype(eltype(eltype(rootfile["t1/bi"]))) === Int32
+    @test LazyBranch(rootfile, "t1/bi") == vvi
+    @test eltype(eltype(eltype(LazyBranch(rootfile, "t1/bi")))) === Int32
     @test UnROOT.array(rootfile, "t1/bf") == vvf
-    @test rootfile["t1/bf"] == vvf
-    @test eltype(eltype(eltype(rootfile["t1/bf"]))) === Float32
+    @test LazyBranch(rootfile, "t1/bf") == vvf
+    @test eltype(eltype(eltype(LazyBranch(rootfile, "t1/bf")))) === Float32
     close(rootfile)
 end
 
@@ -365,7 +365,7 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
-    Electron_dxy = rootfile["Events/Electron_dxy"]
+    Electron_dxy = LazyBranch(rootfile, "Events/Electron_dxy")
     @test eltype(Electron_dxy) == SubArray{Float32, 1, Vector{Float32}, Tuple{UnitRange{Int64}}, true}
     @test Electron_dxy[1:3] ≈ [Float32[0.0003705], Float32[-0.00981903], Float32[]]
     HLT_Mu3_PFJet40 = UnROOT.array(rootfile, "Events/HLT_Mu3_PFJet40")
@@ -377,7 +377,7 @@ end
     tree = LazyTree(rootfile, "Events", r"Muon_(pt|eta)$")
     @test sort(propertynames(tree) |> collect) == sort([:Muon_pt, :Muon_eta])
     @test occursin("LazyEvent", repr(first(iterate(tree))))
-    @test sum(rootfile["Events/HLT_Mu3_PFJet40"]) == 443
+    @test sum(LazyBranch(rootfile, "Events/HLT_Mu3_PFJet40")) == 443
     close(rootfile)
 end
 
@@ -467,9 +467,9 @@ end
             "KM3NETDAQ::JDAQEvent.KM3NETDAQ::JDAQEventHeader" => UnROOT._KM3NETDAQEventHeader
     )
     f_auto = UnROOT.ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"), customstructs=customstructs)
-    headers_auto = f_auto["KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader"]
-    event_hits_auto = f_auto["KM3NET_EVENT/KM3NET_EVENT/snapshotHits"]
-    event_thits_auto = f_auto["KM3NET_EVENT/KM3NET_EVENT/triggeredHits"]
+    headers_auto = LazyBranch(f_auto, "KM3NET_EVENT/KM3NET_EVENT/KM3NETDAQ::JDAQEventHeader")
+    event_hits_auto = LazyBranch(f_auto, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits")
+    event_thits_auto = LazyBranch(f_auto, "KM3NET_EVENT/KM3NET_EVENT/triggeredHits")
 
     for event_hits ∈ [event_hits_manual, event_hits_auto]
         @test length(event_hits) == 3
@@ -592,7 +592,7 @@ end
     rootfile = UnROOT.samplefile("cms_ntuple_wjet.root")
     pts1 = UnROOT.array(rootfile, "variable/met_p4/fCoordinates/fCoordinates.fPt"; raw=false)
     pts2 = LazyTree(rootfile, "variable", [r"met_p4/fCoordinates/.*", "mll"])[!, Symbol("met_p4_fPt")]
-    pts3 = rootfile["variable/good_jets_p4/good_jets_p4.fCoordinates.fPt"]
+    pts3 = LazyBranch(rootfile, "variable/good_jets_p4/good_jets_p4.fCoordinates.fPt")
     @test 24 == length(pts1)
     @test Float32[69.96958, 25.149912, 131.66693, 150.56802] == pts1[1:4]
     @test pts1 == pts2
@@ -601,7 +601,7 @@ end
 
     # issue 61
     rootfile = UnROOT.samplefile("issue61.root")
-    @test rootfile["Events/Jet_pt"][:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
+    @test LazyBranch(rootfile, "Events/Jet_pt")[:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
 
     # issue 78
@@ -615,8 +615,8 @@ end
     # unsigned short -> Int16, ulong64 -> UInt64
     # file minified with `rooteventselector --recreate -l 2 "trackntuple.root:trackingNtuple/tree" issue108_small.root`
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue108_small.root"))
-    @test rootfile["tree/trk_algoMask"][2] == [0x0000000000004000, 0x0000000000004000, 0x0000000000004000, 0x0000000000004000]
-    @test rootfile["tree/pix_ladder"][3][1:5] == UInt16[0x0001, 0x0001, 0x0001, 0x0001, 0x0003]
+    @test LazyBranch(rootfile, "tree/trk_algoMask")[2] == [0x0000000000004000, 0x0000000000004000, 0x0000000000004000, 0x0000000000004000]
+    @test LazyBranch(rootfile, "tree/pix_ladder")[3][1:5] == UInt16[0x0001, 0x0001, 0x0001, 0x0001, 0x0003]
     close(rootfile)
 
     # issue 116
@@ -747,10 +747,10 @@ end
     @test sort(keys(f["mydir"])) == ["Events", "c", "d", "mysubdir"]
     @test sort(keys(f["mydir/mysubdir"])) == ["e", "f"]
     @test sum(length.(LazyTree(f, "mydir/Events").Jet_pt)) == 4
-    @test sum(length.(f["mydir/Events/Jet_pt"])) == 4
+    @test sum(length.(LazyBranch(f, "mydir/Events/Jet_pt"))) == 4
 
     f = UnROOT.samplefile("issue11_tdirectory.root")
-    @test sum(f["Data/mytree/Particle0_E"]) ≈ 1012.0
+    @test sum(LazyBranch(f, "Data/mytree/Particle0_E")) ≈ 1012.0
 end
 
 @testset "Basic C++ types" begin

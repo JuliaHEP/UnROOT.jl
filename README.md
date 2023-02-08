@@ -11,6 +11,25 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
+## Important API changes in v0.9.0
+
+We decided to alter the behaviour of `getindex(f::ROOTfile, s::AbstractString)` which is essentially
+the method called called when `f["foo/bar"]` is used. Before `v0.9.0`, `UnROOT` tried to do a best guess
+and return a tree/branch or even fully parsed data. This lead to two bigger issues.
+
+  1. Errors prevented any further exploration once `UnROOT` bumped into something it could not interpret, although it might not even be requested by the user (e.g. the interpretation of a single branch in a tree, while others would work fine)
+  2. Unpredictable behaviour (type instability): the path dictates which type of data is returned.
+
+Starting from `v0.9.0` we introduce an interface where `f["..."]` always returns genuine ROOT datatypes (or custom ones if you provide interpretations) and only perfroms the actual parsing when explicitly requested by the user via helper methods like `LazyBranch(f, "...")`.
+
+Long story short, the following pattern can be used to fix your code when upgrading to `v0.9.0`:
+
+    f("foo/bar") => LazyBranch(f, "foo/bar")
+    
+The `f["foo/bar"]` accessor should now work on almost all files and is a handy utility to explore the ROOT data structures.
+
+See [PR199](https://github.com/JuliaHEP/UnROOT.jl/pull/199) for more details.
+
 ## Installation Guide
 1. Download the latest [Julia release](https://julialang.org/downloads/)
 2. Open up Julia REPL (hit `]` once to enter Pkg mode, hit backspace to exit it)
@@ -27,24 +46,31 @@ julia> using UnROOT
 julia> f = ROOTFile("test/samples/NanoAODv5_sample.root")
 ROOTFile with 2 entries and 21 streamers.
 test/samples/NanoAODv5_sample.root
-└─ Events
-   ├─ "run"
-   ├─ "luminosityBlock"
-   ├─ "event"
-   ├─ "HTXS_Higgs_pt"
-   ├─ "HTXS_Higgs_y"
-   └─ "⋮"
+├─ Events (TTree)
+│  ├─ "run"
+│  ├─ "luminosityBlock"
+│  ├─ "event"
+│  ├─ "⋮"
+│  ├─ "L1_UnpairedBunchBptxPlus"
+│  ├─ "L1_ZeroBias"
+│  └─ "L1_ZeroBias_copy"
+└─ untagged (TObjString)
+
 
 julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$"])
- Row │ Electron_dxy     nMuon   Muon_eta         Muon_pt
-     │ Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
-─────┼───────────────────────────────────────────────────────────
- 1   │ [0.000371]       0       []               []
- 2   │ [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
- 3   │ []               0       []               []
- 4   │ [-0.00157]       0       []               []
- ⋮   │     ⋮            ⋮             ⋮                ⋮
- 
+ Row │ Electron_dxy                      nMuon   Muon_pt          Muon_eta        
+     │ SubArray{Float3                   UInt32  SubArray{Float3  SubArray{Float3 
+─────┼────────────────────────────────────────────────────────────────────────────
+ 1   │ [0.000371]                        0       []               []
+ 2   │ [-0.00982]                        2       [19.9, 15.3]     [0.53, 0.229]
+ 3   │ []                                0       []               []
+ 4   │ [-0.00157]                        0       []               []
+ 5   │ []                                0       []               []
+ 6   │ [-0.00126]                        0       []               []
+ 7   │ [0.0612, 0.000642]                2       [22.2, 4.43]     [-1.13, 1.98]
+ 8   │ [0.00587, 0.000549, -0.00617]     0       []               []
+  ⋮  │                ⋮                    ⋮            ⋮                ⋮
+                                                                  992 rows omitted
 ```
 
 ### RNTuple
@@ -57,20 +83,30 @@ julia> using UnROOT
 julia> f = ROOTFile("./test/samples/RNTuple/test_ntuple_stl_containers.root");
 
 julia> f["ntuple"]
-UnROOT.RNTuple:
-  header:
+UnROOT.RNTuple with 5 rows, 13 fields, and metadata:
+  header: 
     name: "ntuple"
     ntuple_description: ""
     writer_identifier: "ROOT v6.29/01"
-    schema:
+    schema: 
       RNTupleSchema with 13 top fields
       ├─ :lorentz_vector ⇒ Struct
       ├─ :vector_tuple_int32_string ⇒ Vector
       ├─ :string ⇒ String
       ├─ :vector_string ⇒ Vector
-...
-..
-.
+      ├─ :vector_vector_int32 ⇒ Vector
+      ├─ :vector_variant_int64_string ⇒ Vector
+      ├─ :vector_vector_string ⇒ Vector
+      ├─ :variant_int32_string ⇒ Union
+      ├─ :array_float ⇒ StdArray{3}
+      ├─ :tuple_int32_string ⇒ Struct
+      ├─ :array_lv ⇒ StdArray{3}
+      ├─ :pair_int32_string ⇒ Struct
+      └─ :vector_int32 ⇒ Vector
+      
+  footer: 
+    cluster_summaries: UnROOT.ClusterSummary[ClusterSummary(num_first_entry=0, num_entries=5)]
+
 julia> LazyTree(f, "ntuple")
  Row │ string  vector_int32     array_float      vector_vector_i     vector_string       vector_vector_s     variant_int32_s  vector_variant_     ⋯
      │ String  Vector{Int32}    StaticArraysCor  Vector{Vector{I     Vector{String}      Vector{Vector{S     Union{Int32, St  Vector{Union{In     ⋯
@@ -109,11 +145,31 @@ XRootD is also supported, depending on the protocol:
 -   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
 ```julia
 julia> r = @time ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
-  0.034877 seconds (5.13 k allocations: 533.125 KiB)
+  3.284499 seconds (13.10 M allocations: 670.450 MiB, 4.62% gc time, 93.34% compilation time)
 ROOTFile with 1 entry and 18 streamers.
+https://scikit-hep.org/uproot3/examples/Zmumu.root
+└─ events (TTree)
+   ├─ "Type"
+   ├─ "Run"
+   ├─ "Event"
+   ├─ "⋮"
+   ├─ "phi2"
+   ├─ "Q2"
+   └─ "M"
 
 julia> r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
+
 ROOTFile with 1 entry and 19 streamers.
+root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root
+└─ Events (TTree)
+   ├─ "run"
+   ├─ "luminosityBlock"
+   ├─ "event"
+   ├─ "⋮"
+   ├─ "Electron_dxyErr"
+   ├─ "Electron_dz"
+   └─ "Electron_dzErr"
+
 ```
 
 ## TBranch of custom struct

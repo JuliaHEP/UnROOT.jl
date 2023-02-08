@@ -122,6 +122,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
+LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, _getindex(f, s))
 basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
 basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
@@ -404,7 +405,7 @@ function LazyTree(f::ROOTFile, tree::TTree, s, branches)
             replace!(tail, "fCoordinates" => "")
             norm_name = join([head; join(tail)], "_")
         end
-        d[Symbol(norm_name)] = f["$s/$b"]
+        d[Symbol(norm_name)] = LazyBranch(f, "$s/$b")
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
 end

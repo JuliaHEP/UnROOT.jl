@@ -135,15 +135,7 @@ end
 
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
-    S = _getindex(f, s)
-    if S isa Union{TBranch, TBranchElement}
-        # try # if we can't construct LazyBranch, just give up (maybe due to custom class)
-            return LazyBranch(f, S)
-        # catch
-        #     @warn "Can't automatically create LazyBranch for branch $s. Returning a branch object"
-        # end
-    end
-    S
+    _getindex(f, s)
 end
 
 @memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
@@ -402,7 +394,6 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         else
             leaftype = _normalize_ftype(leaf.fType)
             _type = get(_leaftypeconstlookup, leaftype, nothing)
-            isnothing(_type) && error("Cannot interpret type.")
             if branch.fType == Const.kSubbranchSTLCollection
                 _type = Vector{_type}
             end
@@ -486,6 +477,7 @@ function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, see
     basketkey = unpack(rawbuffer, TBasketKey)
     compressedbytes = compressed_datastream(rawbuffer, basketkey)
 
+    @debug "Seek position: $seek_pos"
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)
 
     @debug begin
