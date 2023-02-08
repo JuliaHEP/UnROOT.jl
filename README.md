@@ -144,8 +144,7 @@ XRootD is also supported, depending on the protocol:
 -   the "url" has to start with `http://` or `https://`:
 -   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
 ```julia
-julia> r = @time ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
-  3.284499 seconds (13.10 M allocations: 670.450 MiB, 4.62% gc time, 93.34% compilation time)
+julia> r = ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
 ROOTFile with 1 entry and 18 streamers.
 https://scikit-hep.org/uproot3/examples/Zmumu.root
 └─ events (TTree)
@@ -158,7 +157,6 @@ https://scikit-hep.org/uproot3/examples/Zmumu.root
    └─ "M"
 
 julia> r = ROOTFile("root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root")
-
 ROOTFile with 1 entry and 19 streamers.
 root://eospublic.cern.ch//eos/root-eos/cms_opendata_2012_nanoaod/Run2012B_DoubleMuParked.root
 └─ Events (TTree)
