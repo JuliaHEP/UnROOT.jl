@@ -24,4 +24,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/JuliaHEP/UnROOT.jl",
+    push_preview=true
 )
