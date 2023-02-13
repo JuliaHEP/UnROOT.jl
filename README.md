@@ -1,9 +1,10 @@
-<img style="height:9em;" alt="UnROOT.jl" src="docs/src/assets/unroot.svg"/>
+![](https://github.com/JuliaHEP/UnROOT.jl/raw/master/docs/src/assets/unroot.svg)
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 [![JOSS](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c/status.svg)](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliahep.github.io/UnROOT.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliahep.github.io/UnROOT.jl/dev)
 [![Build Status](https://github.com/JuliaHEP/UnROOT.jl/workflows/CI/badge.svg)](https://github.com/JuliaHEP/UnROOT.jl/actions)
 [![Codecov](https://codecov.io/gh/JuliaHEP/UnROOT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaHEP/UnROOT.jl)
