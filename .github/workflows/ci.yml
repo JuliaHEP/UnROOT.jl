@@ -47,23 +47,25 @@ jobs:
       - uses: codecov/codecov-action@v1
         with:
           file: lcov.info
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
         with:
-          version: '1'
+          version: '1.6'
       - run: |
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
       - run: |
-          julia --project=docs -e '
-            using Documenter: DocMeta, doctest
+          julia --color=yes --project=docs/ -e '
             using UnROOT
+            # using Pkg; Pkg.activate("docs")
+            using Documenter: DocMeta, doctest
             DocMeta.setdocmeta!(UnROOT, :DocTestSetup, :(using UnROOT); recursive=true)
             doctest(UnROOT)'
       - run: julia --project=docs docs/make.jl
