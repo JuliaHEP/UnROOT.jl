@@ -1,7 +1,7 @@
 <img style="height:9em;" alt="UnROOT.jl" src="docs/src/assets/unroot.svg"/>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-8-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 [![JOSS](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c/status.svg)](https://joss.theoj.org/papers/bab42b0c60f9dc7ef3b8d6460bc7229c)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliahep.github.io/UnROOT.jl/dev)
@@ -219,15 +219,20 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
 <table>
-  <tr>
-    <td align="center"><a href="http://www.tamasgal.com"><img src="https://avatars.githubusercontent.com/u/1730350?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tamas Gal</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Documentation">📖</a> <a href="#infra-tamasgal" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#data-tamasgal" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Tests">⚠️</a></td>
-    <td align="center"><a href="https://github.com/Moelf"><img src="https://avatars.githubusercontent.com/u/5306213?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jerry Ling</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Tests">⚠️</a> <a href="#data-Moelf" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/8me"><img src="https://avatars.githubusercontent.com/u/17862090?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Johannes Schumann</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Tests">⚠️</a> <a href="#data-8me" title="Data">🔣</a></td>
-    <td align="center"><a href="https://github.com/aminnj"><img src="https://avatars.githubusercontent.com/u/5760027?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nick Amin</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Tests">⚠️</a> <a href="#data-aminnj" title="Data">🔣</a></td>
-    <td align="center"><a href="https://giordano.github.io"><img src="https://avatars.githubusercontent.com/u/765740?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mosè Giordano</b></sub></a><br /><a href="#infra-giordano" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
-    <td align="center"><a href="https://github.com/oschulz"><img src="https://avatars.githubusercontent.com/u/546147?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Oliver Schulz</b></sub></a><br /><a href="#ideas-oschulz" title="Ideas, Planning, & Feedback">🤔</a></td>
-    <td align="center"><a href="https://github.com/mmikhasenko"><img src="https://avatars.githubusercontent.com/u/22725744?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Misha Mikhasenko</b></sub></a><br /><a href="#data-mmikhasenko" title="Data">🔣</a></td>
-  </tr>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.tamasgal.com"><img src="https://avatars.githubusercontent.com/u/1730350?v=4?s=100" width="100px;" alt="Tamas Gal"/><br /><sub><b>Tamas Gal</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Documentation">📖</a> <a href="#infra-tamasgal" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#data-tamasgal" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=tamasgal" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Moelf"><img src="https://avatars.githubusercontent.com/u/5306213?v=4?s=100" width="100px;" alt="Jerry Ling"/><br /><sub><b>Jerry Ling</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Tests">⚠️</a> <a href="#data-Moelf" title="Data">🔣</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Moelf" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/8me"><img src="https://avatars.githubusercontent.com/u/17862090?v=4?s=100" width="100px;" alt="Johannes Schumann"/><br /><sub><b>Johannes Schumann</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=8me" title="Tests">⚠️</a> <a href="#data-8me" title="Data">🔣</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/aminnj"><img src="https://avatars.githubusercontent.com/u/5760027?v=4?s=100" width="100px;" alt="Nick Amin"/><br /><sub><b>Nick Amin</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Code">💻</a> <a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=aminnj" title="Tests">⚠️</a> <a href="#data-aminnj" title="Data">🔣</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://giordano.github.io"><img src="https://avatars.githubusercontent.com/u/765740?v=4?s=100" width="100px;" alt="Mosè Giordano"/><br /><sub><b>Mosè Giordano</b></sub></a><br /><a href="#infra-giordano" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/oschulz"><img src="https://avatars.githubusercontent.com/u/546147?v=4?s=100" width="100px;" alt="Oliver Schulz"/><br /><sub><b>Oliver Schulz</b></sub></a><br /><a href="#ideas-oschulz" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mmikhasenko"><img src="https://avatars.githubusercontent.com/u/22725744?v=4?s=100" width="100px;" alt="Misha Mikhasenko"/><br /><sub><b>Misha Mikhasenko</b></sub></a><br /><a href="#data-mmikhasenko" title="Data">🔣</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://yuan-ru-lin.github.io"><img src="https://avatars.githubusercontent.com/u/7196133?v=4?s=100" width="100px;" alt="Yuan-Ru Lin"/><br /><sub><b>Yuan-Ru Lin</b></sub></a><br /><a href="https://github.com/JuliaHEP/UnROOT.jl/commits?author=Yuan-Ru-Lin" title="Tests">⚠️</a></td>
+    </tr>
+  </tbody>
 </table>
 
 <!-- markdownlint-restore -->
