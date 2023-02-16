@@ -572,6 +572,10 @@ end
 
     close(f)
 
+    f = ROOTFile(joinpath(SAMPLES_DIR, "TH2_5.root"))
+    h = UnROOT.TH2F(f.fobj, f.directory.keys[1], f.streamers.refs)
+    close(f)
+
     f = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
     binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
     @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
