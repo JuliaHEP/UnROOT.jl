@@ -78,12 +78,22 @@
       "contributions": [
         "data"
       ]
+    },
+    {
+      "login": "Yuan-Ru-Lin",
+      "name": "Yuan-Ru Lin",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7196133?v=4",
+      "profile": "http://yuan-ru-lin.github.io",
+      "contributions": [
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
   "projectName": "UnROOT.jl",
-  "projectOwner": "tamasgal",
+  "projectOwner": "JuliaHEP",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "skipCi": true
+  "skipCi": true,
+  "commitConvention": "angular"
 }
