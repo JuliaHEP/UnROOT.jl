@@ -82,6 +82,7 @@ function readfields!(io, fields, T::Type{TH1_8}) end
 
 abstract type TH2 <: ROOTStreamedObject end
 struct TH2_4 <: TH2 end
+struct TH2_5 <: TH2 end
 function readfields!(io, fields, T::Type{TH2_4}) end
 
 
