@@ -574,6 +574,18 @@ end
 
     f = ROOTFile(joinpath(SAMPLES_DIR, "TH2_5.root"))
     h = UnROOT.TH2F(f.fobj, f.directory.keys[1], f.streamers.refs)
+        @test h[:fName] == "myTH2F"
+        @test h[:fEntries] == 4.0
+        @test h[:fSumw2] == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 400.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 400.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        @test h[:fXaxis_fXmin] == -2.0
+        @test h[:fXaxis_fXmax] == 2.0
+        @test h[:fXaxis_fXbins] == []
+        @test h[:fXaxis_fNbins] == 4
+        @test h[:fYaxis_fXmin] == -2.0
+        @test h[:fYaxis_fXmax] == 2.0
+        @test h[:fYaxis_fXbins] == []
+        @test h[:fYaxis_fNbins] == 4
+        @test h[:fN] == [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     close(f)
 
     f = ROOTFile(joinpath(SAMPLES_DIR, "cms_ntuple_wjet.root"))
