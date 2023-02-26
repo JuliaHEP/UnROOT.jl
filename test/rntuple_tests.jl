@@ -120,21 +120,33 @@ end
         length.(t.Muon_charge)
 end
 
+@testset "RNTuple Split Encoding" begin
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_splitint_3e4.root")
+    t = LazyTree(f1, "ntuple")
+    @test all(==(Int32(0x04030201)), t.one_int32)
+    @test all(==(0xffeeddcc), reinterpret(UInt32, t.two_uint32))
+
+    # 0.099967316
+    @test reinterpret(UInt32, t.three_vint32[2]) == [0x3dccbbaa]
+    @test allequal(reduce(vcat, t.three_vint32))
+    @test length.(t.three_vint32) == repeat(0:9, 3000)
+end
+
 @testset "RNTuple Type stability" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
     t = LazyTree(f1, "ntuple")
 
-    function f1()
+    function f()
         s = 0.0f0
         for evt in t
             s += evt.one_integers
         end
         s
     end
-    f2() = sum(t.one_integers)
+    g() = sum(t.one_integers)
 
-    @inferred f1()
-    @inferred f2()
+    @inferred f()
+    @inferred g()
 end
 
 @testset "RNTuple Multi-threading" begin

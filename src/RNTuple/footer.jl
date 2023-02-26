@@ -46,8 +46,30 @@ end
     locator::Locator
 end
 
+# https://discourse.julialang.org/t/simd-gather-result-in-slow-down/95161/2
+function split4_reinterpret(src::Vector{UInt8})
+    dst = similar(src)
+    count = length(src) ÷ 4
+    res = reinterpret(UInt32, dst)
+    @inbounds for i = 1:count
+        Base.Cartesian.@nexprs 4 j -> b_j = UInt32(src[(j-1)*count + i]) << (8*(j-1))
+        res[i] = (b_1 | b_2) | (b_3 | b_4)
+    end
+    return dst
+end
+function split8_reinterpret(src::Vector{UInt8})
+    dst = similar(src)
+    count = length(src) ÷ 8
+    res = reinterpret(UInt64, dst)
+    @inbounds for i = 1:count
+        Base.Cartesian.@nexprs 8 j -> b_j = UInt64(src[(j-1)*count + i]) << (8*(j-1))
+        res[i] = (b_1 | b_2) | (b_3 | b_4) | (b_5 | b_6) | (b_7 | b_8)
+    end
+    return dst
+end
+
 """
-    read_pagedesc(io, pagedesc::PageDescription, nbits::Int)
+    read_pagedesc(io, pagedesc::Vector{PageDescription}, nbits::Integer)
 
 Read the decompressed raw bytes given a Page Description. The
 `nbits` need to be provided according to the element type of the
@@ -57,13 +79,21 @@ column since `pagedesc` only contains `num_elements` information.
     Boolean values are always stored as bit in RNTuple, so `nbits = 1`.
     
 """
-function read_pagedesc(io, pagedesc::PageDescription, nbits::Integer)
-    uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp) # when nbits == 1 for bits, need RoundUp
-    return _read_locator(io, pagedesc.locator, uncomp_size)
-end
-function read_pagedesc(io, pagedescs::Vector, nbits::Integer)
-    res = read_pagedesc.(Ref(io), pagedescs, nbits)
-    return reduce(vcat, res)
+function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; split=false)
+    res = mapreduce(vcat, pagedescs) do pagedesc
+        # when nbits == 1 for bits, need RoundUp
+        uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp)
+        tmp = _read_locator(io, pagedesc.locator, uncomp_size)
+        if split && nbits == 32
+            split4_reinterpret(tmp)
+        elseif split && nbits == 64
+            split8_reinterpret(tmp)
+        else
+            tmp
+        end
+    end
+
+    return res
 end
 
 struct PageLink end

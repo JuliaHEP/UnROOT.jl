@@ -28,15 +28,19 @@ end
 """
     struct LeafField{T}
         content_col_idx::Int
+        type::Int
         nbits::Int
     end
 
 Base case of field nesting, this links to a column in the RNTuple by 0-based index.
 `T` is the `eltype` of this field which mostly uses Julia native types except for
 `Switch`.
+
+The `type` field is the RNTuple spec type number, used to record split encoding.
 """
 struct LeafField{T}
     content_col_idx::Int
+    type::Int
     nbits::Int
 end
 
@@ -62,11 +66,11 @@ function _search_col_type(field_id, column_records, col_id::Int...)
     if length(col_id) == 2 && 
         column_records[col_id[1]].type == 2 && 
         column_records[col_id[2]].type == 5
-        return StringField(LeafField{Int32}(col_id[1], 32), LeafField{Char}(col_id[2], 8))
+        return StringField(LeafField{Int32}(col_id[1], 2, 32), LeafField{Char}(col_id[2], 5, 8))
     elseif length(col_id) == 1
         record = column_records[only(col_id)]
         LeafType = rntuple_col_type_dict[record.type]
-        return LeafField{LeafType}(only(col_id), record.nbits)
+        return LeafField{LeafType}(only(col_id), record.type, record.nbits)
     else
         error("un-handled base case, report issue to authors")
     end
