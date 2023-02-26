@@ -130,6 +130,8 @@ end
     @test reinterpret(UInt32, t.three_vint32[2]) == [0x3dccbbaa]
     @test all(reduce(vcat, t.three_vint32) .=== 0.099967316f0)
     @test length.(t.three_vint32) == repeat(0:9, 3000)
+
+    @test all(==(578437695752307201), t.four_int64)
 end
 
 @testset "RNTuple Type stability" begin

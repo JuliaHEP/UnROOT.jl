@@ -13,6 +13,7 @@ void rntuple_split_3e4() {
     auto splitint_field = model->MakeField<int32_t>("one_int32");
     auto splitint_field2 = model->MakeField<uint32_t>("two_uint32");
     auto splitint_field3 = model->MakeField<std::vector<float>>("three_vint32");
+    auto splitint_field4 = model->MakeField<int64_t>("four_int64");
 
 
     auto ntuple = RNTupleWriter::Recreate(std::move(model), "ntuple", rootFileName);
@@ -26,6 +27,8 @@ void rntuple_split_3e4() {
         if (i % 10 == 0){
             splitint_field3->clear();
         }
+        // 0x0807060504030201
+        *splitint_field4 = 578437695752307201;
         ntuple->Fill();
     }
 }
