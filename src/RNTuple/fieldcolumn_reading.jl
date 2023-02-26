@@ -78,11 +78,14 @@ function read_field(io, field::RNTupleCardinality{T}, page_list) where T
     return res::_field_output_type(field)
 end
 
+
 _field_output_type(::Type{LeafField{T}}) where {T} = T_Reinter{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.nbits
     pages = page_list[field.content_col_idx]
-    bytes = read_pagedesc(io, pages, nbits)
+    # handle split encoding within page
+    split = 14 <= field.type <= 21
+    bytes = read_pagedesc(io, pages, nbits; split = split)
     res = reinterpret(T, bytes)
     return res::_field_output_type(field)
 end
@@ -94,8 +97,8 @@ function read_field(io, field::LeafField{Bool}, page_list)
     total_num_elements = sum(p.num_elements for p in pages)
 
     # pad to nearest 8*k bytes because each chunk needs to be UInt64
-    original_bytes = read_pagedesc(io, pages, nbits)
-    bytes = vcat(original_bytes, zeros(eltype(original_bytes), 8 - rem(total_num_elements, 8)))
+    bytes = read_pagedesc(io, pages, nbits)
+    append!(bytes, zeros(eltype(bytes), 8 - rem(total_num_elements, 8)))
     chunks = reinterpret(UInt64, bytes)
 
     res = BitVector(undef, total_num_elements)

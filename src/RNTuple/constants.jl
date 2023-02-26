@@ -18,8 +18,8 @@ const rntuple_col_type_dict = (
     Int32,
     Int16,
     Int8,
-    UInt32,  # SplitIndex64 delta encoding
-    UInt64,  # SplitIndex32 delta encoding
+    Index32, # split delta encoding
+    Index64, # split
     Float64, # split
     Float32, # split
     Float16, # split
