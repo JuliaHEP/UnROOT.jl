@@ -121,7 +121,7 @@ end
 end
 
 @testset "RNTuple Split Encoding" begin
-    f1 = UnROOT.samplefile("RNTuple/test_ntuple_splitint_3e4.root")
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_split_3e4.root")
     t = LazyTree(f1, "ntuple")
     @test all(==(Int32(0x04030201)), t.one_int32)
     @test all(==(0xffeeddcc), reinterpret(UInt32, t.two_uint32))
