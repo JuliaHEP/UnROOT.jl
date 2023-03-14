@@ -378,13 +378,39 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     error("$s is not the name of a TTree or a RNTuple.")
 end
 
+function normalize_branchname(s::AbstractString)
+    # split by `.` or `/`
+    norm_name = s
+    v = split(s, r"\.|\/")
+    if length(v) >= 2 # only normalize name when branches are split
+        head = v[1]
+        tail = v[2:end]
+        # remove duplicated info
+        replace!(tail, head => "")
+        # remove known split branch information
+        replace!(tail, "fCoordinates" => "")
+        norm_name = join([head; join(tail)], "_")
+    end
+    @show s
+    @show norm_name
+    norm_name
+end
+
 function LazyTree(f::ROOTFile, tree::TTree, s, branches)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
+    # rename_map = Dict{Regex, SubstitutionString{String}}()
+    @show branches
     res_bnames = mapreduce(∪, branches) do b
+        @show b
         if b isa Regex
             filter(_m(b), all_bnames)
+        elseif b isa Pair{Regex, SubstitutionString{String}}
+            # push!(rename_map, b)
+            _b = filter(_m(first.(b)), all_bnames)
+            @show _b
+            _b
         elseif b isa String
             expand = any(n->startswith(n, "$b/$b"), all_bnames)
             expand ? filter(n->startswith(n, "$b/$b"), all_bnames) : [b]
@@ -393,18 +419,7 @@ function LazyTree(f::ROOTFile, tree::TTree, s, branches)
         end
     end
     for b in res_bnames
-        # split by `.` or `/`
-        norm_name = b
-        v = split(b, r"\.|\/")
-        if length(v) >= 2 # only normalize name when branches are split
-            head = v[1]
-            tail = v[2:end]
-            # remove duplicated info
-            replace!(tail, head => "")
-            # remove known split branch information
-            replace!(tail, "fCoordinates" => "")
-            norm_name = join([head; join(tail)], "_")
-        end
+        norm_name = normalize_branchname(b)
         d[Symbol(norm_name)] = LazyBranch(f, "$s/$b")
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
