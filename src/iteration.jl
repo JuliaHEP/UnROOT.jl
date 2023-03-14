@@ -405,12 +405,9 @@ function LazyTree(f::ROOTFile, tree::TTree, s, branches)
     res_bnames = mapreduce(∪, branches) do b
         @show b
         if b isa Regex
-            filter(_m(b), all_bnames)
+            [_b => _b for _b ∈ filter(_m(b), all_bnames)]
         elseif b isa Pair{Regex, SubstitutionString{String}}
-            # push!(rename_map, b)
-            _b = filter(_m(first.(b)), all_bnames)
-            @show _b
-            _b
+            [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
         elseif b isa String
             expand = any(n->startswith(n, "$b/$b"), all_bnames)
             expand ? filter(n->startswith(n, "$b/$b"), all_bnames) : [b]
@@ -418,8 +415,8 @@ function LazyTree(f::ROOTFile, tree::TTree, s, branches)
             error("branch selection must be string or regex")
         end
     end
-    for b in res_bnames
-        norm_name = normalize_branchname(b)
+    @show res_bnames
+    for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$s/$b")
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
