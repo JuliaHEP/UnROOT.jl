@@ -58,15 +58,15 @@ struct Offsetjaggjagg  <:JaggType  end
 
 function JaggType(f, branch, leaf)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
+    try
+        streamer = streamerfor(f, branch.fClassName).streamer.fElements.elements[branch.fID + 1]
+        (streamer.fSTLtype == Const.kSTLvector) && return Offsetjagg
+    catch
+    end
     (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Nooffsetjagg
     leaf isa TLeafElement && leaf.fLenType==0 && return Offsetjagg
     !hasproperty(branch, :fClassName) && return Nojagg
 
-    try
-        streamer = streamerfor(f, branch.fClassName).streamer.fElements.elements[1]
-        (streamer.fSTLtype == Const.kSTLvector) && return Offsetjagg
-    catch
-    end
 
     return Nojagg
 end
