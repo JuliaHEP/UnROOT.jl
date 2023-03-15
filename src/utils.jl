@@ -61,7 +61,14 @@ function JaggType(f, branch, leaf)
 
     try
         fID = branch.fID
-        if fID == -1 # TODO: unclear what -1 means, for now we treat it as "0"
+        # According to ChatGPt: When fID is equal to -1, it means that the
+        # TBranch object has not been registered yet in the TTree's list of
+        # branches. This can happen, for example, when a TBranch object has been
+        # created, but has not been added to a TTree with the TTree::Branch()
+        # method.
+        #
+        # TODO: For now, we force it to be 0 in this case, until someone complains.
+        if fID == -1
             fID = 0
         end
         streamer = streamerfor(f, branch.fClassName).streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
