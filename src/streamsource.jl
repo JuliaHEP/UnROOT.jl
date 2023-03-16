@@ -131,6 +131,9 @@ end
 
 function XRDStream(urlbase::AbstractString, filepath::AbstractString, username::AbstractString)
     file_id = @ccall xrootdgo.Open(urlbase::Cstring, filepath::Cstring, username::Cstring)::Cstring
+    if unsafe_string(file_id) == "error"
+        error("xrootd Go library errored.")
+    end
     # file_id = @threadcall((:Open, xrootdgo), Cstring, (Cstring, Cstring, Cstring), urlbase, filepath, username)
     size = @ccall xrootdgo.Size(file_id::Cstring)::Int
     XRDStream(file_id, 0, size)
