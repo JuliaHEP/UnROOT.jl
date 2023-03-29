@@ -389,7 +389,7 @@ function normalize_branchname(s::AbstractString)
         replace!(tail, head => "")
         # remove known split branch information
         replace!(tail, "fCoordinates" => "")
-        norm_name = join([head; join(tail)], "_")
+        norm_name = join([head; tail], "_")
     end
     norm_name
 end
