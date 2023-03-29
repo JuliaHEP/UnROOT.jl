@@ -394,6 +394,14 @@ function normalize_branchname(s::AbstractString)
     norm_name
 end
 
+"""
+    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+
+Creates a lazy tree object of the selected branches only. `branches` is vector
+of `String`, `Regex` or `Pair{Regex, SubstitutionString}`, where the first item
+is the regex selector and the second item the rename pattern.
+
+"""
 function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
