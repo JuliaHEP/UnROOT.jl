@@ -385,11 +385,16 @@ function normalize_branchname(s::AbstractString)
     if length(v) >= 2 # only normalize name when branches are split
         head = v[1]
         tail = v[2:end]
-        # remove duplicated info
-        replace!(tail, head => "")
+        # remove duplicate info (only consecutive occurences)
+        idx = 1
+        for e ∈ tail
+            e != head && break
+            idx += 1
+        end
+        elements = tail[idx:end]
         # remove known split branch information
-        replace!(tail, "fCoordinates" => "")
-        norm_name = join([head; tail], "_")
+        filter!(e -> e != "fCoordinates", elements)
+        norm_name = join([head; elements], "_")
     end
     norm_name
 end
