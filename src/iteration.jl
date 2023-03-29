@@ -391,33 +391,28 @@ function normalize_branchname(s::AbstractString)
         replace!(tail, "fCoordinates" => "")
         norm_name = join([head; join(tail)], "_")
     end
-    @show s
-    @show norm_name
     norm_name
 end
 
-function LazyTree(f::ROOTFile, tree::TTree, s, branches)
+function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
     # rename_map = Dict{Regex, SubstitutionString{String}}()
-    @show branches
     res_bnames = mapreduce(∪, branches) do b
-        @show b
         if b isa Regex
-            [_b => _b for _b ∈ filter(_m(b), all_bnames)]
+            [_b => normalize_branchname(_b) for _b ∈ filter(_m(b), all_bnames)]
         elseif b isa Pair{Regex, SubstitutionString{String}}
             [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
         elseif b isa String
             expand = any(n->startswith(n, "$b/$b"), all_bnames)
-            expand ? filter(n->startswith(n, "$b/$b"), all_bnames) : [b]
+            expand ? [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)] : [b => normalize_branchname(b)]
         else
             error("branch selection must be string or regex")
         end
     end
-    @show res_bnames
     for (b, norm_name) in res_bnames
-        d[Symbol(norm_name)] = LazyBranch(f, "$s/$b")
+        d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
 end
