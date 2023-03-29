@@ -244,6 +244,19 @@ end
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
     close(rootfile)
+
+    rootfile = UnROOT.samplefile("km3net_offline.root")
+    t = LazyTree(rootfile, "E", ["Evt/trks/trks.id", r"Evt/trks/trks.(dir|pos).([xyz])" => s"\1_\2"])
+    @test 10 == length(t.Evt_trks_trks_id)
+    @test 10 == length(t.dir_x)
+    @test 10 == length(t.dir_y)
+    @test 10 == length(t.dir_z)
+    @test 10 == length(t.pos_x)
+    @test 10 == length(t.pos_y)
+    @test 10 == length(t.pos_z)
+    @test 56 == length(t.pos_z[1])
+    @test 68.42717410489223 ≈ t.pos_z[1][5]
+    close(rootfile)
 end
 
 @testset "TLorentzVector" begin

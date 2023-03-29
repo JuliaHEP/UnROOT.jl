@@ -378,34 +378,54 @@ function LazyTree(f::ROOTFile, s::AbstractString, branches)
     error("$s is not the name of a TTree or a RNTuple.")
 end
 
-function LazyTree(f::ROOTFile, tree::TTree, s, branches)
+function normalize_branchname(s::AbstractString)
+    # split by `.` or `/`
+    norm_name = s
+    v = split(s, r"\.|\/")
+    if length(v) >= 2 # only normalize name when branches are split
+        head = v[1]
+        tail = v[2:end]
+        # remove duplicate info (only consecutive occurences)
+        idx = 1
+        for e ∈ tail
+            e != head && break
+            idx += 1
+        end
+        elements = tail[idx:end]
+        # remove known split branch information
+        filter!(e -> e != "fCoordinates", elements)
+        norm_name = join([head; elements], "_")
+    end
+    norm_name
+end
+
+"""
+    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+
+Creates a lazy tree object of the selected branches only. `branches` is vector
+of `String`, `Regex` or `Pair{Regex, SubstitutionString}`, where the first item
+is the regex selector and the second item the rename pattern.
+
+"""
+function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
+    # rename_map = Dict{Regex, SubstitutionString{String}}()
     res_bnames = mapreduce(∪, branches) do b
         if b isa Regex
-            filter(_m(b), all_bnames)
+            [_b => normalize_branchname(_b) for _b ∈ filter(_m(b), all_bnames)]
+        elseif b isa Pair{Regex, SubstitutionString{String}}
+            [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
         elseif b isa String
             expand = any(n->startswith(n, "$b/$b"), all_bnames)
-            expand ? filter(n->startswith(n, "$b/$b"), all_bnames) : [b]
+            expand ? [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)] : [b => normalize_branchname(b)]
         else
             error("branch selection must be string or regex")
         end
     end
-    for b in res_bnames
-        # split by `.` or `/`
-        norm_name = b
-        v = split(b, r"\.|\/")
-        if length(v) >= 2 # only normalize name when branches are split
-            head = v[1]
-            tail = v[2:end]
-            # remove duplicated info
-            replace!(tail, head => "")
-            # remove known split branch information
-            replace!(tail, "fCoordinates" => "")
-            norm_name = join([head; join(tail)], "_")
-        end
-        d[Symbol(norm_name)] = LazyBranch(f, "$s/$b")
+    for (b, norm_name) in res_bnames
+        d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
     return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
 end
