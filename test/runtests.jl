@@ -247,7 +247,7 @@ end
 
     rootfile = UnROOT.samplefile("km3net_offline.root")
     t = LazyTree(rootfile, "E", ["Evt/trks/trks.id", r"Evt/trks/trks.(dir|pos).([xyz])" => s"\1_\2"])
-    @test 10 == length(t.Evt_trkstrksid)
+    @test 10 == length(t.Evt_trks_trks_id)
     @test 10 == length(t.dir_x)
     @test 10 == length(t.dir_y)
     @test 10 == length(t.dir_z)
