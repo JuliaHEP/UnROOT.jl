@@ -130,7 +130,23 @@ function streamerfor(f::ROOTFile, name::AbstractString)
             return e
         end
     end
-    error("No streamer found for $name.")
+    missing
+end
+
+streamerfor(f::ROOTFile, branch::TBranch) = missing
+function streamerfor(f::ROOTFile, branch::TBranchElement)
+    fID = branch.fID
+    # According to ChatGPt: When fID is equal to -1, it means that the
+    # TBranch object has not been registered yet in the TTree's list of
+    # branches. This can happen, for example, when a TBranch object has been
+    # created, but has not been added to a TTree with the TTree::Branch()
+    # method.
+    #
+    # TODO: For now, we force it to be 0 in this case, until someone complains.
+    if fID == -1
+        fID = 0
+    end
+    streamerfor(f, branch.fClassName).streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
 end
 
 
@@ -226,8 +242,12 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # we want the fundamental type as `reinterpret` will create vector
     if J === Nojagg
         return ntoh.(reinterpret(T, rawdata))
-    elseif J === Offsetjaggjagg # the branch is doubly jagged
-        jagg_offset = 10
+    elseif J === Offsetjaggjagg || J === Offset6jaggjagg # the branch is doubly jagged
+        if J === Offset6jaggjagg
+            jagg_offset = 6
+        else
+            jagg_offset = 10
+        end
         subT = eltype(eltype(T))
         out = VectorOfVectors(T(), Int32[1])
         @views for i in 1:(length(rawoffsets)-1)
@@ -346,6 +366,22 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
             return _custom, Nojagg
         catch
         end
+
+        # check if we have an actual streamer
+        streamer = streamerfor(f, branch)
+        if !ismissing(streamer)
+            # TODO unify this with the "switch" block below and expand for more types!
+            if _jaggtype == Offsetjagg
+                streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
+                streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
+            elseif _jaggtype == Offsetjaggjagg || _jaggtype == Offset6jaggjagg
+                streamer.fTypeName == "vector<double>" && return Vector{Vector{Float64}}, _jaggtype
+                streamer.fTypeName == "vector<int>" && return Vector{Vector{Int32}}, _jaggtype
+            end
+
+        end
+
+        # some standard cases
         m = match(r"vector<(.*)>", classname)
         if m!==nothing
             elname = m[1]
