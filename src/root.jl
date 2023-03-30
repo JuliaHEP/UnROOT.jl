@@ -242,8 +242,12 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
     # we want the fundamental type as `reinterpret` will create vector
     if J === Nojagg
         return ntoh.(reinterpret(T, rawdata))
-    elseif J === Offsetjaggjagg # the branch is doubly jagged
-        jagg_offset = 10
+    elseif J === Offsetjaggjagg || J === Offset6jaggjagg # the branch is doubly jagged
+        if J === Offset6jaggjagg
+            jagg_offset = 6
+        else
+            jagg_offset = 10
+        end
         subT = eltype(eltype(T))
         out = VectorOfVectors(T(), Int32[1])
         @views for i in 1:(length(rawoffsets)-1)
@@ -366,9 +370,15 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         # check if we have an actual streamer
         streamer = streamerfor(f, branch)
         if !ismissing(streamer)
-            # TODO unify this with the "switch" block below!
-            streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
-            streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
+            # TODO unify this with the "switch" block below and expand for more types!
+            if _jaggtype == Offsetjagg
+                streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
+                streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
+            elseif _jaggtype == Offsetjaggjagg || _jaggtype == Offset6jaggjagg
+                streamer.fTypeName == "vector<double>" && return Vector{Vector{Float64}}, _jaggtype
+                streamer.fTypeName == "vector<int>" && return Vector{Vector{Int32}}, _jaggtype
+            end
+
         end
 
         # some standard cases

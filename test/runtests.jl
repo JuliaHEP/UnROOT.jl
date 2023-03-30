@@ -374,6 +374,36 @@ end
                        ]
 end
 
+@testset "Doubly jagged via custom class" begin
+    f = UnROOT.samplefile("triply_jagged_via_custom_class.root")
+    b = LazyBranch(f, "E/Evt/w")
+    @test 3 == length(b)
+    @test [3.3329158e6, 3.6047424e22, 3.1181261e8] ≈ b[1]
+    @test [3.3329158e6, 2.4039883e23, 4.5337845e6] ≈ b[2]
+    @test [3.3329158e6, 4.9458148e24, 42805.383] ≈ b[3]
+    close(f)
+end
+
+@testset "Triply jagged stuff via custom class" begin
+    f = UnROOT.samplefile("triply_jagged_via_custom_class.root")
+    b = LazyBranch(f, "E/Evt/trks/trks.rec_stages")
+    @test 3 == length(b)
+    @test 38 == length(b[3])
+    @test 5 == length(b[3][1])
+    @test [1, 2, 3, 4, 5] == b[2][1]
+    b = LazyBranch(f, "E/Evt/trks/trks.fitinf")
+    @test 3 == length(b)
+    @test 38 == length(b[3])
+    @test 17 == length(b[3][1])
+    @test b[3][1] ≈ [
+        0.02175229704756278, 0.013640169301181978, -27.59387722710992, 45.0,
+        90072.00780343144, 52.67760965729974, 3.9927948910593525, 10.0,
+        0.3693832125931179, 0.3693832125931179, 72.02530060292972, 0.0, 0.0,
+        13461.937901498717, -Inf, 1518.0, 56.0,
+    ]
+    close(f)
+end
+
 @testset "NanoAOD" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
     event = UnROOT.array(rootfile, "Events/event")

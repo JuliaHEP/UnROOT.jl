@@ -55,6 +55,8 @@ struct Nojagg      <:JaggType  end
 struct Nooffsetjagg<:JaggType  end
 struct Offsetjagg  <:JaggType  end
 struct Offsetjaggjagg  <:JaggType  end
+# this is a preliminary workaround for 6 byte offset jaggedness
+struct Offset6jaggjagg  <:JaggType  end
 
 function JaggType(f, branch, leaf)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
@@ -68,7 +70,10 @@ function JaggType(f, branch, leaf)
         if typeof(streamer) <: TStreamerBase
             leaf isa TLeafElement && leaf.fLenType==0 && return Offsetjagg
         end
-        (streamer.fSTLtype == Const.kSTLvector) && return Offsetjagg
+        if streamer.fSTLtype == Const.kSTLvector
+            (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Offset6jaggjagg
+            return Offsetjagg
+        end
     end
 
     # TODO this might be redundant but for now it works
