@@ -69,6 +69,7 @@ function JaggType(f, branch, leaf)
         end
         if typeof(streamer) <: TStreamerBase
             leaf isa TLeafElement && leaf.fLenType==0 && return Offsetjagg
+            return Nojagg
         end
         if streamer.fSTLtype == Const.kSTLvector
             (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Offset6jaggjagg
