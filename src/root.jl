@@ -169,10 +169,10 @@ end
         S = streamer(f.fobj, tkey, f.streamers.refs)
         return S
     catch UndefVarError
-        # Try generic TObject parsing
-        return TObjectGeneric(f.fobj, tkey, f.streamers.refs)
     end
-    error("No parsing logic for '$(typename)', please provide a custom implementation.")
+
+    # last resort, try direct parsing
+    parsetobject(f.fobj, tkey, streamerfor(f, typename))
 end
 
 # FIXME unify with above?
