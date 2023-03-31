@@ -885,6 +885,25 @@ function TNtuple(io, tkey::TKey, refs)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
 
+function TObjectGeneric(io, tkey::TKey, refs)
+    # pass the correct parser from f!
+    @show tkey
+    io = datastream(io, tkey)
+    preamble = Preamble(io, Missing)
+    @initparse
+    parsefields!(io, fields, TObject)
+    fobj = open("/tmp/head.dat", "w")
+    data = read(io)
+    write(fobj, data)
+    close(fobj)
+
+#    name = readtype(io, String)
+#    title = readtype(io, String)
+#    data = read(io)
+    # @show name, title
+    @show fields
+    @show data
+end
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
