@@ -218,6 +218,17 @@ end
     # close(rootfile)
 end
 
+@testset "Single TObject subclasses" begin
+    f = UnROOT.samplefile("triply_jagged_via_custom_class.root")
+    # map<string,string>
+    head = f["Head"]
+    @test 27 == length(f["Head"])
+    @test " 3.3" == head["DAQ"]
+    @test " CORSIKA 7.640 181111 1211" == head["physics"]
+    @test "MUSIC seawater 02-03  190204  1643" == head["propag"]
+    close(f)
+end
+
 @testset "LazyBranch and LazyTree" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array.root"))
     branch = rootfile["t1"]["int32_array"]

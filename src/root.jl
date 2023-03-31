@@ -162,10 +162,17 @@ end
         return f[first(paths)][join(paths[2:end], "/")]
     end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
-    @debug "Retrieving $s ('$(tkey.fClassName)')"
-    streamer = getfield(@__MODULE__, Symbol(safename(tkey.fClassName)))
-    S = streamer(f.fobj, tkey, f.streamers.refs)
-    return S
+    typename = safename(tkey.fClassName)
+    @debug "Retrieving $s ('$(typename)')"
+    try
+        streamer = getfield(@__MODULE__, Symbol(typename))
+        S = streamer(f.fobj, tkey, f.streamers.refs)
+        return S
+    catch UndefVarError
+    end
+
+    # last resort, try direct parsing
+    parsetobject(f.fobj, tkey, streamerfor(f, typename))
 end
 
 # FIXME unify with above?

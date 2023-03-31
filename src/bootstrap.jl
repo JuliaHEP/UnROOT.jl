@@ -885,6 +885,33 @@ function TNtuple(io, tkey::TKey, refs)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
 
+"""
+Direct parsing of streamed objects which are not sitting on branches.
+"""
+function parsetobject(io, tkey::TKey, streamer)
+    # pass the correct parser from f!
+    io = datastream(io, tkey)
+    preamble = Preamble(io, Missing)
+
+    @initparse
+
+    # the first entry in the streamer is a TOBject
+    parsefields!(io, fields, TObject)
+
+    # the second (and last) entry is the actual data streamer (we think)
+    s = streamer.streamer.fElements.elements[2]
+    if s.fTypeName == "map<string,string>"
+        skip(io, 3*4)  # unclear what the first 12 bytes are
+        # this gives the number of elements
+        n = readtype(io, Int32)
+        skip(io, 6)  # the usual header stuff?
+        keys = [readtype(io, String) for i ∈ 1:n]
+        skip(io, 6)  # the usual header stuff?
+        values = [readtype(io, String) for i ∈ 1:n]
+        return Dict(zip(keys, values))
+    end
+    error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)'")
+end
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
