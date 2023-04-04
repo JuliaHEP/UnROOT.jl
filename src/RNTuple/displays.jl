@@ -1,6 +1,6 @@
 # stop crazy stracktrace
-function Base.show(io::IO, ::Type{<:RNTupleSchema{N}) where {N}
-    print(io, "RNTupleSchema with $(length(N)) top fields.")
+function Base.show(io::IO, ::Type{<:RNTupleSchema})
+    print(io, "RNTupleSchema")
 end
 
 function Base.show(io::IO, ::Type{<:RNTuple{O, NamedTuple{N, T}}}) where {O, N, T}
