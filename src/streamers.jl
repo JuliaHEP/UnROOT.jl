@@ -230,10 +230,18 @@ function readobjany!(io, tkey::TKey, refs)
 
     elseif tag == Const.kNewClassTag
         cname = readtype(io, CString)
-        try
-            streamer = getfield(@__MODULE__, Symbol(cname))
-        catch UndefVarError
-            @error "Could not get streamer for '$(cname)'"
+        @show cname
+        @show version
+        @show start, Const.kMapOffset
+
+        if cname == "TBasket"
+            streamer = RecoveredTBasket
+        else
+            try
+                streamer = getfield(@__MODULE__, Symbol(cname))
+            catch UndefVarError
+                @error "Could not get streamer for '$(cname)'"
+            end
         end
 
         if version > 0

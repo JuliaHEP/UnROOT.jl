@@ -1,6 +1,64 @@
 # A collection of bootstrapped code which should be generated
 # dynamically in future.
 
+struct RecoveredTBasket
+    data
+end
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
+    println("RecoveredTBasket")
+    @initparse
+    start = position(io)
+    @show io
+    #_format1 = struct.Struct(">ihiIhh")
+    fNbytes = readtype(io, Int32)
+    @show fNbytes
+    fVersion = readtype(io, Int16)
+    fObjlen = readtype(io, Int32)
+    fDatime = readtype(io, UInt32)
+    fKeylen = readtype(io, Int16)
+    fCycle = readtype(io, Int16)
+
+    # skipping class name, name and title
+    seek(io, start + fKeylen - 18 - 1)
+
+    fVersion = readtype(io, UInt16)
+    fBufferSize = readtype(io, Int32)
+    fNevBufSize = readtype(io, Int32)
+    fNevBuf = readtype(io, Int32)
+    fLast = readtype(io, Int32)
+
+    # one-byte terminator
+    skip(io, 1)
+
+    # then if you have offsets data, read them in
+    if fNevBufSize > 8
+        byteoffsets = read(io, fNevBuf * 4 + 8)
+        skip(io, -4)
+    end
+
+    # there's a second TKey here, but it doesn't contain any new information (in fact, less)
+    skip(io, fKeylen)
+
+    # the data (not including offsets)
+    size = fLast - fKeylen
+    contents = read(io, size)
+
+    # put the offsets back in, in the way that we expect it
+    if fNevBufSize > 8
+        contents = vcat(contents, byteoffsets)
+        size += length(byteoffsets)
+    end
+    fObjlen = size
+    fNbytes = fObjlen + fKeylen
+    # parsefields!(io, fields, T)
+    # T(;fields...)
+    @show fNbytes
+    open("/tmp/recovered.dat", "w") do fobj
+        write(fobj, contents)
+    end
+    RecoveredTBasket(contents)
+end
+
 abstract type TNamed <: ROOTStreamedObject end
 struct TNamed_1 <: TNamed end
 function readfields!(io, fields, ::Type{TNamed_1})
