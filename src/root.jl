@@ -5,6 +5,9 @@ struct ROOTDirectory
     fobj::SourceStream
     refs::Dict{Int32, Any}
 end
+function Base.show(io::IO, d::ROOTDirectory)
+    println(io, "ROOTDirectory ($(length(d.keys)) keys, $(length(keys(d.refs))) refs)")
+end
 
 struct ROOTFile
     filename::String
