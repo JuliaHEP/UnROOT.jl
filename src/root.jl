@@ -167,11 +167,10 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     typename = safename(tkey.fClassName)
     @debug "Retrieving $s ('$(typename)')"
-    try
+    if isdefined(@__MODULE__, Symbol(typename))
         streamer = getfield(@__MODULE__, Symbol(typename))
         S = streamer(f.fobj, tkey, f.streamers.refs)
         return S
-    catch UndefVarError
     end
 
     @warn "Could not get streamer for $(typename), trying custom streamer."
