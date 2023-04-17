@@ -8,10 +8,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     println("RecoveredTBasket")
     @initparse
     start = position(io)
-    @show io
     #_format1 = struct.Struct(">ihiIhh")
     fNbytes = readtype(io, Int32)
-    @show fNbytes
     fVersion = readtype(io, Int16)
     fObjlen = readtype(io, Int32)
     fDatime = readtype(io, UInt32)
@@ -50,11 +48,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     end
     fObjlen = size
     fNbytes = fObjlen + fKeylen
-    # parsefields!(io, fields, T)
-    # T(;fields...)
-    #open("/tmp/recovered.dat", "w") do fobj
-    #    write(fobj, contents)
-    #end
+    @warn "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
     RecoveredTBasket(contents)
 end
 
@@ -1086,8 +1080,6 @@ function TTree(io, tkey::TKey, refs; top=true)
         fields[:fIndex] = readtype(io, TArrayI)
         fields[:fTreeIndex] = readobjany!(io, tkey, refs)
         fields[:fFriends] = readobjany!(io, tkey, refs)
-
-        @show fields
 
         return TTree(;fields...)
     end

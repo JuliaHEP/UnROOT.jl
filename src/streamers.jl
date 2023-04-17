@@ -583,11 +583,8 @@ abstract type ROOTStreamedObject end
 function stream!(io, fields, ::Type{T}; check=true) where {T<:ROOTStreamedObject}
     preamble = Preamble(io, T)
     streamer_name = Symbol(T, "_$(preamble.version)")
-    # @show streamer_name
     mod, typename = split(String(streamer_name), ".")
-    # @show mod typename
     streamer = getfield(@__MODULE__, Symbol(typename))
-    # @show streamer
     readfields!(io, fields, streamer)
     if check
         endcheck(io, preamble)
