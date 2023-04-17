@@ -5,7 +5,6 @@ struct RecoveredTBasket
     data
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
-    println("RecoveredTBasket")
     @initparse
     start = position(io)
     #_format1 = struct.Struct(">ihiIhh")
