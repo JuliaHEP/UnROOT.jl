@@ -1,6 +1,56 @@
 # A collection of bootstrapped code which should be generated
 # dynamically in future.
 
+struct RecoveredTBasket
+    data
+end
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
+    @initparse
+    start = position(io)
+    #_format1 = struct.Struct(">ihiIhh")
+    fNbytes = readtype(io, Int32)
+    fVersion = readtype(io, Int16)
+    fObjlen = readtype(io, Int32)
+    fDatime = readtype(io, UInt32)
+    fKeylen = readtype(io, Int16)
+    fCycle = readtype(io, Int16)
+
+    # skipping class name, name and title
+    seek(io, start + fKeylen - 18 - 1)
+
+    fVersion = readtype(io, UInt16)
+    fBufferSize = readtype(io, Int32)
+    fNevBufSize = readtype(io, Int32)
+    fNevBuf = readtype(io, Int32)
+    fLast = readtype(io, Int32)
+
+    # one-byte terminator
+    skip(io, 1)
+
+    # then if you have offsets data, read them in
+    if fNevBufSize > 8
+        byteoffsets = read(io, fNevBuf * 4 + 8)
+        skip(io, -4)
+    end
+
+    # there's a second TKey here, but it doesn't contain any new information (in fact, less)
+    skip(io, fKeylen)
+
+    # the data (not including offsets)
+    size = fLast - fKeylen
+    contents = read(io, size)
+
+    # put the offsets back in, in the way that we expect it
+    if fNevBufSize > 8
+        contents = vcat(contents, byteoffsets)
+        size += length(byteoffsets)
+    end
+    fObjlen = size
+    fNbytes = fObjlen + fKeylen
+    @warn "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
+    RecoveredTBasket(contents)
+end
+
 abstract type TNamed <: ROOTStreamedObject end
 struct TNamed_1 <: TNamed end
 function readfields!(io, fields, ::Type{TNamed_1})
@@ -42,6 +92,7 @@ function readfields!(io, fields, T::Type{TAttMarker_2})
     fields[:fMarkerStyle] = readtype(io, Int16)
     fields[:fMarkerSize] = readtype(io, Float32)
 end
+const TAttMarker_1 = TAttMarker_2
 
 abstract type TAttAxis <: ROOTStreamedObject end
 struct TAttAxis_4 <: TAttAxis end
@@ -459,6 +510,78 @@ Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
 numbaskets(b::Union{TBranch, TBranchElement}) = findfirst(x->x>(b.fEntries-1),b.fBasketEntry)-1
 
+@with_kw struct TBranch_8 <: TBranch
+    cursor::Cursor
+    # from TNamed
+    fName
+    fTitle
+
+    # from TAttFill
+    fFillColor
+    fFillStyle
+
+    fCompress
+    fBasketSize
+    fEntryOffsetLen
+    fWriteBasket
+    fEntryNumber
+
+    fOffset
+    fMaxBaskets
+    fSplitLevel
+    fEntries
+    fTotBytes
+    fZipBytes
+
+    fBranches
+    fLeaves
+    fBaskets
+    fBasketBytes::Vector{Int64}
+    fBasketEntry::Vector{Int64}
+    fBasketSeek::Vector{Int64}
+    fFileName
+end
+function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_8}
+    io = cursor.io
+    tkey = cursor.tkey
+    refs = cursor.refs
+
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttFill)
+
+    fields[:fCompress] = readtype(io, Int32)
+    fields[:fBasketSize] = readtype(io, Int32)
+    fields[:fEntryOffsetLen] = readtype(io, Int32)
+    fields[:fWriteBasket] = readtype(io, Int32)
+    fields[:fEntryNumber] = readtype(io, Int64)
+
+    fields[:fOffset] = readtype(io, Int32)
+    fields[:fMaxBaskets] = readtype(io, UInt32)
+    fields[:fSplitLevel] = readtype(io, Int32)
+    fields[:fEntries] = readtype(io, Int64)
+    fields[:fTotBytes] = readtype(io, Int64)
+    fields[:fZipBytes] = readtype(io, Int64)
+
+    fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
+    fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+    fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
+    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
+    speedbump = true  # FIXME speedbump?
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    # this is also called fBsketEvent, as far as I understood
+    fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+
+    speedbump && skip(io, 1)
+
+    fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    fields[:fFileName] = readtype(io, String)
+end
 @with_kw struct TBranch_12 <: TBranch
     cursor::Cursor
     # from TNamed
@@ -928,6 +1051,37 @@ function TTree(io, tkey::TKey, refs; top=true)
     stream!(io, fields, TAttLine)
     stream!(io, fields, TAttFill)
     stream!(io, fields, TAttMarker)
+
+    if preamble.version == 5
+        fields[:fEntries] = readtype(io, Float64)
+        fields[:fTotBytes] = readtype(io, Float64)
+        fields[:fZipBytes] = readtype(io, Float64)
+        fields[:fSavedBytes] = readtype(io, Float64)
+        fields[:fTimerInterval] = readtype(io, Int32)
+        fields[:fScanField] = readtype(io, Int32)
+        fields[:fUpdate] = readtype(io, Int32)
+        fields[:fMaxEntryLoop] = readtype(io, Int32)
+        fields[:fMaxVirtualSize] = readtype(io, Int32)
+        fields[:fAutoSave] = readtype(io, Int32)
+        fields[:fEstimate] = readtype(io, Int32)
+
+        # FIXME what about speedbumps??
+        speedbump = true
+
+        # TODO is this really needed? probably to prevent some downstream logic from breaking
+        fields[:fIOFeatures] = missing
+
+        fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
+        fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
+
+        fields[:fAliases] = readobjany!(io, tkey, refs)
+        fields[:fIndexValues] = readtype(io, TArrayD)
+        fields[:fIndex] = readtype(io, TArrayI)
+        fields[:fTreeIndex] = readobjany!(io, tkey, refs)
+        fields[:fFriends] = readobjany!(io, tkey, refs)
+
+        return TTree(;fields...)
+    end
 
     fields[:fEntries] = readtype(io, Int64)
     fields[:fTotBytes] = readtype(io, Int64)

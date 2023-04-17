@@ -5,6 +5,9 @@ struct ROOTDirectory
     fobj::SourceStream
     refs::Dict{Int32, Any}
 end
+function Base.show(io::IO, d::ROOTDirectory)
+    println(io, "ROOTDirectory ($(length(d.keys)) keys, $(length(keys(d.refs))) refs)")
+end
 
 struct ROOTFile
     filename::String
@@ -164,13 +167,13 @@ end
     tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
     typename = safename(tkey.fClassName)
     @debug "Retrieving $s ('$(typename)')"
-    try
+    if isdefined(@__MODULE__, Symbol(typename))
         streamer = getfield(@__MODULE__, Symbol(typename))
         S = streamer(f.fobj, tkey, f.streamers.refs)
         return S
-    catch UndefVarError
     end
 
+    @warn "Could not get streamer for $(typename), trying custom streamer."
     # last resort, try direct parsing
     parsetobject(f.fobj, tkey, streamerfor(f, typename))
 end

@@ -230,7 +230,16 @@ function readobjany!(io, tkey::TKey, refs)
 
     elseif tag == Const.kNewClassTag
         cname = readtype(io, CString)
-        streamer = getfield(@__MODULE__, Symbol(cname))
+
+        if cname == "TBasket"
+            streamer = RecoveredTBasket
+        else
+            try
+                streamer = getfield(@__MODULE__, Symbol(cname))
+            catch UndefVarError
+                @error "Could not get streamer for '$(cname)'"
+            end
+        end
 
         if version > 0
             refs[start + Const.kMapOffset] = streamer
@@ -574,11 +583,8 @@ abstract type ROOTStreamedObject end
 function stream!(io, fields, ::Type{T}; check=true) where {T<:ROOTStreamedObject}
     preamble = Preamble(io, T)
     streamer_name = Symbol(T, "_$(preamble.version)")
-    # @show streamer_name
     mod, typename = split(String(streamer_name), ".")
-    # @show mod typename
     streamer = getfield(@__MODULE__, Symbol(typename))
-    # @show streamer
     readfields!(io, fields, streamer)
     if check
         endcheck(io, preamble)
