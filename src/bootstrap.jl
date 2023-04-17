@@ -52,10 +52,9 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     fNbytes = fObjlen + fKeylen
     # parsefields!(io, fields, T)
     # T(;fields...)
-    @show fNbytes
-    open("/tmp/recovered.dat", "w") do fobj
-        write(fobj, contents)
-    end
+    #open("/tmp/recovered.dat", "w") do fobj
+    #    write(fobj, contents)
+    #end
     RecoveredTBasket(contents)
 end
 

@@ -230,9 +230,6 @@ function readobjany!(io, tkey::TKey, refs)
 
     elseif tag == Const.kNewClassTag
         cname = readtype(io, CString)
-        @show cname
-        @show version
-        @show start, Const.kMapOffset
 
         if cname == "TBasket"
             streamer = RecoveredTBasket
