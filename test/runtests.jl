@@ -823,6 +823,11 @@ end
     @test sum(LazyBranch(f, "Data/mytree/Particle0_E")) ≈ 1012.0
 end
 
+@testset "TBaskets in TTree" begin
+    f = UnROOT.samplefile("tree_with_tbaskets_from_uproot-issue327.root")
+    close(f)
+end
+
 @testset "Basic C++ types" begin
     f = UnROOT.samplefile("tree_basictypes.root")
     onesrow = LazyTree(f,"t")[2] |> collect |> values .|> first .|> Int
@@ -919,5 +924,6 @@ end
     @test idx1 == idx2
     @test alloc1 > 1.9*alloc2
 end
+
 
 include("rntuple_tests.jl")
