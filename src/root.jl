@@ -173,7 +173,7 @@ end
         return S
     end
 
-    @warn "Could not get streamer for $(typename), trying custom streamer."
+    @debug "Could not get streamer for $(typename), trying custom streamer."
     # last resort, try direct parsing
     parsetobject(f.fobj, tkey, streamerfor(f, typename))
 end
