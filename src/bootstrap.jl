@@ -50,7 +50,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     end
     fObjlen = size
     fNbytes = fObjlen + fKeylen
-    @warn "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
+    @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
     RecoveredTBasket(contents, byteoffsets)
 end
 
