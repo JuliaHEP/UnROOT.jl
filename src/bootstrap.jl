@@ -3,6 +3,7 @@
 
 struct RecoveredTBasket
     data::Vector{UInt8}
+    offsets::Vector{UInt32}
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
     @initparse
@@ -31,6 +32,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     if fNevBufSize > 8
         byteoffsets = read(io, fNevBuf * 4 + 8)
         skip(io, -4)
+    else
+        byteoffsets = Int32[]
     end
 
     # there's a second TKey here, but it doesn't contain any new information (in fact, less)
@@ -48,7 +51,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     fObjlen = size
     fNbytes = fObjlen + fKeylen
     @warn "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
-    RecoveredTBasket(contents)
+    RecoveredTBasket(contents, byteoffsets)
 end
 
 abstract type TNamed <: ROOTStreamedObject end
