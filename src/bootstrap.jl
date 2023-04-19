@@ -2,7 +2,7 @@
 # dynamically in future.
 
 struct RecoveredTBasket
-    data
+    data::Vector{UInt8}
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
     @initparse
