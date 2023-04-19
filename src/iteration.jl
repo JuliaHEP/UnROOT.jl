@@ -53,7 +53,13 @@ function basketarray(f::ROOTFile, branch, ithbasket)
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
 
-    rawdata, rawoffsets = readbasket(f, branch, ithbasket)
+    if ithbasket != -1
+        rawdata, rawoffsets = readbasket(f, branch, ithbasket)
+    else
+        # recovering a basket
+        recovered_basket = branch.fBaskets.elements[end]
+        rawdata, rawoffsets = recovered_basket.data, recovered_basket.offsets
+    end
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
     return interped_data(rawdata, rawoffsets, T, J)
 end
@@ -170,6 +176,7 @@ and update buffer and buffer range accordingly.
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
     br = @inbounds ba.buffer_range[tid]
+    # index within the basket
     localidx = if idx ∉ br
         _localindex_newbasket!(ba, idx, tid)
     else
@@ -179,9 +186,16 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
 end
 
 function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
-    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) - 1 #support 1.0 syntax
-    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
-    br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
+    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
+    if isnothing(seek_idx)  # no basket found, checking in recovered basket
+        ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
+        # FIXME: this range is probably wrong for jagged data with non-empty offsets
+        br = ba.b.fBasketEntry[end] + 1:ba.b.fEntries
+    else
+        seek_idx -= 1
+        ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
+        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
+    end
     ba.buffer_range[tid] = br
     return idx - br.start + 1
 end
