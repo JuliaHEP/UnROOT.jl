@@ -25,12 +25,18 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     fNevBuf = readtype(io, Int32)
     fLast = readtype(io, Int32)
 
+    # the byte position of the boundary between data content and entry offsets
+    size = fLast - fKeylen
+
     # one-byte terminator
     skip(io, 1)
 
     # then if you have offsets data, read them in
     if fNevBufSize > 8
-        byteoffsets = read(io, fNevBuf * 4 + 8)
+        _n = fNevBuf * 4 + 8
+        raw = read(io, _n)
+        byteoffsets = ntoh.(reinterpret(Int32, raw))[2:end] .- fKeylen
+        byteoffsets[end] = size
         skip(io, -4)
     else
         byteoffsets = Int32[]
@@ -44,12 +50,12 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     contents = read(io, size)
 
     # put the offsets back in, in the way that we expect it
-    if fNevBufSize > 8
-        contents = vcat(contents, byteoffsets)
-        size += length(byteoffsets)
-    end
-    fObjlen = size
-    fNbytes = fObjlen + fKeylen
+    # if fNevBufSize > 8
+    #     contents = vcat(contents, byteoffsets)
+    #     size += length(byteoffsets)
+    # end
+    # fObjlen = size
+    # fNbytes = fObjlen + fKeylen
     @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
     RecoveredTBasket(contents, byteoffsets)
 end

@@ -221,6 +221,13 @@ function readobjany!(io, tkey::TKey, refs)
         elseif tag == 1
             error("Returning parent is not implemented yet")
         elseif !haskey(refs, tag)
+            if bcnt & Const.kByteCountMask > 0
+                # Note this extra 4 bytes: the num_bytes field doesn't count itself,
+                # but we count the Model.start_cursor position from the point just
+                # before these two fields (since num_bytes might not exist, it's a more
+                # stable point than after num_bytes).
+                bcnt = (bcnt & ~Const.kByteCountMask) + 4
+            end
             # skipping
             seek(io, origin(tkey) + beg + bcnt + 4)
             return missing
@@ -259,7 +266,8 @@ function readobjany!(io, tkey::TKey, refs)
     else
         # reference class, new object
         ref = Int64(tag) & ~Const.kClassMask
-        haskey(refs, ref) || error("Invalid class reference.")
+
+        haskey(refs, ref) || error("Invalid class reference ($ref).")
 
         streamer = refs[ref]
         obj = unpack(io, tkey, refs, streamer)
