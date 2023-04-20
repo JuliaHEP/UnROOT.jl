@@ -925,5 +925,9 @@ end
     @test alloc1 > 1.9*alloc2
 end
 
+@testset "Objects on top level" begin
+    rootfile = UnROOT.samplefile("TVectorT-double_on_top_level.root")
+    @test [1.1, 2.2, 3.3] == rootfile["vector_double"]
+end
 
 include("rntuple_tests.jl")
