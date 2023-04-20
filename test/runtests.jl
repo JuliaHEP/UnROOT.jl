@@ -254,6 +254,16 @@ end
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
+    
+    # do some hardcoded value checks
+    bunches = []
+    for i in 1:10
+        start = 1 + 1000*(i-1)
+        stop = 1000*i
+        push!(bunches, sum(table.float_array[start:stop]))
+    end
+    @test bunches==[528882.3f0, 1.5877059f6, 2.6465295f6, 3.705353f6, 4.764177f6, 5.823f6, 6.881823f6, 7.9406475f6, 8.999469f6, 1.0058294f7]
+
     close(rootfile)
 
     rootfile = UnROOT.samplefile("km3net_offline.root")
