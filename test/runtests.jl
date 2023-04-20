@@ -256,7 +256,7 @@ end
     @test [row.int32_array for row in table] == BA
     
     # do some hardcoded value checks
-    bunches = Vector{Float64}([])
+    bunches = Float64[]
     for i in 1:10
         start = 1 + 1000*(i-1)
         stop = 1000*i
