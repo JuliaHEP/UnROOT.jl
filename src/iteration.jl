@@ -468,7 +468,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
         offset = ba.b.fBasketEntry[end]
         iths = [-1]
     elseif isnothing(ib2) # Check if we partially on the recovered basket
-        offset = ba.fEntry[ib1]
+        offset = ba.fEntry[ib1-1]
         iths = vcat(collect(ib1-1:length(ba.fEntry)-1), -1)
     else # Keep everything as it was
         offset = ba.fEntry[ib1-1]
