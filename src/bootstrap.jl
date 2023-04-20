@@ -1011,8 +1011,12 @@ function TNtuple(io, tkey::TKey, refs)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
 
+
 """
-Direct parsing of streamed objects which are not sitting on branches.
+
+Direct parsing of streamed objects which are not sitting on branches. This function needs to be
+rewritten, so that it can create proper types of TObject inherited data (like `TVectorT<*>`).
+
 """
 function parsetobject(io, tkey::TKey, streamer)
     # pass the correct parser from f!
@@ -1024,7 +1028,7 @@ function parsetobject(io, tkey::TKey, streamer)
     # the first entry in the streamer is a TOBject
     parsefields!(io, fields, TObject)
 
-    # the second (and last) entry is the actual data streamer (we think)
+    # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
     s = streamer.streamer.fElements.elements[2]
     if s.fTypeName == "map<string,string>"
         skip(io, 3*4)  # unclear what the first 12 bytes are
@@ -1036,8 +1040,18 @@ function parsetobject(io, tkey::TKey, streamer)
         values = [readtype(io, String) for i ∈ 1:n]
         return Dict(zip(keys, values))
     end
+
+    # FIXME: generalise this! We also need a hook-in mechanism for this function
+    # so that the user can provide custom parsing logic
+    if tkey.fClassName == "TVectorT<double>"
+        n = readtype(io, UInt32)
+        row_lwb = readtype(io, Int32)  # index of the starting element of the vector itself
+        skip(io, 1)
+        return [readtype(io, Float64) for _ ∈ row_lwb+1:n]
+    end
     error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)'")
 end
+
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
