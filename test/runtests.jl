@@ -262,7 +262,7 @@ end
         stop = 1000*i
         push!(bunches, sum(table.float_array[start:stop]))
     end
-    testvalues = Vector{Float64}([528882.3f0, 1.5877059f6, 2.6465295f6, 3.705353f6, 4.764177f6, 5.823f6, 6.881823f6, 7.9406475f6, 8.999469f6, 1.0058294f7])
+    testvalues = Vector{Float64}([528882.3e0, 1.5877059e6, 2.6465295e6, 3.705353e6, 4.764177e6, 5.823e6, 6.881823e6, 7.9406475e6, 8.999469e6, 1.0058294e7])
     @test bunches ≈ testvalues
 
     close(rootfile)
