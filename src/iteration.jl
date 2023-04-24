@@ -466,10 +466,10 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) 
     if isnothing(ib1) #Check if we are completely on the recovered basket
         offset = ba.b.fBasketEntry[end]
-        iths = [-1]
+        iths = [-1] # use magic number -1 as address for recovered basket only
     elseif isnothing(ib2) # Check if we partially on the recovered basket
         offset = ba.fEntry[ib1-1]
-        iths = vcat(collect(ib1-1:length(ba.fEntry)-1), -1)
+        iths = vcat(collect(ib1-1:length(ba.fEntry)-1), -1) # append magic number -1 for recovered basket at the end of the basket address range
     else # Keep everything as it was
         offset = ba.fEntry[ib1-1]
         iths = ib1-1:ib2-1
