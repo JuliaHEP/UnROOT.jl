@@ -187,17 +187,21 @@ end
 
 function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
     seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
-    if isnothing(seek_idx)  # no basket found, checking in recovered basket
-        ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
-        # FIXME: this range is probably wrong for jagged data with non-empty offsets
-        br = ba.b.fBasketEntry[end] + 1:ba.b.fEntries
-    else
-        seek_idx -= 1
-        ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
-        br = (ba.fEntry[seek_idx] + 1):(ba.fEntry[seek_idx + 1])
-    end
+    br = _get_buffer_range(ba, tid, seek_idx)
     ba.buffer_range[tid] = br
     return idx - br.start + 1
+end
+
+function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
+    seek_idx -= 1
+    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
+    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+end
+
+function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}
+    ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
+    # FIXME: this range is probably wrong for jagged data with non-empty offsets
+    (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
 end
 
 Base.IndexStyle(::Type{<:LazyBranch}) = IndexLinear()
