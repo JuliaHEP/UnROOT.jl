@@ -462,11 +462,20 @@ function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
 end
 
 function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
-    ib1 = findfirst(x -> x > (first(range) - 1), ba.fEntry) - 1
-    ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) - 1
-    offset = ba.fEntry[ib1]
+    ib1 = findfirst(x -> x > (first(range) - 1), ba.fEntry)
+    ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) 
+    if isnothing(ib1) #Check if we are completely on the recovered basket
+        offset = ba.b.fBasketEntry[end]
+        iths = [-1] # use magic number -1 as address for recovered basket only
+    elseif isnothing(ib2) # Check if we partially on the recovered basket
+        offset = ba.fEntry[ib1-1]
+        iths = vcat(collect(ib1-1:length(ba.fEntry)-1), -1) # append magic number -1 for recovered basket at the end of the basket address range
+    else # Keep everything as it was
+        offset = ba.fEntry[ib1-1]
+        iths = ib1-1:ib2-1
+    end
     range = (first(range)-offset):(last(range)-offset)
-    return ChainedVector(asyncmap(i->basketarray(ba, i), ib1:ib2))[range]
+    return ChainedVector(asyncmap(i->basketarray(ba, i), iths))[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
