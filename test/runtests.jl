@@ -316,6 +316,12 @@ end
     close(rootfile)
 end
 
+@testset "TNtupleD" begin
+    ntupled = LazyTree(joinpath(SAMPLES_DIR, "TNtupleD.root"), "n1")
+    @test ntupled.x == [0.0, 1.0]
+    @test ntupled.y == [0.0, 1.0]
+end
+
 @testset "Singly jagged branches" begin
     # 32bits T
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
