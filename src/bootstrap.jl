@@ -1011,6 +1011,7 @@ function TNtuple(io, tkey::TKey, refs)
     tree = TTree(io, tkey, refs; top=false) #embeded tree
 end
 
+TNtupleD(io, tkey::TKey, refs) = TNtuple(io, tkey::TKey, refs)
 
 """
 
