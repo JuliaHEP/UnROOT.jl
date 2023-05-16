@@ -149,7 +149,12 @@ function streamerfor(f::ROOTFile, branch::TBranchElement)
     if fID == -1
         fID = 0
     end
-    streamerfor(f, branch.fClassName).streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
+    next_streamer = streamerfor(f, branch.fClassName)
+    if ismissing(next_streamer)
+        return missing
+    else
+        return next_streamer.streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
+    end
 end
 
 
