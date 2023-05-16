@@ -710,6 +710,10 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue116.root"))
     @test length(rootfile["fTree"].fBranches.elements) == 112
     close(rootfile)
+
+    # issue 246
+    arr = LazyTree(joinpath(SAMPLES_DIR, "issue246.root"), "tree_NOMINAL").v_mcGenWgt
+    @test all(reduce(vcat, arr) .== 1.0)
 end
 
 @testset "jagged subbranch type by leaf" begin
