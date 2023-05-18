@@ -32,7 +32,7 @@ function ROOTFile(f::Function, args...; pv...)
 end
 
 function Base.hash(rf::ROOTFile, h::UInt)
-    hash(rf.fobj, h)
+    return hash(rf.fobj, h)
 end
 
 """
