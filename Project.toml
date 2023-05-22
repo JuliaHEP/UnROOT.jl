@@ -29,7 +29,7 @@ xrootdgo_jll = "9d84c17e-11f2-50ef-8cc9-e9701362097f"
 [compat]
 AbstractTrees = "^0.3.0, 0.4"
 ArraysOfArrays = "^0.5.3, ^0.6"
-BitIntegers = "^0.2.6"
+BitIntegers = "^0.2.6, ^0.3"
 CodecLz4 = "^0.3.0, ^0.4.0"
 CodecXz = "^0.6.0, ^0.7.0"
 CodecZstd = "^0.6.0, ^0.7.0"
