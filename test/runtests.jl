@@ -4,7 +4,6 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-using ThreadsX
 const nthreads = Threads.nthreads()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
