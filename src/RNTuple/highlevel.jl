@@ -13,14 +13,13 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::Vector{O}
-    buffer_ranges::Vector{UnitRange{Int64}}
+    buffers::ConcurrentDict{UnitRange{UInt64}, O}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
-        buffers = Vector{O}(undef, Threads.nthreads())
-        buffer_ranges = [0:-1 for _ in 1:Threads.nthreads()]
-        new{R, F, O, E}(rn, field, buffers, buffer_ranges)
+        # Key is buffer range, Value is the data
+        buffers =  ConcurrentDict{UnitRange{UInt64}, O}()
+        new{R, F, O, E}(rn, field, buffers)
     end
 end
 Base.length(rf::RNTupleField) = _length(rf.rn)
@@ -85,14 +84,10 @@ Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :named
 Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
 
 function Base.getindex(rf::RNTupleField, idx::Int)
-    tid = Threads.threadid()
-    br = @inbounds rf.buffer_ranges[tid]
-    localidx = if idx ∉ br
-        _localindex_newcluster!(rf, idx, tid)
-    else
-        idx - br.start + 1
-    end
-    return rf.buffers[tid][localidx]
+    # cached get the cluster this idx belongs to
+    br, cluster_data = _getcluster(rf, idx) 
+    localidx = idx - first(br) + 1
+    return cluster_data[localidx]
 end
 
 function _read_page_list(rn, nth_cluster_group=1)
@@ -101,7 +96,12 @@ function _read_page_list(rn, nth_cluster_group=1)
     return _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
 end
 
-function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
+"""
+    _findrange(rf::RNTupleField, idx::Int)
+
+Find the `(cluster range, page list)` that includes i-th event in a Field
+"""
+function _findrange(rf::RNTupleField, idx::Int)
     page_list = _read_page_list(rf.rn, 1)
     summaries = rf.rn.footer.cluster_summaries
 
@@ -109,13 +109,20 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
         first_entry = cluster.num_first_entry 
         n_entries = cluster.num_entries
         if first_entry + n_entries >= idx
-            br = first_entry+1:(first_entry+n_entries)
-            rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
-            rf.buffer_ranges[tid] = br
-            return idx - br.start + 1
+            return (first_entry+1:(first_entry+n_entries), page_list[cluster_idx])
         end
     end
     error("$idx-th event not found in cluster summaries")
+end
+
+function _getcluster(rf::RNTupleField, idx)
+    br, pages = _findrange(rf, idx)
+    lru = rf.buffers 
+    # cache is local, we only need to key by range (`br`)
+    data = get!(lru, br) do
+        read_field(rf.rn.io, rf.field, pages)
+    end
+    return br, data
 end
 
 """

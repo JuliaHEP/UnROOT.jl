@@ -47,6 +47,7 @@ include("custom.jl")
 include("displays.jl")
 
 using StructArrays: StructArray
+using ConcurrentCollections: ConcurrentDict
 
 include("RNTuple/bootstrap.jl")
 include("RNTuple/constants.jl")
