@@ -12,6 +12,8 @@ UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
 ## Important API changes in v0.9.0
+<details><summary>Click to expand exmaple for RNTuple</summary>
+<p>
 
 We decided to alter the behaviour of `getindex(f::ROOTfile, s::AbstractString)` which is essentially
 the method called called when `f["foo/bar"]` is used. Before `v0.9.0`, `UnROOT` tried to do a best guess
@@ -29,7 +31,9 @@ Long story short, the following pattern can be used to fix your code when upgrad
 The `f["foo/bar"]` accessor should now work on almost all files and is a handy utility to explore the ROOT data structures.
 
 See [PR199](https://github.com/JuliaHEP/UnROOT.jl/pull/199) for more details.
-
+</p>
+</details>
+  
 ## Installation Guide
 1. Download the latest [Julia release](https://julialang.org/downloads/)
 2. Open up Julia REPL (hit `]` once to enter Pkg mode, hit backspace to exit it)
