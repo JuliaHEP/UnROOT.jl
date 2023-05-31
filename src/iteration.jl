@@ -109,7 +109,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffers::LRU{UnitRange{Int64}, B}
+    buffers::MultiThreadedCache{UnitRange{Int64}, B}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
@@ -122,9 +122,11 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
         B = typeof(_buffer)
+        buffers = MultiThreadedCache{UnitRange{Int64}, B}()
+        MultiThreadedCaches.init_cache!(buffers)
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
-                                        LRU{UnitRange{Int64}, B}(; maxsize=Threads.maxthreadid())
+                                        buffers
                                         )
     end
 end

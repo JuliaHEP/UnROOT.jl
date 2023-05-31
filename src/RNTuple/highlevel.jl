@@ -13,12 +13,13 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::LRU{UnitRange{UInt64}, O}
+    buffers::MultiThreadedCache{UnitRange{UInt64}, O}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
         # Key is buffer range, Value is the data
-        buffers = LRU{UnitRange{UInt64}, O}(;maxsize = Threads.maxthreadid())
+        buffers = MultiThreadedCache{UnitRange{UInt64}, O}()
+        MultiThreadedCaches.init_cache!(buffers)
         new{R, F, O, E}(rn, field, buffers)
     end
 end

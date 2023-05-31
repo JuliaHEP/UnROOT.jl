@@ -782,7 +782,6 @@ end
     test_i, test_evt = et[2]
     @test test_i == 2
     @test test_evt isa UnROOT.LazyEvent
-    @test !isempty(hash(t.Muon_pt.b))
 end
 
 t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])

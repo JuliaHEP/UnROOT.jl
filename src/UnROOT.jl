@@ -16,6 +16,7 @@ import IterTools: groupby
 
 using LibDeflate: zlib_decompress!, Decompressor, crc32
 using BitIntegers: @define_integers
+using MultiThreadedCaches
 
 import Tables, PrettyTables
 
