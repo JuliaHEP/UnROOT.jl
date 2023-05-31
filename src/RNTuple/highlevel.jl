@@ -13,12 +13,12 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::MultiThreadedCache{UnitRange{UInt64}, O}
+    buffers::MultiThreadedCache{UInt64, O}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
-        # Key is buffer range, Value is the data
-        buffers = MultiThreadedCache{UnitRange{UInt64}, O}()
+        # Key is start of "cluster range", Value is the data
+        buffers = MultiThreadedCache{UInt64, O}()
         MultiThreadedCaches.init_cache!(buffers)
         new{R, F, O, E}(rn, field, buffers)
     end
@@ -119,8 +119,8 @@ end
 function _getcluster(rf::RNTupleField, idx)
     br, pages = _findrange(rf, idx)
     lru = rf.buffers 
-    # cache is local, we only need to key by range (`br`)
-    data = get!(lru, br) do
+    # cache is local, we only need to key by start point of range (`br`)
+    data = get!(lru, first(br)) do
         read_field(rf.rn.io, rf.field, pages)
     end
     return br, data

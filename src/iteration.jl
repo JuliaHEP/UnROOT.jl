@@ -109,7 +109,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffers::MultiThreadedCache{UnitRange{Int64}, B}
+    buffers::MultiThreadedCache{Int64, B}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
@@ -122,7 +122,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
         B = typeof(_buffer)
-        buffers = MultiThreadedCache{UnitRange{Int64}, B}()
+        buffers = MultiThreadedCache{Int64, B}()
         MultiThreadedCaches.init_cache!(buffers)
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
@@ -177,7 +177,7 @@ function _getbasket(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     seek_idx -= 1
     lru = ba.buffers
     br = (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
-    data = get!(lru, br) do
+    data = get!(lru, first(br)) do
         basketarray(ba.f, ba.b, seek_idx)
     end
 
