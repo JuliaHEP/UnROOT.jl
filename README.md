@@ -135,7 +135,7 @@ julia> for event in mytree
        end
 event.Electron_dxy = Float32[0.00037050247]
 
-julia> Threads.@threads for event in mytree # multi-threading
+julia> Threads.@threads :static for event in mytree # multi-threading
            ...
        end
 ```
