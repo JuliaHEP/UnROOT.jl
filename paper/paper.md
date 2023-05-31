@@ -129,7 +129,7 @@ for event in mytree
     # ... Operate on event
 end
 
-Threads.@threads for event in mytree # multi-threading
+Threads.@threads :static for event in mytree # multi-threading
     # ... Operate on event
 end
 

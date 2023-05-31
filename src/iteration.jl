@@ -6,7 +6,7 @@ Reads all branches from a tree.
 function arrays(f::ROOTFile, treename)
     names = keys(f[treename])
     res = Vector{Vector}(undef, length(names))
-    Threads.@threads for i in eachindex(names)
+    Threads.@threads :static for i in eachindex(names)
         res[i] = array(f, "$treename/$(names[i])")
     end
     return res
@@ -109,8 +109,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::Vector{B}
-    buffer_range::Vector{UnitRange{Int64}}
+    buffers::LRU{UnitRange{Int64}, B}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
@@ -122,10 +121,11 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             _buffer = VectorOfVectors(T(), Int32[1])
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
+        B = typeof(_buffer)
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
-                                        [_buffer for _ in 1:Threads.nthreads()],
-                                        [0:-1 for _ in 1:Threads.nthreads()])
+                                        LRU{UnitRange{Int64}, B}(; maxsize=Threads.maxthreadid())
+                                        )
     end
 end
 LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, _getindex(f, s))
@@ -136,9 +136,7 @@ function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
     h = hash(lb.b.fClassName, h)
     h = hash(lb.L, h)
-    for br in lb.buffer_range
-        h = hash(br, h)
-    end
+    h = hash(br, lb.buffers)
     return h
 end
 Base.size(ba::LazyBranch) = (ba.L,)
@@ -162,47 +160,33 @@ end
 """
     Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
 
-Get the `idx`-th element of a `LazyBranch`, starting at `1`. If `idx` is
-within the range of `ba.buffer_range`, it will directly return from `ba.buffer`.
-If not within buffer, it will fetch the correct basket by calling [`basketarray`](@ref)
-and update buffer and buffer range accordingly.
-
-!!! warning
-    Because currently we only cache a single basket inside `LazyBranch` at any given
-    moment, access a `LazyBranch` from different threads at the same time can cause
-    performance issue and incorrect event result.
+Get the `idx`-th element of a `LazyBranch`, starting at `1`.
 """
 
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
-    tid = Threads.threadid()
-    br = @inbounds ba.buffer_range[tid]
-    # index within the basket
-    localidx = if idx ∉ br
-        _localindex_newbasket!(ba, idx, tid)
-    else
-        idx - br.start + 1
-    end
-    return @inbounds ba.buffer[tid][localidx]
+    # cached get the cluster this idx belongs to
+    br, basket_data = _getbasket(ba, idx) 
+    localidx = idx - first(br) + 1
+    return basket_data[localidx]
 end
 
-function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
+function _getbasket(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
-    br = _get_buffer_range(ba, tid, seek_idx)
-    ba.buffer_range[tid] = br
-    return idx - br.start + 1
-end
-
-function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
     seek_idx -= 1
-    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
-    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+    lru = ba.buffers
+    br = (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+    data = get!(lru, br) do
+        basketarray(ba.f, ba.b, seek_idx)
+    end
+
+    return br, data
 end
 
-function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}
-    ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
-    # FIXME: this range is probably wrong for jagged data with non-empty offsets
-    (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
-end
+# function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}
+#     ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
+#     # FIXME: this range is probably wrong for jagged data with non-empty offsets
+#     (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
+# end
 
 Base.IndexStyle(::Type{<:LazyBranch}) = IndexLinear()
 

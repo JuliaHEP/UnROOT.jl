@@ -694,7 +694,6 @@ end
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
     arr = LazyTree(rootfile,"Events").Jet_pt;
     _ = length.(arr);
-    @test length.(arr.buffer) == length.(arr.buffer_range)
     close(rootfile)
 
     # issue 108
@@ -772,7 +771,7 @@ end
         end
     end
     nmus = zeros(Int, Threads.nthreads())
-    Threads.@threads for i in 1:length(t)
+    Threads.@threads :static for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
     @test sum(nmus) == 878
@@ -789,13 +788,13 @@ end
 t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
 @testset "Multi threading" begin
     nmus = zeros(Int, nthreads)
-    Threads.@threads for (i, evt) in enumerate(t)
+    Threads.@threads :static for (i, evt) in enumerate(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
     @test sum(nmus) == 878
 
     nmus .= 0
-    Threads.@threads for evt in t
+    Threads.@threads :static for evt in t
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
     if nthreads > 1
@@ -805,7 +804,7 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
 
 
     nmus .= 0
-    Threads.@threads for evt in t
+    Threads.@threads :static for evt in t
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
     if nthreads > 1
@@ -816,7 +815,7 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
     nmus .= 0
     t_dummy = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events", ["Muon_pt"])
     chained_tree = vcat(t,t_dummy)
-    Threads.@threads for evt in chained_tree # avoid using the same underlying file handler
+    Threads.@threads :static for evt in chained_tree # avoid using the same underlying file handler
         nmus[Threads.threadid()] += length(evt.Muon_pt)
     end
     @test sum(nmus) == 2*878
@@ -824,7 +823,7 @@ t = LazyTree(ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root")), "Events",
 
     for j in 1:3
         inds = [Vector{Int}() for _ in 1:nthreads]
-        Threads.@threads for (i, evt) in enumerate(t)
+        Threads.@threads :static for (i, evt) in enumerate(t)
             push!(inds[Threads.threadid()], i)
         end
         @test sum([length(inds[i] ∩ inds[j]) for i=1:length(inds), j=1:length(inds) if j>i]) == 0
