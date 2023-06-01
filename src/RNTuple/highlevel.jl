@@ -89,14 +89,14 @@ Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
 function Base.getindex(rf::RNTupleField, idx::Int)
     tid = Threads.threadid()
     tlock = @inbounds rf.thread_locks[tid]
-    br = @inbounds rf.buffer_ranges[tid]
     Base.@lock tlock begin 
+        br = @inbounds rf.buffer_ranges[tid]
         localidx = if idx ∉ br
             _localindex_newcluster!(rf, idx, tid)
         else
             idx - br.start + 1
         end
-        return rf.buffers[tid][localidx]
+        return @inbounds rf.buffers[tid][localidx]
     end
 end
 
@@ -115,8 +115,8 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
         n_entries = cluster.num_entries
         if first_entry + n_entries >= idx
             br = first_entry+1:(first_entry+n_entries)
-            rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
-            rf.buffer_ranges[tid] = br
+            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
+            @inbounds rf.buffer_ranges[tid] = br
             return idx - br.start + 1
         end
     end

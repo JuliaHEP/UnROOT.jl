@@ -173,9 +173,9 @@ and update buffer and buffer range accordingly.
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
     tlock = @inbounds ba.thread_locks[tid]
-    br = @inbounds ba.buffer_range[tid]
     # index within the basket
     Base.@lock tlock begin
+        br = @inbounds ba.buffer_range[tid]
         localidx = if idx ∉ br
             _localindex_newbasket!(ba, idx, tid)
         else
@@ -192,7 +192,7 @@ function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) w
     return idx - br.start + 1
 end
 
-function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
+@inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
     seek_idx -= 1
     ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
     (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
