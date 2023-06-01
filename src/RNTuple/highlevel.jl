@@ -14,13 +14,15 @@ struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
     buffers::Vector{O}
+    thread_locks::Vector{ReentrantLock}
     buffer_ranges::Vector{UnitRange{Int64}}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
         buffers = Vector{O}(undef, Threads.nthreads())
+        thread_locks = [ReentrantLock() for _ in 1:Threads.nthreads()]
         buffer_ranges = [0:-1 for _ in 1:Threads.nthreads()]
-        new{R, F, O, E}(rn, field, buffers, buffer_ranges)
+        new{R, F, O, E}(rn, field, buffers, thread_locks, buffer_ranges)
     end
 end
 Base.length(rf::RNTupleField) = _length(rf.rn)
@@ -86,13 +88,16 @@ Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
 
 function Base.getindex(rf::RNTupleField, idx::Int)
     tid = Threads.threadid()
+    tlock = @inbounds rf.thread_locks[tid]
     br = @inbounds rf.buffer_ranges[tid]
-    localidx = if idx ∉ br
-        _localindex_newcluster!(rf, idx, tid)
-    else
-        idx - br.start + 1
+    Base.@lock tlock begin 
+        localidx = if idx ∉ br
+            _localindex_newcluster!(rf, idx, tid)
+        else
+            idx - br.start + 1
+        end
+        return rf.buffers[tid][localidx]
     end
-    return rf.buffers[tid][localidx]
 end
 
 function _read_page_list(rn, nth_cluster_group=1)

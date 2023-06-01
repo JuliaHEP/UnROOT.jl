@@ -110,6 +110,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     L::Int64
     fEntry::Vector{Int64}
     buffer::Vector{B}
+    thread_locks::Vector{ReentrantLock}
     buffer_range::Vector{UnitRange{Int64}}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
@@ -125,6 +126,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
                                         [_buffer for _ in 1:Threads.nthreads()],
+                                        [ReentrantLock() for _ in 1:Threads.nthreads()],
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
@@ -166,23 +168,21 @@ Get the `idx`-th element of a `LazyBranch`, starting at `1`. If `idx` is
 within the range of `ba.buffer_range`, it will directly return from `ba.buffer`.
 If not within buffer, it will fetch the correct basket by calling [`basketarray`](@ref)
 and update buffer and buffer range accordingly.
-
-!!! warning
-    Because currently we only cache a single basket inside `LazyBranch` at any given
-    moment, access a `LazyBranch` from different threads at the same time can cause
-    performance issue and incorrect event result.
 """
 
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tid = Threads.threadid()
+    tlock = @inbounds ba.thread_locks[tid]
     br = @inbounds ba.buffer_range[tid]
     # index within the basket
-    localidx = if idx ∉ br
-        _localindex_newbasket!(ba, idx, tid)
-    else
-        idx - br.start + 1
+    Base.@lock tlock begin
+        localidx = if idx ∉ br
+            _localindex_newbasket!(ba, idx, tid)
+        else
+            idx - br.start + 1
+        end
+        return @inbounds ba.buffer[tid][localidx]
     end
-    return @inbounds ba.buffer[tid][localidx]
 end
 
 function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
