@@ -109,10 +109,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     b::Union{TBranch,TBranchElement}
     L::Int64
     fEntry::Vector{Int64}
-    buffer::Vector{B}
-    thread_locks::Vector{ReentrantLock}
-    buffer_range::Vector{UnitRange{Int64}}
-
+    tls_br_sym::Symbol
+    tls_buffer_sym::Symbol
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
         T = (T === Vector{Bool} ? BitVector : T)
@@ -123,11 +121,13 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             _buffer = VectorOfVectors(T(), Int32[1])
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
+        tls_hash = hash((f,b,b.fBasketEntry))
+        sym1 = Symbol(:UnROOT_TTree_br, tls_hash)
+        sym2 = Symbol(:UnROOT_TTree_buffer, tls_hash)
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
-                                        [_buffer for _ in 1:Threads.nthreads()],
-                                        [ReentrantLock() for _ in 1:Threads.nthreads()],
-                                        [0:-1 for _ in 1:Threads.nthreads()])
+                                        sym1, sym2
+                                        )
     end
 end
 LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, _getindex(f, s))
@@ -171,31 +171,22 @@ and update buffer and buffer range accordingly.
 """
 
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
-    tid = Threads.threadid()
-    tlock = @inbounds ba.thread_locks[tid]
-    # index within the basket
-    Base.@lock tlock begin
-        br = @inbounds ba.buffer_range[tid]
-        localidx = if idx ∉ br
-            _localindex_newbasket!(ba, idx, tid)
-        else
-            idx - br.start + 1
-        end
-        return @inbounds ba.buffer[tid][localidx]
+    tls = task_local_storage()
+    tls_br_sym, tls_buffer_sym = ba.tls_br_sym, ba.tls_buffer_sym
+
+    br = get(tls, tls_br_sym, 0:-1)::UnitRange{Int}
+    localidx = if idx ∉ br
+        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
+        seek_idx -= 1
+        br = (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+        tls[tls_br_sym] = br
+        tls[tls_buffer_sym] = basketarray(ba.f, ba.b, seek_idx)::B
+        idx - br.start + 1
+    else
+        idx - br.start + 1
     end
-end
-
-function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
-    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
-    br = _get_buffer_range(ba, tid, seek_idx)
-    ba.buffer_range[tid] = br
-    return idx - br.start + 1
-end
-
-@inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
-    seek_idx -= 1
-    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
-    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+    buffer = tls[tls_buffer_sym]::B
+    return @inbounds buffer[localidx]
 end
 
 function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}

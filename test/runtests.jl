@@ -690,13 +690,6 @@ end
     @test LazyBranch(rootfile, "Events/Jet_pt")[:] == Vector{Float32}[[], [27.324587, 24.889547, 20.853024], [], [20.33066], [], []]
     close(rootfile)
 
-    # issue 78
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "issue61.root"))
-    arr = LazyTree(rootfile,"Events").Jet_pt;
-    _ = length.(arr);
-    @test length.(arr.buffer) == length.(arr.buffer_range)
-    close(rootfile)
-
     # issue 108
     # unsigned short -> Int16, ulong64 -> UInt64
     # file minified with `rooteventselector --recreate -l 2 "trackntuple.root:trackingNtuple/tree" issue108_small.root`
