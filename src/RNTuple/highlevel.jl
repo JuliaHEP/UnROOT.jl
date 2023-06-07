@@ -1,5 +1,5 @@
 """
-    mutable struct RNTupleField{R, F, O, E} <: AbstractVector{E}
+    mutable struct RNTupleField{R, F, B, E} <: AbstractVector{E}
 
 Not a counterpart of RNTuple field in ROOT. This is a user-facing Julia-only
 construct like `LazyBranch` that is meant to act like a lazy `AbstractVector`
@@ -7,22 +7,21 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 
 - `R` is the type of parent `RNTuple`
 - `F` is the type of the field in the schema
-- 'O' is the type of output when you read a cluster-worth of data
-- 'E' is the element type of `O` (i.e. what you get for each event (row) in iteration)
+- 'B' is the type of output when you read a cluster-worth of data (Buffer)
+- 'E' is the element type of `B` (i.e. what you get for each event (row) in iteration)
 """
-struct RNTupleField{R, F, O, E} <: AbstractVector{E}
+struct RNTupleField{R, F, B, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::Vector{O}
-    thread_locks::Vector{ReentrantLock}
-    buffer_ranges::Vector{UnitRange{Int64}}
+    tls_br_sym::Symbol
+    tls_buffer_sym::Symbol
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
-        buffers = Vector{O}(undef, Threads.nthreads())
-        thread_locks = [ReentrantLock() for _ in 1:Threads.nthreads()]
-        buffer_ranges = [0:-1 for _ in 1:Threads.nthreads()]
-        new{R, F, O, E}(rn, field, buffers, thread_locks, buffer_ranges)
+        tls_hash = hash((rn, field))
+        tls_br_sym = Symbol(:UnROOT_RNT_br, tls_hash)
+        tls_buffer_sym = Symbol(:UnROOT_RNT_buffer, tls_hash)
+        new{R, F, O, E}(rn, field, tls_br_sym, tls_buffer_sym)
     end
 end
 Base.length(rf::RNTupleField) = _length(rf.rn)
@@ -86,18 +85,20 @@ end
 Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :namedtuple), sym)
 Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
 
-function Base.getindex(rf::RNTupleField, idx::Int)
-    tid = Threads.threadid()
-    tlock = @inbounds rf.thread_locks[tid]
-    Base.@lock tlock begin 
-        br = @inbounds rf.buffer_ranges[tid]
-        localidx = if idx ∉ br
-            _localindex_newcluster!(rf, idx, tid)
-        else
-            idx - br.start + 1
-        end
-        return @inbounds rf.buffers[tid][localidx]
+function Base.getindex(rf::RNTupleField{R, F, B, E}, idx::Int) where {R, F, B, E}
+    tls = task_local_storage()
+    tls_br_sym, tls_buffer_sym = rf.tls_br_sym, rf.tls_buffer_sym
+    br = get(tls, tls_br_sym, UInt64(1):UInt64(0))::UnitRange{UInt64}
+    localidx = if idx ∈ br
+        idx - br.start + 1
+    else
+        br, data = _localindex_newcluster(rf, idx)
+        tls[tls_br_sym] = br
+        tls[tls_buffer_sym] = data
+        idx - br.start + 1
     end
+    buffer = tls[tls_buffer_sym]::B
+    return @inbounds buffer[localidx]
 end
 
 function _read_page_list(rn, nth_cluster_group=1)
@@ -106,7 +107,7 @@ function _read_page_list(rn, nth_cluster_group=1)
     return _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
 end
 
-function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
+function _localindex_newcluster(rf::RNTupleField, idx::Int)
     page_list = _read_page_list(rf.rn, 1)
     summaries = rf.rn.footer.cluster_summaries
 
@@ -115,9 +116,8 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
         n_entries = cluster.num_entries
         if first_entry + n_entries >= idx
             br = first_entry+1:(first_entry+n_entries)
-            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
-            @inbounds rf.buffer_ranges[tid] = br
-            return idx - br.start + 1
+            data = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
+            return br, data
         end
     end
     error("$idx-th event not found in cluster summaries")

@@ -198,7 +198,6 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
 end
 
 @inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, seek_idx::Integer) where {T,J,B}
-    seek_idx -= 1
     (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
 end
 

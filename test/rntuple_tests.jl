@@ -157,15 +157,13 @@ end
 
     field = df.one_integers
     accumulator = zeros(Int, nthreads)
-    Threads.@threads for i in eachindex(field)
+    Threads.@threads :static for i in eachindex(field)
         @inbounds accumulator[Threads.threadid()] += field[i]
     end
-    # test we've hit each thread's buffer
-    @test all(!isempty, field.buffers)
     @test sum(accumulator) == sum(1:5e4)
 
     accumulator .= 0
-    Threads.@threads for evt in df
+    Threads.@threads :static for evt in df
         @inbounds accumulator[Threads.threadid()] += evt.one_integers
     end
     @test sum(accumulator) == sum(1:5e4)
