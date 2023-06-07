@@ -121,6 +121,8 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             _buffer = VectorOfVectors(T(), Int32[1])
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
+        # the basket cache are stored in `task_local_storage()`
+        # and these two symbols are the keys to range and buffer itself
         tls_hash = hash((f,b,b.fBasketEntry))
         sym1 = Symbol(:UnROOT_TTree_br, tls_hash)
         sym2 = Symbol(:UnROOT_TTree_buffer, tls_hash)
@@ -165,7 +167,8 @@ end
     Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
 
 Get the `idx`-th element of a `LazyBranch`, starting at `1`. If `idx` is
-within the range of `ba.buffer_range`, it will directly return from `ba.buffer`.
+within the range of `br`, it will directly return from `buffer[localidx]`.
+
 If not within buffer, it will fetch the correct basket by calling [`basketarray`](@ref)
 and update buffer and buffer range accordingly.
 """
@@ -173,24 +176,34 @@ and update buffer and buffer range accordingly.
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tls = task_local_storage()
     tls_br_sym, tls_buffer_sym = ba.tls_br_sym, ba.tls_buffer_sym
-
     br = get(tls, tls_br_sym, 0:-1)::UnitRange{Int}
-    localidx = if idx ∉ br
-        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
-        seek_idx -= 1
-        br = (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
-        tls[tls_br_sym] = br
-        tls[tls_buffer_sym] = basketarray(ba.f, ba.b, seek_idx)::B
+    localidx = if idx ∈ br
         idx - br.start + 1
     else
+        seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
+        if !isnothing(seek_idx)
+            seek_idx = seek_idx - 1
+        else
+            # we're hitting a "recovery" basket
+            # -1 is the sentinel value
+            seek_idx = -1
+        end
+        br = _get_buffer_range(ba, seek_idx)
+        tls[tls_br_sym] = br
+        tls[tls_buffer_sym] = basketarray(ba.f, ba.b, seek_idx)::B
         idx - br.start + 1
     end
     buffer = tls[tls_buffer_sym]::B
     return @inbounds buffer[localidx]
 end
 
-function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}
-    ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
+@inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, seek_idx::Integer) where {T,J,B}
+    seek_idx -= 1
+    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+end
+
+# when we hit recovery basket
+function _get_buffer_range(ba::LazyBranch{T, J, B}, seek_idx::Nothing) where {T,J,B}
     # FIXME: this range is probably wrong for jagged data with non-empty offsets
     (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
 end
