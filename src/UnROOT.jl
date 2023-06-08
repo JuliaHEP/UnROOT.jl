@@ -19,6 +19,8 @@ using BitIntegers: @define_integers
 
 import Tables, PrettyTables
 
+_sleep_in_getindex() = false
+
 """
     OffsetBuffer
 

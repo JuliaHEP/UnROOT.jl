@@ -1,5 +1,6 @@
 using Test
 using UnROOT, LorentzVectors
+import UnROOT
 using StaticArrays
 using InteractiveUtils
 using MD5
@@ -941,6 +942,28 @@ end
 @testset "Objects on top level" begin
     rootfile = UnROOT.samplefile("TVectorT-double_on_top_level.root")
     @test [1.1, 2.2, 3.3] == rootfile["vector_double"]
+end
+
+function task_migration_stresstest(t)
+    ch = Channel{Int}(length(t))
+    @sync for i in eachindex(t)
+        Threads.@spawn begin
+            put!(ch, t[i].int32_array)
+        end
+    end
+    close(ch)
+    sum(ch)
+end
+
+#https://github.com/JuliaHEP/UnROOT.jl/issues/257
+@testset "Corretness under task migration" begin
+    t = LazyTree(UnROOT.samplefile("tree_with_large_array_lz4.root"), "t1");
+    ref_result = task_migration_stresstest(t)
+
+    UnROOT._sleep_in_getindex() = true
+    test_result = task_migration_stresstest(t)
+    @test ref_result == test_result
+    UnROOT._sleep_in_getindex() = false
 end
 
 include("rntuple_tests.jl")
