@@ -19,6 +19,7 @@ using BitIntegers: @define_integers
 
 import Tables, PrettyTables
 
+# Hook for task migration tests, see https://github.com/JuliaHEP/UnROOT.jl/issues/257
 _sleep_in_getindex() = false
 
 """
