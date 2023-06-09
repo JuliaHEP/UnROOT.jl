@@ -173,11 +173,13 @@ If not within buffer, it will fetch the correct basket by calling [`basketarray`
 and update buffer and buffer range accordingly.
 """
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
-    @inline _sleep_in_getindex() && sleep(0.0001)
     tls = task_local_storage()
     tls_br_sym, tls_buffer_sym = ba.tls_br_sym, ba.tls_buffer_sym
     br = get(tls, tls_br_sym, 0:-1)::UnitRange{Int}
     localidx = if idx ∈ br
+        if @inline _sleep_in_getindex() 
+            sleep(0.0001)
+        end
         idx - br.start + 1
     else
         seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
