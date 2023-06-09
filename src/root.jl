@@ -387,9 +387,11 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         if !ismissing(streamer)
             # TODO unify this with the "switch" block below and expand for more types!
             if _jaggtype == Offsetjagg
+                streamer.fTypeName == "vector<string>" && return Vector{String}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
             elseif _jaggtype == Offsetjaggjagg || _jaggtype == Offset6jaggjagg
+                streamer.fTypeName == "vector<string>" && return Vector{Vector{String}}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Vector{Float64}}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Vector{Int32}}, _jaggtype
             end
