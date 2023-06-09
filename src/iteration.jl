@@ -177,7 +177,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     tls_br_sym, tls_buffer_sym = ba.tls_br_sym, ba.tls_buffer_sym
     br = get(tls, tls_br_sym, 0:-1)::UnitRange{Int}
     localidx = if idx ∈ br
-        if @inline _sleep_in_getindex() 
+        if _sleep_in_getindex() 
             sleep(0.0001)
         end
         idx - br.start + 1
