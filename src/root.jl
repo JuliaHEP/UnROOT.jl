@@ -16,6 +16,7 @@ struct ROOTFile
     fobj::SourceStream
     tkey::TKey
     streamers::Streamers
+    streamer_cache::Dict{String, Any}
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
 end
@@ -108,8 +109,9 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
+    streamer_cache = Dict()
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs)
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, streamer_cache, directory, customstructs)
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -162,25 +164,26 @@ function Base.getindex(f::ROOTFile, s::AbstractString)
     _getindex(f, s)
 end
 
-@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-# function _getindex(f::ROOTFile, s)
-    if '/' ∈ s
-        @debug "Splitting path '$s' and getting items recursively"
-        paths = split(s, '/')
-        return f[first(paths)][join(paths[2:end], "/")]
-    end
-    tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
-    typename = safename(tkey.fClassName)
-    @debug "Retrieving $s ('$(typename)')"
-    if isdefined(@__MODULE__, Symbol(typename))
-        streamer = getfield(@__MODULE__, Symbol(typename))
-        S = streamer(f.fobj, tkey, f.streamers.refs)
-        return S
-    end
+function _getindex(f::ROOTFile, s)
+    return get!(f.streamer_cache, s) do
+        if '/' ∈ s
+            @debug "Splitting path '$s' and getting items recursively"
+            paths = split(s, '/')
+            return f[first(paths)][join(paths[2:end], "/")]
+        end
+        tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
+        typename = safename(tkey.fClassName)
+        @debug "Retrieving $s ('$(typename)')"
+        if isdefined(@__MODULE__, Symbol(typename))
+            streamer = getfield(@__MODULE__, Symbol(typename))
+            S = streamer(f.fobj, tkey, f.streamers.refs)
+            return S
+        end
 
-    @debug "Could not get streamer for $(typename), trying custom streamer."
-    # last resort, try direct parsing
-    parsetobject(f.fobj, tkey, streamerfor(f, typename))
+        @debug "Could not get streamer for $(typename), trying custom streamer."
+        # last resort, try direct parsing
+        return parsetobject(f.fobj, tkey, streamerfor(f, typename))
+    end
 end
 
 # FIXME unify with above?
