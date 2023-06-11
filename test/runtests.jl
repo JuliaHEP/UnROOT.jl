@@ -950,4 +950,12 @@ end
     @test [1.1, 2.2, 3.3] == rootfile["vector_double"]
 end
 
+@testset "Test vector<string>" begin
+    rootfile = UnROOT.samplefile("usr-sample.root")
+    names = LazyBranch(rootfile, "E/Evt/AAObject/usr_names")
+    for n in names
+        @test all(n .== ["RecoQuality", "RecoNDF", "CoC", "ToT", "ChargeAbove", "ChargeBelow", "ChargeRatio", "DeltaPosZ", "FirstPartPosZ", "LastPartPosZ", "NSnapHits", "NTrigHits", "NTrigDOMs", "NTrigLines", "NSpeedVetoHits", "NGeometryVetoHits", "ClassficationScore"])
+    end
+end
+
 include("rntuple_tests.jl")
