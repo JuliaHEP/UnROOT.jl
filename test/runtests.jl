@@ -173,7 +173,6 @@ end
 
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
-    @test rootfile isa ROOTFile
     arr = UnROOT.array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
@@ -956,6 +955,28 @@ end
     for n in names
         @test all(n .== ["RecoQuality", "RecoNDF", "CoC", "ToT", "ChargeAbove", "ChargeBelow", "ChargeRatio", "DeltaPosZ", "FirstPartPosZ", "LastPartPosZ", "NSnapHits", "NTrigHits", "NTrigDOMs", "NTrigLines", "NSpeedVetoHits", "NGeometryVetoHits", "ClassficationScore"])
     end
+end
+
+function _test_clean_GC()
+    fname = joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root")
+
+    for i in 1:5
+        f = ROOTFile(fname)
+        t = LazyTree(f, "t1")
+        f = t = nothing
+    end
+end
+
+@testset "Clean GC issue #260" begin
+    _test_clean_GC()
+    GC.gc()
+    GC.gc()
+    sleep(2)
+    GC.gc()
+    sleep(2)
+
+    pid = last(readlines(`pgrep julia`))
+    @test isempty(filter(contains("_lzma"), readlines("/proc/$pid/smaps")))
 end
 
 include("rntuple_tests.jl")
