@@ -957,26 +957,32 @@ end
     end
 end
 
-function _test_clean_GC()
-    fname = joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root")
-
+function _test_clean_GC(fname)
     for i in 1:5
-        f = ROOTFile(fname)
+        f = UnROOT.samplefile(fname)
         t = LazyTree(f, "t1")
         f = t = nothing
     end
 end
 
 @testset "Clean GC issue #260" begin
-    _test_clean_GC()
+    fname = "tree_with_large_array_lzma.root"
+
+    _test_clean_GC(fname)
     GC.gc()
     GC.gc()
     sleep(2)
     GC.gc()
     sleep(2)
 
-    pid = last(readlines(`pgrep julia`))
-    @test isempty(filter(contains("_lzma"), readlines("/proc/$pid/smaps")))
+    pid = getpid()
+    @static if Sys.islinux()
+        @test isempty(filter(contains(fname), readlines("/proc/$pid/smaps")))
+    elseif Sys.isapple()
+        @test isempty(filter(contains(fname), readlines(`vmmap $(getpid())`)))
+    elseif Sys.iswindows()
+        # TODO: add test for windows
+    end
 end
 
 include("rntuple_tests.jl")
