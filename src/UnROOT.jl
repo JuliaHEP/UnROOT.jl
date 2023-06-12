@@ -74,7 +74,6 @@ if VERSION >= v"1.9"
         show(devnull, t)
         show(devnull, t[1])
     end
-    Memoization.empty_cache!(_getindex)
 end
 
 end # module

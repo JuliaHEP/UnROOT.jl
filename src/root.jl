@@ -3,6 +3,7 @@ struct ROOTDirectory
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
     fobj::SourceStream
+    cache::IdDict{Any, Any}
     refs::Dict{Int32, Any}
 end
 function Base.show(io::IO, d::ROOTDirectory)
@@ -16,6 +17,7 @@ struct ROOTFile
     fobj::SourceStream
     tkey::TKey
     streamers::Streamers
+    cache::IdDict{Any, Any}
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
 end
@@ -107,9 +109,12 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     n_keys = readtype(tail_buffer.result, Int32)
     keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
 
-    directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
+    directory_cache = IdDict()
+    directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, directory_cache, streamers.refs)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs)
+    streamer_cache = IdDict()
+
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, streamer_cache, directory, customstructs)
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -158,43 +163,36 @@ function streamerfor(f::ROOTFile, branch::TBranchElement)
 end
 
 
-function Base.getindex(f::ROOTFile, s::AbstractString)
-    _getindex(f, s)
-end
+function Base.getindex(f::Union{ROOTDirectory, ROOTFile}, s::AbstractString)
+    return get!(f.cache, s) do
+        if '/' ∈ s
+            @debug "Splitting path '$s' and getting items recursively"
+            paths = split(s, '/')
+            return f[first(paths)][join(paths[2:end], "/")]
+        end
+        d = if f isa ROOTFile 
+            f.directory 
+        elseif f isa ROOTDirectory
+            f
+        end
+        tkey = d.keys[findfirst(isequal(s), keys(f))]
+        typename = safename(tkey.fClassName)
+        @debug "Retrieving $s ('$(typename)')"
+        if isdefined(@__MODULE__, Symbol(typename))
+            streamer = getfield(@__MODULE__, Symbol(typename))
+            refs = if f isa ROOTFile 
+                f.streamers.refs
+            elseif f isa ROOTDirectory
+                f.refs
+            end
+            S = streamer(f.fobj, tkey, refs)
+            return S
+        end
 
-@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-# function _getindex(f::ROOTFile, s)
-    if '/' ∈ s
-        @debug "Splitting path '$s' and getting items recursively"
-        paths = split(s, '/')
-        return f[first(paths)][join(paths[2:end], "/")]
+        @debug "Could not get streamer for $(typename), trying custom streamer."
+        # last resort, try direct parsing
+        return parsetobject(f.fobj, tkey, streamerfor(f, typename))
     end
-    tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
-    typename = safename(tkey.fClassName)
-    @debug "Retrieving $s ('$(typename)')"
-    if isdefined(@__MODULE__, Symbol(typename))
-        streamer = getfield(@__MODULE__, Symbol(typename))
-        S = streamer(f.fobj, tkey, f.streamers.refs)
-        return S
-    end
-
-    @debug "Could not get streamer for $(typename), trying custom streamer."
-    # last resort, try direct parsing
-    parsetobject(f.fobj, tkey, streamerfor(f, typename))
-end
-
-# FIXME unify with above?
-@memoize LRU(maxsize = 2000) function getindex(d::ROOTDirectory, s)
-# function getindex(d::ROOTDirectory, s)
-    if '/' ∈ s
-        @debug "Splitting path '$s' and getting items recursively"
-        paths = split(s, '/')
-        return d[first(paths)][join(paths[2:end], "/")]
-    end
-    tkey = d.keys[findfirst(isequal(s), keys(d))]
-    streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
-    S = streamer(d.fobj, tkey, d.refs)
-    return S
 end
 
 function Base.keys(f::ROOTFile)
@@ -387,9 +385,11 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
         if !ismissing(streamer)
             # TODO unify this with the "switch" block below and expand for more types!
             if _jaggtype == Offsetjagg
+                streamer.fTypeName == "vector<string>" && return Vector{String}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
             elseif _jaggtype == Offsetjaggjagg || _jaggtype == Offset6jaggjagg
+                streamer.fTypeName == "vector<string>" && return Vector{Vector{String}}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Vector{Float64}}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Vector{Int32}}, _jaggtype
             end
