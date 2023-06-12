@@ -18,7 +18,7 @@ end
 Reads an array from a branch. Set `raw=true` to return raw data and correct offsets.
 """
 function array(f::ROOTFile, path::AbstractString; raw=false)
-    return array(f::ROOTFile, _getindex(f, path); raw=raw)
+    return array(f::ROOTFile, f[path]; raw=raw)
 end
 
 function array(f::ROOTFile, branch; raw=false)
@@ -130,7 +130,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
                                         [0:-1 for _ in 1:Threads.nthreads()])
     end
 end
-LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, _getindex(f, s))
+LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, f[s])
 basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
 basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
