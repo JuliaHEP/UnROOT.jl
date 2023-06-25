@@ -55,24 +55,25 @@ a leaf column of Index32 or Index64. To get a number from Cardinality, one needs
 compute `ary[i] - ary[i-1]`.
 """
 struct RNTupleCardinality{T}
-    content_col_idx::Int
-    nbits::Int
+    leaf_field::LeafField{T}
 end
-RNTupleCardinality(l::LeafField{T}) where T = RNTupleCardinality{T}(l.content_col_idx, l.nbits)
-
 Base.eltype(::Type{LeafField{T}}) where T = T
 
 function _search_col_type(field_id, column_records, col_id::Int...)
-    if length(col_id) == 2 && 
-        column_records[col_id[1]].type == 2 && 
-        column_records[col_id[2]].type == 5
-        return StringField(LeafField{Int32}(col_id[1], 2, 32), LeafField{Char}(col_id[2], 5, 8))
+    if length(col_id) == 2 && column_records[col_id[2]].type == 5
+        index_record = column_records[col_id[1]]
+        index_typenum = index_record.type
+        LeafType = rntuple_col_type_dict[index_typenum]
+        return StringField(
+            LeafField{LeafType}(col_id[1], index_typenum, index_record.nbits), 
+            LeafField{Char}(col_id[2], 5, 8)
+        )
     elseif length(col_id) == 1
         record = column_records[only(col_id)]
         LeafType = rntuple_col_type_dict[record.type]
         return LeafField{LeafType}(only(col_id), record.type, record.nbits)
     else
-        error("un-handled base case, report issue to authors")
+        error("un-handled RNTuple case, report issue to UnROOT.jl")
     end
 end
 
