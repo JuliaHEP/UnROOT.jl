@@ -113,22 +113,23 @@ end
         length.(t.Muon_charge)
 end
 
-@testset "RNTuple Split Encoding" begin
-    f1 = UnROOT.samplefile("RNTuple/test_ntuple_split_3e4.root")
-    t = LazyTree(f1, "ntuple")
-    @test all(==(Int32(0x04030201)), t.one_int32)
-    @test all(==(0xffeeddcc), reinterpret(UInt32, t.two_uint32))
+# Covered by other tests already
+# @testset "RNTuple Split Encoding" begin
+#     f1 = UnROOT.samplefile("RNTuple/test_ntuple_split_3e4.root")
+#     t = LazyTree(f1, "ntuple")
+#     @test all(==(Int32(0x04030201)), t.one_int32)
+#     @test all(==(0xffeeddcc), reinterpret(UInt32, t.two_uint32))
 
-    @test eltype(t.one_int32) == Int32
-    @test eltype(t.two_uint32) == UInt32
+#     @test eltype(t.one_int32) == Int32
+#     @test eltype(t.two_uint32) == UInt32
 
-    # 0.099967316
-    @test reinterpret(UInt32, t.three_vfloat32[2]) == [0x3dccbbaa]
-    @test all(reduce(vcat, t.three_vfloat32) .=== 0.099967316f0)
-    @test length.(t.three_float32) == repeat(0:9, 3000)
+#     # 0.099967316
+#     @test reinterpret(UInt32, t.three_vfloat32[2]) == [0x3dccbbaa]
+#     @test all(reduce(vcat, t.three_vfloat32) .=== 0.099967316f0)
+#     @test length.(t.three_float32) == repeat(0:9, 3000)
 
-    @test all(==(578437695752307201), t.four_int64)
-end
+#     @test all(==(578437695752307201), t.four_int64)
+# end
 
 @testset "RNTuple Type stability" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")

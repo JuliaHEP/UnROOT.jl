@@ -103,8 +103,7 @@ function read_field(io, field::LeafField{T}, page_list) where T
             res[i] = _from_zigzag(res[i])
         end
     elseif delta
-        # @show res
-        # cumsum!(res, res)
+        cumsum!(res, res)
     end
     return res::_field_output_type(field)
 end
@@ -131,12 +130,6 @@ function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
     content = read_field(io, field.content_col, page_list)
 
     o = one(eltype(offset))
-    Main.debug[] = offset
-    @show length(content)
-    @show length(offset)
-    @show Int(sum(offset))
-    @show Int.(offset[1:20])
-    @show Int.(cumsum(offset)[end-10:end])
     jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
     res = VectorOfVectors(content, jloffset)
     return res::_field_output_type(field)
