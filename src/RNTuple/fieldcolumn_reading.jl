@@ -70,23 +70,41 @@ end
 
 _field_output_type(::Type{RNTupleCardinality{T}}) where {T} = CardinalityVector{T}
 function read_field(io, field::RNTupleCardinality{T}, page_list) where T
-    nbits = field.nbits
-    pages = page_list[field.content_col_idx]
-    bytes = read_pagedesc(io, pages, nbits)
+    nbits = field.leaf_field.nbits
+    pages = page_list[field.leaf_field.content_col_idx]
+    typenum = field.leaf_field.type
+    split = 14 <= typenum <= 21 || 26 <= typenum <= 28
+    delta = 14 <= typenum <= 15
+    bytes = read_pagedesc(io, pages, nbits; split)
     contents = reinterpret(T, bytes)
+    if delta
+        cumsum!(contents, contents)
+    end
     res = CardinalityVector(contents)
     return res::_field_output_type(field)
 end
 
+_from_zigzag(n) = (n >> 1) ⊻ -(n & 1)
+_to_zigzag(n) = (n << 1) ⊻ (n >> 63)
 
 _field_output_type(::Type{LeafField{T}}) where {T} = T_Reinter{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.nbits
     pages = page_list[field.content_col_idx]
     # handle split encoding within page
-    split = 14 <= field.type <= 21
+    typenum = field.type
+    split = 14 <= typenum <= 21 || 26 <= typenum <= 28
+    zigzag = 26 <= typenum <= 28
+    delta = 14 <= typenum <= 15
     bytes = read_pagedesc(io, pages, nbits; split = split)
     res = reinterpret(T, bytes)
+    if zigzag
+        @simd for i in eachindex(res)
+            res[i] = _from_zigzag(res[i])
+        end
+    elseif delta
+        cumsum!(res, res)
+    end
     return res::_field_output_type(field)
 end
 
@@ -113,7 +131,7 @@ function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
 
     o = one(eltype(offset))
     jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
-    res = VectorOfVectors(content, jloffset, ArraysOfArrays.no_consistency_checks)
+    res = VectorOfVectors(content, jloffset)
     return res::_field_output_type(field)
 end
 

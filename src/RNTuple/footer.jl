@@ -23,10 +23,31 @@ end
     page_list_link::EnvLink
 end
 
+struct RNTupleSchemaExtension
+    field_records::Vector{FieldRecord}
+    column_records::Vector{ColumnRecord}
+    alias_records::Vector{AliasRecord}
+    extra_type_info::Vector{ExtraTypeInfo}
+end
+
+function _rntuple_read(io, ::Type{RNTupleSchemaExtension})
+    pos = position(io)
+    Size = read(io, UInt32)
+    end_pos = pos + Size
+    @assert Size >= 0
+    field_records = _rntuple_read(io, Vector{FieldRecord})
+    column_records = _rntuple_read(io, Vector{ColumnRecord})
+    alias_records = _rntuple_read(io, Vector{AliasRecord})
+    extra_type_info = _rntuple_read(io, Vector{ExtraTypeInfo})
+    seek(io, end_pos)
+
+    return RNTupleSchemaExtension(field_records, column_records, alias_records, extra_type_info)
+end
+
 @SimpleStruct struct RNTupleFooter
     feature_flag::UInt64
     header_crc32::UInt32
-    extension_header_links::Vector{EnvLink}
+    extension_header_links::RNTupleSchemaExtension
     column_group_records::Vector{ColumnGroupRecord}
     cluster_summaries::Vector{ClusterSummary}
     cluster_group_records::Vector{ClusterGroupRecord}
@@ -47,6 +68,16 @@ end
 end
 
 # https://discourse.julialang.org/t/simd-gather-result-in-slow-down/95161/2
+function split2_reinterpret(src::Vector{UInt8})
+    dst = similar(src)
+    count = length(src) ÷ 2
+    res = reinterpret(UInt16, dst)
+    @inbounds for i = 1:count
+        Base.Cartesian.@nexprs 2 j -> b_j = UInt16(src[(j-1)*count + i]) << (8*(j-1))
+        res[i] = (b_2 | b_1)
+    end
+    return dst
+end
 function split4_reinterpret(src::Vector{UInt8})
     dst = similar(src)
     count = length(src) ÷ 4
@@ -80,20 +111,24 @@ column since `pagedesc` only contains `num_elements` information.
     
 """
 function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; split=false)
-    res = mapreduce(vcat, pagedescs) do pagedesc
+    res = map(pagedescs) do pagedesc
         # when nbits == 1 for bits, need RoundUp
         uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp)
         tmp = _read_locator(io, pagedesc.locator, uncomp_size)
-        if split && nbits == 32
-            split4_reinterpret(tmp)
-        elseif split && nbits == 64
-            split8_reinterpret(tmp)
-        else
+        if !split
             tmp
+        elseif split
+            if nbits == 16
+                split2_reinterpret(tmp)
+            elseif nbits == 32
+                split4_reinterpret(tmp)
+            elseif nbits == 64
+                split8_reinterpret(tmp)
+            end
         end
     end
 
-    return res
+    return reduce(vcat, res)
 end
 
 struct PageLink end
