@@ -200,13 +200,13 @@ function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
 end
 
 @inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, seek_idx::Integer) where {T,J,B}
-    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
-end
-
-# when we hit recovery basket
-function _get_buffer_range(ba::LazyBranch{T, J, B}, seek_idx::Nothing) where {T,J,B}
-    # FIXME: this range is probably wrong for jagged data with non-empty offsets
-    (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
+    if seek_idx != -1
+        (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
+    else
+        # when we hit recovery basket
+        # FIXME: this range is probably wrong for jagged data with non-empty offsets
+        (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
+    end
 end
 
 Base.IndexStyle(::Type{<:LazyBranch}) = IndexLinear()
