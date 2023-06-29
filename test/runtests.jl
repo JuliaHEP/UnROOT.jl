@@ -985,4 +985,12 @@ end
     end
 end
 
+@testset "PR 266" begin
+    f = UnROOT.samplefile("edm4hep_266.root")
+    tree = LazyTree(f, "events", r"PandoraPFOs/PandoraPFOs.[(a-z)(A-Z))]")
+
+    @test length(tree.PandoraPFOs_energy[1]) == 79
+    @test length(tree.var"PandoraPFOs_covMatrix[10]"[1]) == 790
+end
+
 include("rntuple_tests.jl")
