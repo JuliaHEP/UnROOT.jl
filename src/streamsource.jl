@@ -120,6 +120,7 @@ end
 
 function read_seek_nb(fobj::HTTPStream, seek, nb)
     stop = seek+nb-1
+    stop = min(fobj.size-1, stop) 
     hd = ("Range" => "bytes=$(seek)-$stop", "Authorization" => "Bearer $(fobj.scitoken)")
     b = HTTP.request(HTTP.stack(), "GET", fobj.uri, hd, UInt8[]).body
     return b
