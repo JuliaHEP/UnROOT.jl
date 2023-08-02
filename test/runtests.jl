@@ -431,7 +431,7 @@ end
 end
 
 @testset "NanoAOD" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    rootfile = UnROOT.samplefile("NanoAODv5_sample.root")
     event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
     Electron_dxy = LazyBranch(rootfile, "Events/Electron_dxy")
@@ -467,6 +467,8 @@ end
     files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
+        # https://github.com/JuliaHEP/UnROOT.jl/issues/268
+        contains(f, "km3net_") && continue
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
         show(_io, r)
         close(r)
@@ -993,4 +995,6 @@ end
     @test length(tree.var"PandoraPFOs_covMatrix[10]"[1]) == 790
 end
 
-include("rntuple_tests.jl")
+if VERSION >= v"1.9"
+    include("rntuple_tests.jl")
+end
