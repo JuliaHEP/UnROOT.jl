@@ -241,7 +241,7 @@ function Base.show(io::IO, ::Type{<:LazyEvent})
     print(io, "UnROOT.LazyEvent")
 end
 
-struct LazyTree{T<:NamedTuple} <: AbstractVector{LazyEvent{T}}
+struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
 
@@ -256,8 +256,8 @@ Tables.columnaccess(::LazyTree) = true
 # The internal NamedTuple already satisfies the Tables interface
 Tables.columns(t::LazyTree) = getfield(t, :treetable)
 
-function LazyTree(path::String, x...)
-    LazyTree(ROOTFile(path), x...)
+function LazyTree(path::String, x...; y...)
+    LazyTree(ROOTFile(path), x...; y...)
 end
 
 Base.propertynames(lt::LazyTree) = propertynames(Tables.columns(lt))
@@ -386,12 +386,12 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
  ⋮   │     ⋮            ⋮             ⋮                ⋮
 ```
 """
-function LazyTree(f::ROOTFile, s::AbstractString, branches)
+function LazyTree(f::ROOTFile, s::AbstractString, branches; x...)
     tree = f[s]
     if tree isa TTree
-        return LazyTree(f, tree, s, branches)
+        return LazyTree(f, tree, s, branches; x...)
     elseif tree isa RNTuple
-        return LazyTree(tree, branches)
+        return LazyTree(tree, branches; x...)
     end
     error("$s is not the name of a TTree or a RNTuple.")
 end
@@ -425,7 +425,7 @@ of `String`, `Regex` or `Pair{Regex, SubstitutionString}`, where the first item
 is the regex selector and the second item the rename pattern.
 
 """
-function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = TypedTables.Table)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
@@ -445,15 +445,16 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
     for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
-    return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
+    t = sink(d)
+    return LazyTree(t)
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString)
-    return LazyTree(f, s, keys(f[s]))
+function LazyTree(f::ROOTFile, s::AbstractString; x...)
+    return LazyTree(f, s, keys(f[s]); x...)
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex})
-    return LazyTree(f, s, [branch])
+function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex}; x...)
+    return LazyTree(f, s, [branch]; x...)
 end
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
