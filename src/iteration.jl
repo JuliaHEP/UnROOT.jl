@@ -445,7 +445,11 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = TypedTabl
     for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
-    t = sink(d)
+    if sink == DataFrames.DataFrame
+        t = sink(d, copycols=false)
+    else
+        t = sink(d)
+    end
     return LazyTree(t)
 end
 
