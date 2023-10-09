@@ -445,7 +445,15 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = TypedTabl
     for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
-    if sink == DataFrames.DataFrame
+
+    m = nothing
+    try
+        m = which(sink, [typeof(d)])
+    catch
+        raise(error("Requested LazyTree '" * str(sink) * "' misses to take a dict as argument."))
+    end
+    
+    if :copycols ∈ Base.kwarg_decl(m)
         t = sink(d, copycols=false)
     else
         t = sink(d)
