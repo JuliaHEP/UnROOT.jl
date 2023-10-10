@@ -38,6 +38,7 @@ function Base.hash(rf::ROOTFile, h::UInt)
     return hash(rf.fobj, h)
 end
 
+const HEAD_BUFFER_SIZE = 2048
 """
     ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
 
@@ -61,7 +62,6 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
-const HEAD_BUFFER_SIZE = 2048
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
