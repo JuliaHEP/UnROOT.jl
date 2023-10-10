@@ -4,7 +4,7 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-const nthreads = Threads.nthreads()
+const nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
@@ -766,18 +766,12 @@ end
 
 
     if get(ENV, "CI", "false") == "true"
-        if nthreads >= 1
-            @test Threads.nthreads()>1 
-        else
+        if nthreads == 1
             @warn "CI wasn't run with multiple threads"
         end
     end
 
-    nmus = if isdefined(Threads, :maxthreadid)
-        zeros(Int, Threads.maxthreadid())
-    else
-        zeros(Int, Threads.nthreads())
-    end
+    nmus = zeros(Int, nthreads)
 
     Threads.@threads for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])

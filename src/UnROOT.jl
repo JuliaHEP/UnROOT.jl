@@ -64,6 +64,13 @@ include("RNTuple/displays.jl")
 #     show(devnull, df)
 #     show(devnull, df[1])
 # end
+#
+
+_maxthreadid() = @static if VERSION < v"1.9"
+    Threads.nthreads()
+else
+    Threads.maxthreadid()
+end
 
 if VERSION >= v"1.9"
     let

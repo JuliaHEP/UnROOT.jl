@@ -19,9 +19,10 @@ struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
-        buffers = Vector{O}(undef, Threads.nthreads())
-        thread_locks = [ReentrantLock() for _ in 1:Threads.nthreads()]
-        buffer_ranges = [0:-1 for _ in 1:Threads.nthreads()]
+        Nthreads = _maxthreadid()
+        buffers = Vector{O}(undef, Nthreads)
+        thread_locks = [ReentrantLock() for _ in 1:Nthreads]
+        buffer_ranges = [0:-1 for _ in 1:Nthreads]
         new{R, F, O, E}(rn, field, buffers, thread_locks, buffer_ranges)
     end
 end

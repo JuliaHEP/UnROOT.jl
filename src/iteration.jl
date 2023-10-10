@@ -123,11 +123,12 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             _buffer = VectorOfVectors(T(), Int32[1])
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
+        Nthreads = _maxthreadid()
         return new{T,J,typeof(_buffer)}(f, b, length(b),
                                         b.fBasketEntry,
-                                        [_buffer for _ in 1:Threads.nthreads()],
-                                        [ReentrantLock() for _ in 1:Threads.nthreads()],
-                                        [0:-1 for _ in 1:Threads.nthreads()])
+                                        [_buffer for _ in 1:Nthreads],
+                                        [ReentrantLock() for _ in 1:Nthreads],
+                                        [0:-1 for _ in 1:Nthreads])
     end
 end
 LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, f[s])
