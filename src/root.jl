@@ -3,7 +3,6 @@ struct ROOTDirectory
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
     fobj::SourceStream
-    cache::IdDict{Any, Any}
     refs::Dict{Int32, Any}
 end
 function Base.show(io::IO, d::ROOTDirectory)
@@ -17,9 +16,9 @@ struct ROOTFile
     fobj::SourceStream
     tkey::TKey
     streamers::Streamers
-    cache::IdDict{Any, Any}
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
+    cache::Dict{Any, Any}
 end
 function close(f::ROOTFile)
     close(f.fobj)
@@ -34,6 +33,8 @@ function ROOTFile(f::Function, args...; pv...)
 end
 
 function Base.hash(rf::ROOTFile, h::UInt)
+    h = hash(rf.filename, h)
+    h = hash(rf.header, h)
     return hash(rf.fobj, h)
 end
 
@@ -109,12 +110,9 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     n_keys = readtype(tail_buffer.result, Int32)
     keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
 
-    directory_cache = IdDict()
-    directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, directory_cache, streamers.refs)
+    directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
-    streamer_cache = IdDict()
-
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, streamer_cache, directory, customstructs)
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, Dict())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -163,36 +161,42 @@ function streamerfor(f::ROOTFile, branch::TBranchElement)
 end
 
 
-function Base.getindex(f::Union{ROOTDirectory, ROOTFile}, s::AbstractString)
-    return get!(f.cache, s) do
-        if '/' ∈ s
-            @debug "Splitting path '$s' and getting items recursively"
-            paths = split(s, '/')
-            return f[first(paths)][join(paths[2:end], "/")]
-        end
-        d = if f isa ROOTFile 
-            f.directory 
-        elseif f isa ROOTDirectory
-            f
-        end
-        tkey = d.keys[findfirst(isequal(s), keys(f))]
-        typename = safename(tkey.fClassName)
-        @debug "Retrieving $s ('$(typename)')"
-        if isdefined(@__MODULE__, Symbol(typename))
-            streamer = getfield(@__MODULE__, Symbol(typename))
-            refs = if f isa ROOTFile 
-                f.streamers.refs
-            elseif f isa ROOTDirectory
-                f.refs
-            end
-            S = streamer(f.fobj, tkey, refs)
-            return S
-        end
-
-        @debug "Could not get streamer for $(typename), trying custom streamer."
-        # last resort, try direct parsing
-        return parsetobject(f.fobj, tkey, streamerfor(f, typename))
+function Base.getindex(f::ROOTFile, s::AbstractString)
+    get!(f.cache, s) do 
+        _getindex(f, s)
     end
+end
+
+function _getindex(f::ROOTFile, s)
+    if '/' ∈ s
+        @debug "Splitting path '$s' and getting items recursively"
+        paths = split(s, '/')
+        return f[first(paths)][join(paths[2:end], "/")]
+    end
+    tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
+    typename = safename(tkey.fClassName)
+    @debug "Retrieving $s ('$(typename)')"
+    if isdefined(@__MODULE__, Symbol(typename))
+        streamer = getfield(@__MODULE__, Symbol(typename))
+        S = streamer(f.fobj, tkey, f.streamers.refs)
+        return S
+    end
+
+    @debug "Could not get streamer for $(typename), trying custom streamer."
+    # last resort, try direct parsing
+    parsetobject(f.fobj, tkey, streamerfor(f, typename))
+end
+
+function getindex(d::ROOTDirectory, s)
+    if '/' ∈ s
+        @debug "Splitting path '$s' and getting items recursively"
+        paths = split(s, '/')
+        return d[first(paths)][join(paths[2:end], "/")]
+    end
+    tkey = d.keys[findfirst(isequal(s), keys(d))]
+    streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
+    S = streamer(d.fobj, tkey, d.refs)
+    return S
 end
 
 function Base.keys(f::ROOTFile)

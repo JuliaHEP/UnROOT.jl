@@ -999,9 +999,8 @@ function TDirectory(io, tkey::TKey, refs)
     header_key = unpack(fobj, TKey)
     n_keys = readtype(fobj, Int32)
     keys = [unpack(fobj, TKey) for _ in 1:n_keys]
-    directory_cache = IdDict()
 
-    directory = ROOTDirectory(header_key.fName, dir_header, keys, fobj, directory_cache, refs)
+    directory = ROOTDirectory(header_key.fName, dir_header, keys, fobj, refs)
     return directory
 end
 
