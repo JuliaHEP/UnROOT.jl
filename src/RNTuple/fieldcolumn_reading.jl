@@ -92,7 +92,7 @@ function read_field(io, field::LeafField{T}, page_list) where T
     zigzag = 26 <= typenum <= 28
     delta = 14 <= typenum <= 15
     bytes = read_pagedesc(io, pages, nbits; split = split)
-    res = copy(reinterpret(T, bytes))
+    res = collect(reinterpret(T, bytes))
     if zigzag
         @simd for i in eachindex(res)
             res[i] = _from_zigzag(res[i])
