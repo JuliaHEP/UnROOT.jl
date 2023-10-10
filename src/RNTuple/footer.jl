@@ -54,8 +54,12 @@ end
     meta_data_links::Vector{EnvLink}
 end
 
-function _read_locator(io, locator, uncomp_size)
+function _read_locator(io, locator, uncomp_size::Integer)
     decompress_bytes(read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
+end
+
+function _read_locator!(dst::Vector{UInt8}, io, locator, uncomp_size::Integer)
+    decompress_bytes!(dst, read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
 end
 
 @memoize LRU(maxsize = 200) function _read_envlink(io, link::EnvLink)
@@ -68,8 +72,7 @@ end
 end
 
 # https://discourse.julialang.org/t/simd-gather-result-in-slow-down/95161/2
-function split2_reinterpret(src::Vector{UInt8})
-    dst = similar(src)
+function split2_reinterpret!(dst, src::Vector{UInt8})
     count = length(src) ÷ 2
     res = reinterpret(UInt16, dst)
     @inbounds for i = 1:count
@@ -78,8 +81,7 @@ function split2_reinterpret(src::Vector{UInt8})
     end
     return dst
 end
-function split4_reinterpret(src::Vector{UInt8})
-    dst = similar(src)
+function split4_reinterpret!(dst, src::Vector{UInt8})
     count = length(src) ÷ 4
     res = reinterpret(UInt32, dst)
     @inbounds for i = 1:count
@@ -88,8 +90,7 @@ function split4_reinterpret(src::Vector{UInt8})
     end
     return dst
 end
-function split8_reinterpret(src::Vector{UInt8})
-    dst = similar(src)
+function split8_reinterpret!(dst, src::Vector{UInt8})
     count = length(src) ÷ 8
     res = reinterpret(UInt64, dst)
     @inbounds for i = 1:count
@@ -111,24 +112,34 @@ column since `pagedesc` only contains `num_elements` information.
     
 """
 function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; split=false)
-    res = map(pagedescs) do pagedesc
+    output_L = sum((p.num_elements for p in pagedescs))*nbits÷8
+    res = Vector{UInt8}(undef, output_L)
+
+    # a page max size is 64KB
+    tmp = Vector{UInt8}(undef, 65536)
+
+    tip = 1
+    for i in eachindex(pagedescs)
+        pagedesc = pagedescs[i]
         # when nbits == 1 for bits, need RoundUp
         uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp)
-        tmp = _read_locator(io, pagedesc.locator, uncomp_size)
+        dst = @view res[tip:tip+uncomp_size-1]
+        _read_locator!(tmp, io, pagedesc.locator, uncomp_size)
         if !split
-            tmp
+            dst .= tmp
         elseif split
             if nbits == 16
-                split2_reinterpret(tmp)
+                split2_reinterpret!(dst, tmp)
             elseif nbits == 32
-                split4_reinterpret(tmp)
+                split4_reinterpret!(dst, tmp)
             elseif nbits == 64
-                split8_reinterpret(tmp)
+                split8_reinterpret!(dst, tmp)
             end
         end
+        tip += uncomp_size
     end
 
-    return reduce(vcat, res)::Vector{UInt8}
+    return res::Vector{UInt8}
 end
 
 struct PageLink end
