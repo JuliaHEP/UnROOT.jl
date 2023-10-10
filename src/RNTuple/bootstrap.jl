@@ -42,14 +42,27 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     return rnt
 end
 
-function decompress_bytes(compbytes, NTarget)
+function decompress_bytes(compbytes::Vector{UInt8}, NTarget::Integer)
+    if length(compbytes) >= NTarget
+        return compbytes
+    else
+        uncomp_data = Vector{UInt8}(undef, NTarget)
+        decompress_bytes!(uncomp_data, compbytes, NTarget)
+        return uncomp_data
+    end
+end
+
+function decompress_bytes!(uncomp_data, compbytes, NTarget::Integer)
+    resize!(uncomp_data, NTarget)
     # not compressed
-    length(compbytes) >= NTarget && return compbytes
+    if length(compbytes) >= NTarget
+        copyto!(uncomp_data, compbytes)
+        return uncomp_data
+    end
 
     # compressed
     io = IOBuffer(compbytes)
     fufilled = 0
-    uncomp_data = Vector{UInt8}(undef, NTarget)
     while fufilled < NTarget # careful with 0/1-based index when thinking about offsets
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
