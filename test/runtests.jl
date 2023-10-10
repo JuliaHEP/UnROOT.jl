@@ -769,10 +769,16 @@ end
         if nthreads >= 1
             @test Threads.nthreads()>1 
         else
-            @warn "CI wasn't run with multi thread"
+            @warn "CI wasn't run with multiple threads"
         end
     end
-    nmus = zeros(Int, Threads.nthreads())
+
+    nmus = if isdefined(Threads, :maxthreadid)
+        zeros(Int, Threads.maxthreadid())
+    else
+        zeros(Int, Threads.nthreads())
+    end
+
     Threads.@threads for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
