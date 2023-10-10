@@ -157,8 +157,17 @@ end
     Threads.@threads for i in eachindex(field)
         @inbounds accumulator[Threads.threadid()] += field[i]
     end
+
     # test we've hit each thread's buffer
-    @test all(!isempty, field.buffers)
+    @test all(
+        map(eachindex(field.buffers)) do b
+            if !isassigned(field.buffers, b)
+                return true
+            else
+                return  !isempty(field.buffers[b])
+            end
+
+    end)
     @test sum(accumulator) == sum(1:5e4)
 
     accumulator .= 0
