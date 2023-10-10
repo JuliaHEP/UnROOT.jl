@@ -25,11 +25,6 @@ function read_field() end
 
 _field_output_type(x::T) where T = _field_output_type(T)
 
-function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T<:LeafField}
-    content_type = _field_output_type(T)
-    elT = eltype(content_type)
-    return Base.ReinterpretArray{SVector{N, elT}, 1, UInt8, Vector{UInt8}, false}
-end
 function _field_output_type(::Type{StdArrayField{N, T}}) where {N, T} 
     content_type = _field_output_type(T)
     elT = eltype(content_type)
@@ -87,7 +82,7 @@ end
 _from_zigzag(n) = (n >> 1) ⊻ -(n & 1)
 _to_zigzag(n) = (n << 1) ⊻ (n >> 63)
 
-_field_output_type(::Type{LeafField{T}}) where {T} = T_Reinter{T}
+_field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.nbits
     pages = page_list[field.content_col_idx]
@@ -97,7 +92,7 @@ function read_field(io, field::LeafField{T}, page_list) where T
     zigzag = 26 <= typenum <= 28
     delta = 14 <= typenum <= 15
     bytes = read_pagedesc(io, pages, nbits; split = split)
-    res = reinterpret(T, bytes)
+    res = collect(reinterpret(T, bytes))
     if zigzag
         @simd for i in eachindex(res)
             res[i] = _from_zigzag(res[i])

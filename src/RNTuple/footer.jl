@@ -128,7 +128,7 @@ function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; s
         end
     end
 
-    return reduce(vcat, res)
+    return reduce(vcat, res)::Vector{UInt8}
 end
 
 struct PageLink end
