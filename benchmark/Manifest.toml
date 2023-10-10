@@ -521,7 +521,7 @@ version = "1.0.2"
 deps = ["AbstractTrees", "ArraysOfArrays", "BitIntegers", "CodecLz4", "CodecXz", "CodecZstd", "HTTP", "IterTools", "LRUCache", "LibDeflate", "LorentzVectors", "Memoization", "Mixers", "Mmap", "Parameters", "PrettyTables", "SentinelArrays", "StaticArrays", "StructArrays", "Tables", "xrootdgo_jll"]
 path = ".."
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
-version = "0.10.16"
+version = "0.10.17"
 
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
