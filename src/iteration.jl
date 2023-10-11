@@ -112,28 +112,38 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     buffer::Vector{B}
     thread_locks::Vector{ReentrantLock}
     buffer_range::Vector{UnitRange{Int64}}
+end
 
-    function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
-        T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
-        T = (T === Vector{Bool} ? BitVector : T)
-        _buffer = T[]
-        if J != Nojagg
-            # if branch is jagged, fix the buffer and eltype according to what
-            # VectorOfVectors would return in `getindex`
-            _buffer = VectorOfVectors(T(), Int32[1])
-            T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
-        end
-        Nthreads = _maxthreadid()
-        return new{T,J,typeof(_buffer)}(f, b, length(b),
-                                        b.fBasketEntry,
-                                        [_buffer for _ in 1:Nthreads],
-                                        [ReentrantLock() for _ in 1:Nthreads],
-                                        [0:-1 for _ in 1:Nthreads])
+function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
+    T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
+    T = (T === Vector{Bool} ? BitVector : T)
+    _buffer = T[]
+    if J != Nojagg
+        # if branch is jagged, fix the buffer and eltype according to what
+        # VectorOfVectors would return in `getindex`
+        _buffer = VectorOfVectors(T(), Int32[1])
+        T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
+    end
+    Nthreads = _maxthreadid()
+    return LazyBranch{T,J,typeof(_buffer)}(f, b, length(b),
+                                           b.fBasketEntry,
+                                           [_buffer for _ in 1:Nthreads],
+                                           [ReentrantLock() for _ in 1:Nthreads],
+                                           [0:-1 for _ in 1:Nthreads])
     end
 end
+
 LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, f[s])
 basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
 basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
+
+"""
+    copy(x::LazyBranch)
+
+    Makes a shallow copy of x.
+"""
+Base.copy(x::LazyBranch{T,J,B}) where {T,J,B} = LazyBranch{T,J,B}(x.f, x.b, x.L, x.fEntry, x.buffer,
+                                                                  x.thread_locks, x.buffer_range)
 
 function Base.hash(lb::LazyBranch, h::UInt)
     h = hash(lb.f, h)
