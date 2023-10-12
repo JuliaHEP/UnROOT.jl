@@ -2,7 +2,7 @@ using Test
 using UnROOT, LorentzVectors
 using StaticArrays
 using InteractiveUtils
-using MD5
+using MD5, DataFrames
 
 const nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
@@ -993,6 +993,13 @@ end
 
     @test length(tree.PandoraPFOs_energy[1]) == 79
     @test length(tree.var"PandoraPFOs_covMatrix[10]"[1]) == 790
+end
+
+@testset "Alternative sink for LazyTree" begin
+    rootfile = UnROOT.samplefile("NanoAODv5_sample.root")
+    t = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"])
+    df = LazyTree(rootfile, "Events", ["nMuon", "Muon_pt"]; sink=DataFrame)
+    @test df == DataFrame(t)
 end
 
 if VERSION >= v"1.9"

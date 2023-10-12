@@ -257,8 +257,8 @@ Tables.columnaccess(::LazyTree) = true
 # The internal NamedTuple already satisfies the Tables interface
 Tables.columns(t::LazyTree) = getfield(t, :treetable)
 
-function LazyTree(path::String, x...)
-    LazyTree(ROOTFile(path), x...)
+function LazyTree(path::String, x...; kwargs...)
+    LazyTree(ROOTFile(path), x...; kwargs...)
 end
 
 Base.propertynames(lt::LazyTree) = propertynames(Tables.columns(lt))
@@ -387,12 +387,12 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
  ⋮   │     ⋮            ⋮             ⋮                ⋮
 ```
 """
-function LazyTree(f::ROOTFile, s::AbstractString, branches)
+function LazyTree(f::ROOTFile, s::AbstractString, branches; kwargs...)
     tree = f[s]
     if tree isa TTree
-        return LazyTree(f, tree, s, branches)
+        return LazyTree(f, tree, s, branches; kwargs...)
     elseif tree isa RNTuple
-        return LazyTree(tree, branches)
+        return LazyTree(tree, branches; kwargs...)
     end
     error("$s is not the name of a TTree or a RNTuple.")
 end
@@ -419,14 +419,17 @@ function normalize_branchname(s::AbstractString)
 end
 
 """
-    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
 
 Creates a lazy tree object of the selected branches only. `branches` is vector
 of `String`, `Regex` or `Pair{Regex, SubstitutionString}`, where the first item
-is the regex selector and the second item the rename pattern.
+is the regex selector and the second item the rename pattern. An alternative 
+container can be used by providing a sink function. The sink function must take as
+argument an table with a Tables.jl interface. The table columns are filled with 
+LazyBranch objects.
 
 """
-function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
@@ -446,15 +449,20 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
     for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
-    return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
+
+    if sink == LazyTree
+	return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
+    else
+    	return sink(Tables.CopiedColumns(d))
+    end
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString)
-    return LazyTree(f, s, keys(f[s]))
+function LazyTree(f::ROOTFile, s::AbstractString; kwargs...)
+    return LazyTree(f, s, keys(f[s]); kwargs...)
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex})
-    return LazyTree(f, s, [branch])
+function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex}; kwargs...)
+    return LazyTree(f, s, [branch]; kwargs...)
 end
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
