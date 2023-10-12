@@ -241,7 +241,7 @@ function Base.show(io::IO, ::Type{<:LazyEvent})
     print(io, "UnROOT.LazyEvent")
 end
 
-struct LazyTree{T} <: AbstractVector{LazyEvent{T}}
+struct LazyTree{T<:NamedTuple} <: AbstractVector{LazyEvent{T}}
     treetable::T
 end
 
@@ -418,14 +418,17 @@ function normalize_branchname(s::AbstractString)
 end
 
 """
-    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches)
+    function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
 
 Creates a lazy tree object of the selected branches only. `branches` is vector
 of `String`, `Regex` or `Pair{Regex, SubstitutionString}`, where the first item
-is the regex selector and the second item the rename pattern.
+is the regex selector and the second item the rename pattern. An alternative 
+container can be used by providing a sink function. The sink function must take as
+argument an table with a Tables.jl interface. The table columns are filled with 
+LazyBranch objects.
 
 """
-function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = TypedTables.Table)
+function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
     d = Dict{Symbol,LazyBranch}()
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
@@ -446,19 +449,11 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = TypedTabl
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
 
-    m = nothing
-    try
-        m = which(sink, [typeof(d)])
-    catch
-        raise(error("Requested LazyTree '" * str(sink) * "' misses to take a dict as argument."))
-    end
-    
-    if :copycols ∈ Base.kwarg_decl(m)
-        t = sink(d, copycols=false)
+    if sink == LazyTree
+	return LazyTree(NamedTuple{Tuple(keys(d))}(values(d)))
     else
-        t = sink(d)
+    	return sink(Tables.CopiedColumns(d))
     end
-    return LazyTree(t)
 end
 
 function LazyTree(f::ROOTFile, s::AbstractString; x...)
