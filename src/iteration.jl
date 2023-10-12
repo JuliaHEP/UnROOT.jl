@@ -387,12 +387,12 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)\
  ⋮   │     ⋮            ⋮             ⋮                ⋮
 ```
 """
-function LazyTree(f::ROOTFile, s::AbstractString, branches; x...)
+function LazyTree(f::ROOTFile, s::AbstractString, branches; kwargs...)
     tree = f[s]
     if tree isa TTree
-        return LazyTree(f, tree, s, branches; x...)
+        return LazyTree(f, tree, s, branches; kwargs...)
     elseif tree isa RNTuple
-        return LazyTree(tree, branches; x...)
+        return LazyTree(tree, branches; kwargs...)
     end
     error("$s is not the name of a TTree or a RNTuple.")
 end
