@@ -930,6 +930,12 @@ TH2F(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH1D(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH2D(io, tkey::TKey, refs) = TH(io, tkey, refs)
 
+"""
+    TH(io, tkey::TKey, refs)
+
+Internal function used to form a `fields = Dict{Symbol, Any}()` that represents the fields of a
+`TH` (histogram) in C++ ROOT.
+"""
 function TH(io, tkey::TKey, refs)
     fields = Dict{Symbol, Any}()
 

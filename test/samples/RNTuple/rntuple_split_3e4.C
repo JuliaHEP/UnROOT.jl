@@ -12,7 +12,7 @@ void rntuple_split_3e4() {
     auto model = RNTupleModel::Create();
     auto splitint_field = model->MakeField<int32_t>("one_int32");
     auto splitint_field2 = model->MakeField<uint32_t>("two_uint32");
-    auto splitint_field3 = model->MakeField<std::vector<float>>("three_vint32");
+    auto splitint_field3 = model->MakeField<std::vector<float>>("three_vfloat32");
     auto splitint_field4 = model->MakeField<int64_t>("four_int64");
 
 

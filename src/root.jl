@@ -18,6 +18,7 @@ struct ROOTFile
     streamers::Streamers
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
+    cache::Dict{Any, Any}
 end
 function close(f::ROOTFile)
     close(f.fobj)
@@ -32,9 +33,12 @@ function ROOTFile(f::Function, args...; pv...)
 end
 
 function Base.hash(rf::ROOTFile, h::UInt)
+    h = hash(rf.filename, h)
+    h = hash(rf.header, h)
     return hash(rf.fobj, h)
 end
 
+const HEAD_BUFFER_SIZE = 2048
 """
     ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
 
@@ -58,7 +62,6 @@ test/samples/NanoAODv5_sample.root
    └─ "⋮"
 ```
 """
-const HEAD_BUFFER_SIZE = 2048
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
@@ -109,7 +112,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs)
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, Dict())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -159,11 +162,12 @@ end
 
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
-    _getindex(f, s)
+    get!(f.cache, s) do 
+        _getindex(f, s)
+    end
 end
 
-@memoize LRU(maxsize = 2000) function _getindex(f::ROOTFile, s)
-# function _getindex(f::ROOTFile, s)
+function _getindex(f::ROOTFile, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -183,9 +187,7 @@ end
     parsetobject(f.fobj, tkey, streamerfor(f, typename))
 end
 
-# FIXME unify with above?
-@memoize LRU(maxsize = 2000) function getindex(d::ROOTDirectory, s)
-# function getindex(d::ROOTDirectory, s)
+function getindex(d::ROOTDirectory, s)
     if '/' ∈ s
         @debug "Splitting path '$s' and getting items recursively"
         paths = split(s, '/')
@@ -317,7 +319,7 @@ end
 function _normalize_ftype(fType)
     # Taken from uproot4; thanks Jim ;)
     if Const.kOffsetL < fType < Const.kOffsetP
-        fType - Const.kOffsetP
+        fType - Const.kOffsetL
     else
         fType
     end

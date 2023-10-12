@@ -1,7 +1,7 @@
 name = "UnROOT"
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
 authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
-version = "0.10.15"
+version = "0.10.17"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -27,13 +27,13 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 xrootdgo_jll = "9d84c17e-11f2-50ef-8cc9-e9701362097f"
 
 [compat]
-Arrow = "2 - 2.5"
 AbstractTrees = "^0.3.0, 0.4"
 ArraysOfArrays = "^0.5.3, ^0.6"
+Arrow = "2 - 2.5"
 BitIntegers = "^0.2.6, ^0.3"
-CodecLz4 = "^0.3.0, ^0.4.0"
-CodecXz = "^0.6.0, ^0.7.0"
-CodecZstd = "^0.6.0, ^0.7.0"
+CodecLz4 = "^0.3, ^0.4"
+CodecXz = "^0.6, ^0.7"
+CodecZstd = "^0.6, ^0.7, ^0.8"
 HTTP = "^0.9.7, 1"
 IterTools = "^1"
 LRUCache = "^1.3.0"

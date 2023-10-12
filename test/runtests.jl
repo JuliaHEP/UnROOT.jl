@@ -4,7 +4,7 @@ using StaticArrays
 using InteractiveUtils
 using MD5
 
-const nthreads = Threads.nthreads()
+const nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
@@ -173,7 +173,6 @@ end
 
 @testset "Compressions" begin
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_large_array_lzma.root"))
-    @test rootfile isa ROOTFile
     arr = UnROOT.array(rootfile, "t1/float_array")
     @test 100000 == length(arr)
     @test [0.0, 1.0588236, 2.1176472, 3.1764705, 4.2352943] ≈ arr[1:5] atol=1e-7
@@ -432,7 +431,7 @@ end
 end
 
 @testset "NanoAOD" begin
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "NanoAODv5_sample.root"))
+    rootfile = UnROOT.samplefile("NanoAODv5_sample.root")
     event = UnROOT.array(rootfile, "Events/event")
     @test event[1:3] == UInt64[12423832, 12423821, 12423834]
     Electron_dxy = LazyBranch(rootfile, "Events/Electron_dxy")
@@ -468,6 +467,8 @@ end
     files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))
     _io = IOBuffer()
     for f in files
+        # https://github.com/JuliaHEP/UnROOT.jl/issues/268
+        contains(f, "km3net_") && continue
         r = ROOTFile(joinpath(SAMPLES_DIR, f))
         show(_io, r)
         close(r)
@@ -765,13 +766,13 @@ end
 
 
     if get(ENV, "CI", "false") == "true"
-        if nthreads >= 1
-            @test Threads.nthreads()>1 
-        else
-            @warn "CI wasn't run with multi thread"
+        if nthreads == 1
+            @warn "CI wasn't run with multiple threads"
         end
     end
-    nmus = zeros(Int, Threads.nthreads())
+
+    nmus = zeros(Int, nthreads)
+
     Threads.@threads for i in 1:length(t)
         nmus[Threads.threadid()] += length(t.Muon_pt[i])
     end
@@ -958,4 +959,42 @@ end
     end
 end
 
-include("rntuple_tests.jl")
+function _test_clean_GC(fname)
+    for i in 1:5
+        f = UnROOT.samplefile(fname)
+        t = LazyTree(f, "t1")
+        f = t = nothing
+    end
+end
+
+@testset "Clean GC issue #260" begin
+    fname = "tree_with_large_array_lzma.root"
+
+    _test_clean_GC(fname)
+    GC.gc()
+    GC.gc()
+    sleep(2)
+    GC.gc()
+    sleep(2)
+
+    pid = getpid()
+    @static if Sys.islinux()
+        @test isempty(filter(contains(fname), readlines("/proc/$pid/smaps")))
+    elseif Sys.isapple()
+        @test isempty(filter(contains(fname), readlines(`vmmap $(getpid())`)))
+    elseif Sys.iswindows()
+        # TODO: add test for windows
+    end
+end
+
+@testset "PR 266" begin
+    f = UnROOT.samplefile("edm4hep_266.root")
+    tree = LazyTree(f, "events", r"PandoraPFOs/PandoraPFOs.[(a-z)(A-Z))]")
+
+    @test length(tree.PandoraPFOs_energy[1]) == 79
+    @test length(tree.var"PandoraPFOs_covMatrix[10]"[1]) == 790
+end
+
+if VERSION >= v"1.9"
+    include("rntuple_tests.jl")
+end

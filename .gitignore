@@ -7,3 +7,5 @@
 /docs/build/
 /docs/site/
 *__pycache__*
+/.benchmarkci
+/benchmark/*.json
