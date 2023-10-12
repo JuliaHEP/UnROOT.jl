@@ -2,7 +2,7 @@ using Test
 using UnROOT, LorentzVectors
 using StaticArrays
 using InteractiveUtils
-using MD5, DataFrames
+using DataFrames, SHA
 
 const nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
@@ -136,10 +136,10 @@ end
 end
 
 @testset "readbasketsraw()" begin
-    array_md5 = [0xb4, 0xe9, 0x32, 0xe8, 0xfb, 0xff, 0xcf, 0xa0, 0xda, 0x75, 0xe0, 0x25, 0x34, 0x9b, 0xcd, 0xdf]
-    rootfile = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
+    array_sha1 = [0x45, 0xab, 0x2c, 0x2a, 0x68, 0x17, 0x1d, 0x32, 0x3b, 0x25, 0x1f, 0x39, 0x01, 0xbe, 0xb7, 0xf3, 0xc9, 0xbf, 0xd3, 0xd6]
+    rootfile = UnROOT.samplefile("km3net_online.root")
     data, offsets = UnROOT.array(rootfile, "KM3NET_EVENT/KM3NET_EVENT/snapshotHits"; raw=true)
-    @test array_md5 == md5(data)
+    @test array_sha1 == sha1(data)
     close(rootfile)
 
     rootfile = ROOTFile(joinpath(SAMPLES_DIR, "tree_with_jagged_array.root"))
