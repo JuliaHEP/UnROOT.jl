@@ -257,8 +257,8 @@ Tables.columnaccess(::LazyTree) = true
 # The internal NamedTuple already satisfies the Tables interface
 Tables.columns(t::LazyTree) = getfield(t, :treetable)
 
-function LazyTree(path::String, x...; y...)
-    LazyTree(ROOTFile(path), x...; y...)
+function LazyTree(path::String, x...; kwargs...)
+    LazyTree(ROOTFile(path), x...; kwargs...)
 end
 
 Base.propertynames(lt::LazyTree) = propertynames(Tables.columns(lt))
@@ -457,12 +457,12 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
     end
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString; x...)
-    return LazyTree(f, s, keys(f[s]); x...)
+function LazyTree(f::ROOTFile, s::AbstractString; kwargs...)
+    return LazyTree(f, s, keys(f[s]); kwargs...)
 end
 
-function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex}; x...)
-    return LazyTree(f, s, [branch]; x...)
+function LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString,Regex}; kwargs...)
+    return LazyTree(f, s, [branch]; kwargs...)
 end
 
 function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
