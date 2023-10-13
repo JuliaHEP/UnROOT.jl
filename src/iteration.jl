@@ -130,7 +130,6 @@ function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
                                            [_buffer for _ in 1:Nthreads],
                                            [ReentrantLock() for _ in 1:Nthreads],
                                            [0:-1 for _ in 1:Nthreads])
-    end
 end
 
 LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, f[s])
