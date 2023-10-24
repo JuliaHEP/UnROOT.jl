@@ -9,6 +9,8 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
 
 const SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
+include("Aqua.jl")
+
 
 # @stack
 struct A

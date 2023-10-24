@@ -29,7 +29,6 @@ xrootdgo_jll = "9d84c17e-11f2-50ef-8cc9-e9701362097f"
 [compat]
 AbstractTrees = "^0.3.0, 0.4"
 ArraysOfArrays = "^0.5.3, ^0.6"
-Arrow = "2 - 2.5"
 BitIntegers = "^0.2.6, ^0.3"
 CodecLz4 = "^0.3, ^0.4"
 CodecXz = "^0.6, ^0.7"
@@ -49,14 +48,3 @@ StructArrays = "0.6"
 Tables = "^1.0.0"
 julia = "^1.6"
 xrootdgo_jll = "^0.32.1"
-
-[extras]
-Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test", "Pkg", "SHA", "InteractiveUtils", "Arrow", "DataFrames"]
