@@ -4,7 +4,8 @@ import SentinelArrays: ChainedVector
 import Mmap: mmap
 export ROOTFile, LazyBranch, LazyTree
 
-import Base: close, keys, get, getindex, getproperty, show, length, iterate, position, ntoh
+import Base: close, keys, get, getindex, getproperty, show, length, iterate, position
+ntoh(b) = Base.ntoh(b)
 ntoh(b::Bool) = b
 reinterpret(a,b) = Base.reinterpret(a,b)
 
