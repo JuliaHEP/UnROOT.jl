@@ -1014,7 +1014,7 @@ end
 function TNtuple(io, tkey::TKey, refs)
     io = datastream(io, tkey)
     preamble = Preamble(io, Missing)
-    tree = TTree(io, tkey, refs; top=false) #embeded tree
+    tree = TTree(io, tkey, refs; top=false) #embedded tree
 end
 
 TNtupleD(io, tkey::TKey, refs) = TNtuple(io, tkey::TKey, refs)
@@ -1032,7 +1032,7 @@ function parsetobject(io, tkey::TKey, streamer)
 
     @initparse
 
-    # the first entry in the streamer is a TOBject
+    # the first entry in the streamer is a TOObject
     parsefields!(io, fields, TObject)
 
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
@@ -1062,7 +1062,7 @@ end
 
 # FIXME preliminary TTree implementation
 function TTree(io, tkey::TKey, refs; top=true)
-    # if embeded in a Ntuple, don't run datastream again
+    # if embedded in a Ntuple, don't run datastream again
     io = top ? datastream(io, tkey) : io
 
     @initparse

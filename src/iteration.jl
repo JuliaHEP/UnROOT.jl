@@ -359,8 +359,8 @@ function getbranchnamesrecursive(obj)
 end
 
 """
-    LazyTree(f::ROOTFile, s::AbstractString, branche::Union{AbstractString, Regex})
-    LazyTree(f::ROOTFile, s::AbstractString, branches::Vector{Union{AbstractString, Regex}})
+    LazyTree(f::ROOTFile, s::AbstractString, branch::Union{AbstractString, Regex})
+    LazyTree(f::ROOTFile, s::AbstractString, branch::Vector{Union{AbstractString, Regex}})
 
 Constructor for `LazyTree`, which is close to an `DataFrame` (interface wise),
 and a lazy Table (speed wise). Looping over a `LazyTree` is fast and type
@@ -404,7 +404,7 @@ function normalize_branchname(s::AbstractString)
     if length(v) >= 2 # only normalize name when branches are split
         head = v[1]
         tail = v[2:end]
-        # remove duplicate info (only consecutive occurences)
+        # remove duplicate info (only consecutive occurrences)
         idx = 1
         for e ∈ tail
             e != head && break

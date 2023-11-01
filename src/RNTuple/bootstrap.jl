@@ -62,8 +62,8 @@ function decompress_bytes!(uncomp_data, compbytes, NTarget::Integer)
 
     # compressed
     io = IOBuffer(compbytes)
-    fufilled = 0
-    while fufilled < NTarget # careful with 0/1-based index when thinking about offsets
+    fulfilled = 0
+    while fulfilled < NTarget # careful with 0/1-based index when thinking about offsets
         compression_header = unpack(io, CompressionHeader)
         cname, _, compbytes, uncompbytes = unpack(compression_header)
         rawbytes = read(io, compbytes)
@@ -73,21 +73,21 @@ function decompress_bytes!(uncomp_data, compbytes, NTarget::Integer)
             input = @view rawbytes[9:end]
             input_ptr = pointer(input)
             input_size = length(input)
-            output_ptr = pointer(uncomp_data) + fufilled
+            output_ptr = pointer(uncomp_data) + fulfilled
             output_size = uncompbytes
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
         elseif cname == "ZL"
-            output = @view(uncomp_data[fufilled+1:fufilled+uncompbytes])
+            output = @view(uncomp_data[fulfilled+1:fufilled+uncompbytes])
             zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
         elseif cname == "XZ"
-            @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
+            @view(uncomp_data[fulfilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"
-            @view(uncomp_data[fufilled+1:fufilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
+            @view(uncomp_data[fulfilled+1:fufilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
 
-        fufilled += uncompbytes
+        fulfilled += uncompbytes
     end
     return uncomp_data
 end

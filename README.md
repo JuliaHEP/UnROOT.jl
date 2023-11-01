@@ -13,7 +13,7 @@ UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
 ## Important API changes in v0.9.0
-<details><summary>Click to expand exmaple for RNTuple</summary>
+<details><summary>Click to expand example for RNTuple</summary>
 <p>
 
 We decided to alter the behaviour of `getindex(f::ROOTfile, s::AbstractString)` which is essentially
@@ -23,7 +23,7 @@ and return a tree/branch or even fully parsed data. This lead to two bigger issu
   1. Errors prevented any further exploration once `UnROOT` bumped into something it could not interpret, although it might not even be requested by the user (e.g. the interpretation of a single branch in a tree, while others would work fine)
   2. Unpredictable behaviour (type instability): the path dictates which type of data is returned.
 
-Starting from `v0.9.0` we introduce an interface where `f["..."]` always returns genuine ROOT datatypes (or custom ones if you provide interpretations) and only perfroms the actual parsing when explicitly requested by the user via helper methods like `LazyBranch(f, "...")`.
+Starting from `v0.9.0` we introduce an interface where `f["..."]` always returns genuine ROOT datatypes (or custom ones if you provide interpretations) and only performs the actual parsing when explicitly requested by the user via helper methods like `LazyBranch(f, "...")`.
 
 Long story short, the following pattern can be used to fix your code when upgrading to `v0.9.0`:
 
@@ -79,7 +79,7 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
 ```
 
 ### RNTuple
-<details><summary>Click to expand exmaple for RNTuple</summary>
+<details><summary>Click to expand example for RNTuple</summary>
 <p>
 
 ```julia

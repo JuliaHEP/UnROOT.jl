@@ -44,7 +44,7 @@ const HEAD_BUFFER_SIZE = 2048
 
 `ROOTFile`'s constructor from a file. The `customstructs` dictionary can be used to pass user-defined
 struct as value and its corresponding `fClassName` (in Branch) as key such that `UnROOT` will know
-to intepret them, see [`interped_data`](@ref).
+to interpret them, see [`interped_data`](@ref).
 
 See also: [`LazyTree`](@ref), [`LazyBranch`](@ref)
 
@@ -485,20 +485,20 @@ end
 # read all bytes of DATA and OFFSET from a branch
 function readbranchraw(f::ROOTFile, branch)
     nbytes = branch.fBasketBytes
-    datas = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
+    data = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(zeros(Int32, 1), branch.fEntries+1) # this is always Int32
     position = 0
     for (seek, nb) in zip(branch.fBasketSeek, nbytes)
         seek==0 && break
         data, offset = readbasketseek(f, branch, seek, nb)
-        append!(datas, data)
+        append!(data, data)
         # FIXME: assuming offset has always 0 or at least 2 elements ;)
         append!(offsets, (@view offset[2:end]) .+ position)
         if length(offset) > 0
             position = offsets[end]
         end
     end
-    datas, offsets
+    data, offsets
 end
 
 # Thanks Jim and Philippe
@@ -550,7 +550,7 @@ function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, see
     if offsetbytesize > 0
 
         # indexing is inclusive on both ends
-        # Notice: need to delay `resize!` to not destory this @view
+        # Notice: need to delay `resize!` to not destroy this @view
         offbytes = @view basketrawbytes[(contentsize + 4 + 1):(end - 4)]
 
         # offsets starts at -fKeylen, same as the `local_offset` we pass in in the loop

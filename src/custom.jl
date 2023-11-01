@@ -2,7 +2,7 @@
     splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0)
 
 Given the `offsets` and `data` return by `array(...; raw = true)`, reconstructed the actual
-array (with custome struct, can be jagged as well).
+array (with custom struct, can be jagged as well).
 """
 function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, jagged=true)
     packedsize = packedsizeof(T)

@@ -120,7 +120,7 @@ julia> mytree = LazyTree(f, "Events", ["Electron_dxy", "nMuon", r"Muon_(pt|eta)$
 ```
 
 As seen in the above example, the entries in the columns are multi-dimensional
-and jagged. The `LazyTree` object acts as a table that suports sequential
+and jagged. The `LazyTree` object acts as a table that supports sequential
 or parallel iteration, selections, and filtering based on ranges or masks, and
 operations on whole columns:
 
@@ -201,7 +201,7 @@ implementation.
   to the three-language architecture.
 
 - `ROOT.jl` [^7] is one of the oldest Julia `ROOT` packages. It uses C++ bindings to
-  directly wrap the `ROOT` framework and therefore is not limited ot I/O.
+  directly wrap the `ROOT` framework and therefore is not limited to I/O.
   Unfortunately, the `Cxx.jl` [^8] package that is used to generate the C++ glue
   code does not support Julia 1.4 or later. The multi-threaded features are also
   limited.

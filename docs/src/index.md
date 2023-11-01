@@ -135,7 +135,7 @@ Vector{Tuple{}}}}:
 Branch names are normalised so that they contain valid characters for
 identifiers. The branchname `Evt/trks/trks.pos.y` for example is therefore
 converted to `Evt_trks_trks_posy`, which might be a bit inconvenient to use.
-`LazyTree` can rename branches based on regular expressions and subsitution
+`LazyTree` can rename branches based on regular expressions and substitution
 strings (in Julia these are created with `s""`) which can be passed as `Pair`s.
 The example below shows how to use this:
 

@@ -518,7 +518,7 @@ end
 
 # Custom bootstrap things
 
-@testset "custom boostrapping" begin
+@testset "custom bootstrapping" begin
     # manual interpretation (splitting)
     f_manual = ROOTFile(joinpath(SAMPLES_DIR, "km3net_online.root"))
 
