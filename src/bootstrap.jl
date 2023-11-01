@@ -1032,7 +1032,7 @@ function parsetobject(io, tkey::TKey, streamer)
 
     @initparse
 
-    # the first entry in the streamer is a TOObject
+    # the first entry in the streamer is a TObject
     parsefields!(io, fields, TObject)
 
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>

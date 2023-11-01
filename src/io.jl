@@ -113,7 +113,7 @@ end
 """
     function skiptobj(io)
 
-Skips a TOObject.
+Skips a TObject.
 """
 function skiptobj(io)
     version = readtype(io, Int16)
@@ -130,7 +130,7 @@ end
 """
     function endcheck(io, preamble::Preamble)
 
-Checks if everything went well after parsing a TOObject. Used in conjunction
+Checks if everything went well after parsing a TObject. Used in conjunction
 with `Preamble`.
 """
 function endcheck(io, preamble::T) where {T<:Preamble}

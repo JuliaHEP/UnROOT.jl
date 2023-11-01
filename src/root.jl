@@ -485,20 +485,20 @@ end
 # read all bytes of DATA and OFFSET from a branch
 function readbranchraw(f::ROOTFile, branch)
     nbytes = branch.fBasketBytes
-    data = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
+    res = sizehint!(Vector{UInt8}(), sum(nbytes)) # maximum length if all data are UInt8
     offsets = sizehint!(zeros(Int32, 1), branch.fEntries+1) # this is always Int32
     position = 0
     for (seek, nb) in zip(branch.fBasketSeek, nbytes)
         seek==0 && break
         data, offset = readbasketseek(f, branch, seek, nb)
-        append!(data, data)
+        append!(res, data)
         # FIXME: assuming offset has always 0 or at least 2 elements ;)
         append!(offsets, (@view offset[2:end]) .+ position)
         if length(offset) > 0
             position = offsets[end]
         end
     end
-    data, offsets
+    res, offsets
 end
 
 # Thanks Jim and Philippe
