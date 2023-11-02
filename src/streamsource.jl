@@ -63,7 +63,7 @@ mutable struct HTTPStream
     multipart::Bool
     scitoken::String
     function HTTPStream(uri::AbstractString; scitoken = _find_scitoken())
-        #TODO: determin multipart support
+        #TODO: determine multipart support
         test = HTTP.request("GET", uri, 
         ("Range" => "bytes=0-3", "User-Agent" => "UnROOTjl", "Authorization" => "Bearer $scitoken")
         )

@@ -1,5 +1,5 @@
 """
-The `Cursor` type is embeded into Branches of a TTree such that when
+The `Cursor` type is embedded into Branches of a TTree such that when
 we need to read the content of a Branch, we don't need to go through
 the Directory and find the TKey and then seek to where the Branch is.
 
@@ -24,7 +24,7 @@ packedsizeof(T::Type) = sum(sizeof.(fieldtypes(T)))
 @inline readtype(io, ::Type{T}) where T<:Bool = read(io, T)
 @inline readtype(io, v::Type{T}) where T<:AbstractVector{UInt8} = read(io, length(v))
 
-# Non-C strings in .root are preceeded by 1 or more bytes signifying the length
+# Non-C strings in .root are proceeded by 1 or more bytes signifying the length
 # of the string that follows.
 function readtype(io, ::Type{T}) where T<:AbstractString
     length = readtype(io, UInt8)
@@ -75,7 +75,7 @@ macro io(data)
             $(esc(struct_name))($([:(readtype(io, $t)) for t in types]...))
         end
 
-        nothing  # supress REPL output
+        nothing  # suppress REPL output
     end
 end
 
@@ -113,7 +113,7 @@ end
 """
     function skiptobj(io)
 
-Skips a TOBject.
+Skips a TObject.
 """
 function skiptobj(io)
     version = readtype(io, Int16)
@@ -130,7 +130,7 @@ end
 """
     function endcheck(io, preamble::Preamble)
 
-Checks if everything went well after parsing a TOBject. Used in conjuction
+Checks if everything went well after parsing a TObject. Used in conjunction
 with `Preamble`.
 """
 function endcheck(io, preamble::T) where {T<:Preamble}

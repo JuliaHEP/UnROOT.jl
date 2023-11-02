@@ -19,7 +19,7 @@ end
 usually is the best approach.
 
 
-## Writting out `.root` files
+## Writing out `.root` files
 Currently `UnROOT.jl` is focused on reading only, however, it's semi-trivial to leverage Python world
 for write operation since it's not performance critical.
 
