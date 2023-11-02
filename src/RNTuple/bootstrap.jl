@@ -77,12 +77,12 @@ function decompress_bytes!(uncomp_data, compbytes, NTarget::Integer)
             output_size = uncompbytes
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
         elseif cname == "ZL"
-            output = @view(uncomp_data[fulfilled+1:fufilled+uncompbytes])
+            output = @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes])
             zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
         elseif cname == "XZ"
-            @view(uncomp_data[fulfilled+1:fufilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
+            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
         elseif cname == "ZS"
-            @view(uncomp_data[fulfilled+1:fufilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
+            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
         end
