@@ -4,16 +4,19 @@ R__LOAD_LIBRARY(ROOTNTuple)
 #include <ROOT/RNTupleModel.hxx>
 #include <ROOT/RRawFile.hxx>
 
+
 using RNTupleModel = ROOT::Experimental::RNTupleModel;
 using RNTupleWriter = ROOT::Experimental::RNTupleWriter;
 using RNTupleWriteOptions = ROOT::Experimental::RNTupleWriteOptions;
 
 void rntuple_minimal() {
+  auto writeOptions = RNTupleWriteOptions();
+  writeOptions.SetCompression(0);
+  writeOptions.SetContainerFormat(ROOT::Experimental::ENTupleContainerFormat::kBare);
+
   std::string rootFileName1{"test_ntuple_min1.root"};
   auto model1 = RNTupleModel::Create();
   auto field1 = model1->MakeField<uint32_t>("one_uint");
-  auto writeOptions = RNTupleWriteOptions();
-  writeOptions.SetCompression(0);
   auto ntuple1 =
       RNTupleWriter::Recreate(std::move(model1), "ntuple", rootFileName1, writeOptions);
   // 0xcccccccc
