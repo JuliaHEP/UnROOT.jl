@@ -12,7 +12,6 @@ using RNTupleWriteOptions = ROOT::Experimental::RNTupleWriteOptions;
 void rntuple_minimal() {
   auto writeOptions = RNTupleWriteOptions();
   writeOptions.SetCompression(0);
-  writeOptions.SetContainerFormat(ROOT::Experimental::ENTupleContainerFormat::kBare);
 
   std::string rootFileName1{"test_ntuple_min1.root"};
   auto model1 = RNTupleModel::Create();
@@ -31,4 +30,15 @@ void rntuple_minimal() {
       // 0xeeeeee
   *field2 = 4008636142;
   ntuple2->Fill();
+
+  writeOptions.SetContainerFormat(ROOT::Experimental::ENTupleContainerFormat::kBare);
+  std::string rootFileName1bare{"test_ntuple_min1_bare.root"};
+  auto model1bare = RNTupleModel::Create();
+  auto field1bare = model1bare->MakeField<uint32_t>("one_uint");
+  auto ntuple1bare =
+      RNTupleWriter::Recreate(std::move(model1bare), "ntuple", rootFileName1bare, writeOptions);
+  // 0xcccccccc
+  *field1bare = 3435973836;
+  ntuple1bare->Fill();
+
 }
