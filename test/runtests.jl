@@ -1,5 +1,6 @@
 using Test
 using UnROOT, LorentzVectors
+using UnROOT.FHist
 using StaticArrays
 using InteractiveUtils
 using DataFrames, SHA
@@ -639,9 +640,20 @@ end
         @test f[k][:fN] == [0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     end
 
-    @test UnROOT.parseTH(f["myTH1F"]) == ([40.0, 2.0], (-2.0:2.0:2.0,), [800.0, 2.0])
-    @test UnROOT.parseTH(f["myTH2D"]) == ([20.0 0.0 0.0 20.0; 1.0 0.0 0.0 1.0], (-2.0:2.0:2.0, -2.0:1.0:2.0), [400.0 0.0 0.0 400.0; 1.0 0.0 0.0 1.0])
-    @test UnROOT.parseTH(f["myTH1D_nonuniform"]) == ([40.0, 2.0], ([-2.0, 1.0, 2.0],), [800.0, 2.0])
+    th1 = UnROOT.parseTH(f["myTH1F"];raw=false)
+    @test bincounts(th1) == [40.0, 2.0]
+    @test binedges(th1) == -2.0:2.0:2.0
+    @test th1.sumw2 == [800.0, 2.0]
+
+    th2 = UnROOT.parseTH(f["myTH2D"];raw=false)
+    @test bincounts(th2) == [20.0 0.0 0.0 20.0; 1.0 0.0 0.0 1.0]
+    @test binedges(th2) == (-2.0:2.0:2.0, -2.0:1.0:2.0)
+    @test th2.sumw2 == [400.0 0.0 0.0 400.0; 1.0 0.0 0.0 1.0]
+
+    th3 = UnROOT.parseTH(f["myTH1D_nonuniform"];raw=false)
+    @test bincounts(th3) == [40.0, 2.0]
+    @test binedges(th3) == [-2.0, 1.0, 2.0]
+    @test th3.sumw2 == [800.0, 2.0]
 
     close(f)
 

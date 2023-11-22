@@ -86,20 +86,36 @@ function JaggType(f, branch, leaf)
 end
 
 """
-    parseTH(th::Dict{Symbol, Any})
+    parseTH(th::Dict{Symbol, Any}; raw=true) -> (counts, edges, sumw2, nentries)
+    parseTH(th::Dict{Symbol, Any}; raw=false) -> Union{FHist.Hist1D, FHist.Hist2D}
 
-Parse the output of [`TH`](@ref) into a tuple of `counts`, `edges`, and `sumw2`.
-A `StatsBase.Histogram` can then be constructed with `Histogram(edges, counts)`.
-TH1 and TH2 inputs are supported.
+When `raw=true`, parse the output of [`TH`](@ref) into a tuple of `counts`, `edges`, `sumw2`, and `nentries`.
+When `raw=false`, parse the output of [`TH`](@ref) into FHist.jl histograms.
+
+# Example
+```julia
+julia> UnROOT.parseTH(UnROOT.samplefile("histograms1d2d.root")["myTH1D"])
+([40.0, 2.0], (-2.0:2.0:2.0,), [800.0, 2.0], 4.0)
+
+julia> UnROOT.parseTH(UnROOT.samplefile("histograms1d2d.root")["myTH1D"]; raw=false)
+edges: -2.0:2.0:2.0
+bin counts: [40.0, 2.0]
+total count: 42.0
+```
+
+    !!! note
+    TH1 and TH2 inputs are supported.
 """
-function parseTH(th::Dict{Symbol, Any})
+function parseTH(th::Dict{Symbol, Any}; raw=true)
     xmin = th[:fXaxis_fXmin]
     xmax = th[:fXaxis_fXmax]
     xnbins = th[:fXaxis_fNbins]
     xbins = isempty(th[:fXaxis_fXbins]) ? range(xmin, xmax, length=xnbins+1) : th[:fXaxis_fXbins];
     counts = th[:fN]
+    nentries = th[:fEntries]
     sumw2 = th[:fSumw2]
-    if th[:fYaxis_fNbins] > 1
+    dimention = th[:fYaxis_fNbins]
+    if dimention > 1
         ymin = th[:fYaxis_fXmin]
         ymax = th[:fYaxis_fXmax]
         ynbins = th[:fYaxis_fNbins]
@@ -112,7 +128,13 @@ function parseTH(th::Dict{Symbol, Any})
         sumw2 = sumw2[2:end-1]
         edges = (xbins,)
     end
-    return counts, edges, sumw2
+    if raw
+        return counts, edges, sumw2, nentries
+    elseif dimention > 1
+        return Hist2D(FHist.Histogram(edges, counts),sumw2, nentries)
+    else
+        return Hist1D(FHist.Histogram(edges, counts),sumw2, nentries)
+    end
 end
 
 function samplefile(filename::AbstractString)
