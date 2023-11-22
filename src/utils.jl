@@ -114,7 +114,7 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
     counts = th[:fN]
     nentries = th[:fEntries]
     sumw2 = th[:fSumw2]
-    dimention = th[:fYaxis_fNbins]
+    dimension = th[:fYaxis_fNbins]
     if dimention > 1
         ymin = th[:fYaxis_fXmin]
         ymax = th[:fYaxis_fXmax]
