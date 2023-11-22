@@ -130,7 +130,7 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
     end
     if raw
         return counts, edges, sumw2, nentries
-    elseif dimention > 1
+    elseif dimension > 1
         return Hist2D(FHist.Histogram(edges, counts),sumw2, nentries)
     else
         return Hist1D(FHist.Histogram(edges, counts),sumw2, nentries)
