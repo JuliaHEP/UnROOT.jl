@@ -66,6 +66,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     fobj = if startswith(filename, r"https?://")
         HTTPStream(filename)
     elseif startswith(filename, "root://")
+        length(findall("//", filename)) == 2 || error("The xrootd URL is illegal: missing the '//' separator between the server and the path (e.g. 'root://server:1234//path/to/file.root')")
         sep_idx = findlast("//", filename)
         baseurl = filename[8:first(sep_idx)-1]
         filepath = filename[last(sep_idx):end]
