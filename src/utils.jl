@@ -121,11 +121,15 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
         ynbins = th[:fYaxis_fNbins]
         ybins = isempty(th[:fYaxis_fXbins]) ? range(ymin, ymax, length=ynbins+1) : th[:fYaxis_fXbins];
         counts = reshape(counts, (xnbins+2, ynbins+2))[2:end-1, 2:end-1]
-        sumw2 = reshape(sumw2, (xnbins+2, ynbins+2))[2:end-1, 2:end-1]
+        if !isempty(sumw2)
+            sumw2 = reshape(sumw2, (xnbins+2, ynbins+2))[2:end-1, 2:end-1]
+        end
         edges = (xbins, ybins)
     else
         counts = counts[2:end-1]
-        sumw2 = sumw2[2:end-1]
+        if !isempty(sumw2)
+            sumw2 = sumw2[2:end-1]
+        end
         edges = (xbins,)
     end
     if raw
