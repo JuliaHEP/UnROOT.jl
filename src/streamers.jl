@@ -637,5 +637,5 @@ const TArrayI = Vector{Int32}
 
 function readtype(io, T::Type{Vector{U}}) where U <: Union{Integer, AbstractFloat}
     size = readtype(io, Int32)
-    [readtype(io, eltype(T)) for _ in 1:size]
+    U[readtype(io, eltype(T)) for _ in 1:size]
 end
