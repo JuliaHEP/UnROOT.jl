@@ -391,14 +391,28 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
             # TODO unify this with the "switch" block below and expand for more types!
             if _jaggtype == Offsetjagg
                 streamer.fTypeName == "vector<string>" && return Vector{String}, _jaggtype
+                streamer.fTypeName == "vector<float>" && return Vector{Float32}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Float64}, _jaggtype
+                streamer.fTypeName == "vector<short>" && return Vector{Int16}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Int32}, _jaggtype
+                streamer.fTypeName == "vector<long>" && return Vector{Int64}, _jaggtype
+                streamer.fTypeName == "vector<unsigned short>" && return Vector{UInt16}, _jaggtype
                 streamer.fTypeName == "vector<unsigned int>" && return Vector{UInt32}, _jaggtype
+                streamer.fTypeName == "vector<unsigned long>" && return Vector{UInt64}, _jaggtype
+                streamer.fTypeName == "vector<signed char>" && return Vector{Int8}, _jaggtype
+                streamer.fTypeName == "vector<unsigned char>" && return Vector{UInt8}, _jaggtype
             elseif _jaggtype == Offsetjaggjagg || _jaggtype == Offset6jaggjagg
                 streamer.fTypeName == "vector<string>" && return Vector{Vector{String}}, _jaggtype
+                streamer.fTypeName == "vector<float>" && return Vector{Vector{Float32}}, _jaggtype
                 streamer.fTypeName == "vector<double>" && return Vector{Vector{Float64}}, _jaggtype
+                streamer.fTypeName == "vector<short>" && return Vector{Vector{Int16}}, _jaggtype
                 streamer.fTypeName == "vector<int>" && return Vector{Vector{Int32}}, _jaggtype
+                streamer.fTypeName == "vector<long>" && return Vector{Vector{Int64}}, _jaggtype
+                streamer.fTypeName == "vector<unsigned short>" && return Vector{Vector{UInt16}}, _jaggtype
                 streamer.fTypeName == "vector<unsigned int>" && return Vector{Vector{UInt32}}, _jaggtype
+                streamer.fTypeName == "vector<unsigned long>" && return Vector{Vector{UInt64}}, _jaggtype
+                streamer.fTypeName == "vector<signed char>" && return Vector{Vector{Int8}}, _jaggtype
+                streamer.fTypeName == "vector<unsigned char>" && return Vector{Vector{UInt8}}, _jaggtype
             end
 
         end
