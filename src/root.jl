@@ -133,6 +133,7 @@ UUID(f::ROOTFile) = f.header.fUUID
 
 function streamerfor(f::ROOTFile, name::AbstractString)
     for e in f.streamers.elements
+#        @show e.streamer.fName
         if e.streamer.fName == name
             return e
         end
@@ -150,15 +151,28 @@ function streamerfor(f::ROOTFile, branch::TBranchElement)
     # method.
     #
     # TODO: For now, we force it to be 0 in this case, until someone complains.
+#    @show branch
     if fID == -1
         fID = 0
     end
+
     next_streamer = streamerfor(f, branch.fClassName)
-    if ismissing(next_streamer)
-        return missing
-    else
-        return next_streamer.streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
+    # @show next_streamer
+
+    ismissing(next_streamer) && return missing
+
+    # The part we do not understand yet. Let's pass the full streamer and assume
+    # downstreams that it's not jagged. It seems that we need to create a parsing logic
+    # for a whole instance of this class as a NoJagg inerpretation.
+    # see https://github.com/JuliaHEP/UnROOT.jl/issues/298
+    if fID == -2
+        @show fID
+        return next_streamer
     end
+
+    fID < -2 && error("Don't know how to handle $fID < -2 yet.")
+
+    next_streamer.streamer.fElements.elements[fID + 1]  # one-based indexing in Julia
 end
 
 
@@ -345,6 +359,13 @@ const _leaftypeconstlookup = Dict(
                              Const.kFloat => Float32,
                             )
 
+
+struct podio__CollectionIDTable
+    m_collectionIDs::Vector{UInt32}
+    m_names::Vector{String}
+end
+
+
 """
     auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
 
@@ -363,9 +384,13 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     leaf = first(branch.fLeaves.elements)
     _type = Nothing
     _jaggtype = JaggType(f, branch, leaf)
+    # @show _jaggtype
     if hasproperty(branch, :fClassName)
         classname = branch.fClassName # the C++ class name, such as "vector<int>"
+        # @show classname
+        classname == "podio::CollectionIDTable" && return podio__CollectionIDTable, _jaggtype
         parentname = branch.fParentName  # assuming it has a parent ;)
+        # @show parentname
         try
             # this will call a customize routine if defined by user
             # see custom.jl
@@ -387,6 +412,7 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
 
         # check if we have an actual streamer
         streamer = streamerfor(f, branch)
+        # @show streamer
         if !ismissing(streamer)
             # TODO unify this with the "switch" block below and expand for more types!
             if _jaggtype == Offsetjagg

@@ -62,6 +62,11 @@ function JaggType(f, branch, leaf)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
 
     streamer = streamerfor(f, branch)
+
+    # Currently assuming that if a full StreamerInfo is passed, we need to deal with
+    # each entry as a whole instance
+    typeof(streamer) == StreamerInfo && return Nojagg
+
     if !ismissing(streamer)
         if typeof(streamer) <: TStreamerBasicType
             (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Nooffsetjagg
