@@ -58,7 +58,7 @@ abstract type TNamed <: ROOTStreamedObject end
 # TODO: we probably should switch over to @kwdef at some point, but that's another big refactoring
 # Cursor is not needed here but it's mandatory due to the historical design of UnROOT and the
 # parsefields approach
-@kwdef struct TNamed_1 <: TNamed
+Base.@kwdef struct TNamed_1 <: TNamed
     cursor::Cursor
     fName::String
     fTitle::String
@@ -1195,7 +1195,7 @@ end
 # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L360-L365
 
 abstract type TFriendElement <: ROOTStreamedObject end
-@kwdef struct TFriendElement_2 <: TFriendElement
+Base.@kwdef struct TFriendElement_2 <: TFriendElement
     cursor::Cursor
     fName::String
     fTitle::String
