@@ -77,7 +77,6 @@ function readfields!(c::Cursor, fields, ::Type{TNamed_1})
     parsefields!(c.io, fields, TObject)
     fields[:fName] = readtype(c.io, String)
     fields[:fTitle] = readtype(c.io, String)
-    @show fields
 end
 
 abstract type TAttLine <: ROOTStreamedObject end
