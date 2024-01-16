@@ -55,11 +55,28 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
 end
 
 abstract type TNamed <: ROOTStreamedObject end
-struct TNamed_1 <: TNamed end
+# TODO: we probably should switch over to @kwdef at some point, but that's another big refactoring
+# Cursor is not needed here but it's mandatory due to the historical design of UnROOT and the
+# parsefields approach
+Base.@kwdef struct TNamed_1 <: TNamed
+    cursor::Cursor
+    fName::String
+    fTitle::String
+end
 function readfields!(io, fields, ::Type{TNamed_1})
     parsefields!(io, fields, TObject)
     fields[:fName] = readtype(io, String)
     fields[:fTitle] = readtype(io, String)
+end
+# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
+# A big cleanup is needed!
+# We need to define something like the following (that's not working, too tired already...)
+# parsefields!(c::Cursor, fields, TObject) = parsefields!(c.io, fields, TObject)
+# readtype(c::Cursor, ::Type{T}) where T = readtype(c.io, T)
+function readfields!(c::Cursor, fields, ::Type{TNamed_1})
+    parsefields!(c.io, fields, TObject)
+    fields[:fName] = readtype(c.io, String)
+    fields[:fTitle] = readtype(c.io, String)
 end
 
 abstract type TAttLine <: ROOTStreamedObject end
@@ -1176,3 +1193,24 @@ end
 
 # FIXME what to do with auto.py's massive type translation?
 # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L360-L365
+
+abstract type TFriendElement <: ROOTStreamedObject end
+Base.@kwdef struct TFriendElement_2 <: TFriendElement
+    cursor::Cursor
+    fName::String
+    fTitle::String
+    fTreeName::String
+    fOwnFile::Bool
+end
+function readfields!(io, fields, ::Type{TFriendElement_2})
+    stream!(io, fields, TNamed)
+    fields[:fTreeName] = readtype(io, String)
+    fields[:fOwnFile] = readtype(io, Bool)
+end
+# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
+# A big cleanup is needed!
+function readfields!(c::Cursor, fields, ::Type{TFriendElement_2})
+    stream!(c.io, fields, TNamed)
+    fields[:fTreeName] = readtype(c.io, String)
+    fields[:fOwnFile] = readtype(c.io, Bool)
+end
