@@ -46,7 +46,6 @@ end
 
 @SimpleStruct struct RNTupleHeader
     feature_flag::UInt64
-    rc_tag::UInt32
     name::String
     ntuple_description::String
     writer_identifier::String

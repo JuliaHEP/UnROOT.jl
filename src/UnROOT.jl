@@ -12,6 +12,7 @@ reinterpret(a,b) = Base.reinterpret(a,b)
 import AbstractTrees: children, printnode, print_tree
 
 using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays, FHist
+using XXhash: xxh3_64, xxh64
 using Mixers, Parameters, Memoization, LRUCache
 import IterTools: groupby
 

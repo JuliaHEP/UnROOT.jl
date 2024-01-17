@@ -25,6 +25,7 @@ SentinelArrays = "91c51154-3ec4-41a3-a24f-3f23e20d615c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+XXhash = "137af188-b1ec-11e9-0b40-31ed9142ae64"
 xrootdgo_jll = "9d84c17e-11f2-50ef-8cc9-e9701362097f"
 
 [compat]
