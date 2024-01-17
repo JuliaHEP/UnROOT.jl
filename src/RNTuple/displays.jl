@@ -57,7 +57,7 @@ function Base.summary(io::IO, rf::RNTupleField{R, F, O, E}) where {R, F, O, E}
 end
 
 function Base.show(io::IO, rn::RNTuple) 
-    println(io, "UnROOT.RNTuple with $(_length(rn)) rows, $(length(rn.schema)) fields, and metadata:")
+    println(io, "UnROOT.RNTuple with $(length(rn.schema)) fields, and metadata:")
     println(io, "  header: ")
     println(io, "    name: \"$(rn.header.name)\"")
     println(io, "    ntuple_description: \"$(rn.header.ntuple_description)\"")
@@ -70,8 +70,7 @@ function Base.show(io::IO, rn::RNTuple)
         println(io, l)
     end
     println(io, "  footer: ")
-    print(io, "    cluster_summaries: ")
-    show(io, rn.footer.cluster_summaries)
+    println(io, "    ", rn.footer)
 end
 Base.show(io::IO, s::RNTupleSchema) = print_tree(io, s)
 printnode(io::IO, s::RNTupleSchema) = print(io, "RNTupleSchema with $(length(s)) top fields")

@@ -12,7 +12,6 @@ end
     column_ids::Vector{UInt32}
 end
 
-
 @SimpleStruct struct ClusterSummary
     num_first_entry::UInt64
     num_entries::UInt64
@@ -32,7 +31,7 @@ end
 
 function _rntuple_read(io, ::Type{RNTupleSchemaExtension})
     pos = position(io)
-    Size = read(io, UInt32)
+    Size = read(io, Int64)
     end_pos = pos + Size
     @assert Size >= 0
     field_records = _rntuple_read(io, Vector{FieldRecord})
@@ -46,10 +45,9 @@ end
 
 @SimpleStruct struct RNTupleFooter
     feature_flag::UInt64
-    header_crc32::UInt32
+    header_checksum::UInt64
     extension_header_links::RNTupleSchemaExtension
     column_group_records::Vector{ColumnGroupRecord}
-    cluster_summaries::Vector{ClusterSummary}
     cluster_group_records::Vector{ClusterGroupRecord}
     meta_data_links::Vector{EnvLink}
 end

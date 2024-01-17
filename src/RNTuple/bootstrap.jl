@@ -1,32 +1,35 @@
-# https://github.com/root-project/root/blob/e9fa243af91217e9b108d828009c81ccba7666b5/tree/ntuple/v7/inc/ROOT/RMiniFile.hxx#L65
+# https://github.com/root-project/root/blob/a4deb370c9b9870f0391036890981f648559ef68/tree/ntuple/v7/inc/ROOT/RNTupleAnchor.hxx#L69
 Base.@kwdef struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
-    fCheckSum::Int32
-    fVersion::UInt32
-    fSize::UInt32
+    fVersionEpoch::UInt16
+    fVersionMajor::UInt16
+    fVersionMinor::UInt16
+    fVersionPatch::UInt16
     fSeekHeader::UInt64
-    fNBytesHeader::UInt32
-    fLenHeader::UInt32
+    fNBytesHeader::UInt64
+    fLenHeader::UInt64
     fSeekFooter::UInt64
-    fNBytesFooter::UInt32
-    fLenFooter::UInt32
-    fReserved::UInt64
+    fNBytesFooter::UInt64
+    fLenFooter::UInt64
+    fChecksum::UInt64
 end
 
 function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     local_io = datastream(io, tkey)
     skip(local_io, 6)
     anchor = ROOT_3a3a_Experimental_3a3a_RNTuple(;
-                    fCheckSum = readtype(local_io, Int32),
-                    fVersion = readtype(local_io, UInt32),
-                    fSize = readtype(local_io, UInt32),
+                    fVersionEpoch = readtype(local_io, UInt16),
+                    fVersionMajor = readtype(local_io, UInt16),
+                    fVersionMinor = readtype(local_io, UInt16),
+                    fVersionPatch = readtype(local_io, UInt16),
                     fSeekHeader = readtype(local_io, UInt64),
-                    fNBytesHeader = readtype(local_io, UInt32),
-                    fLenHeader = readtype(local_io, UInt32),
+                    fNBytesHeader = readtype(local_io, UInt64),
+                    fLenHeader = readtype(local_io, UInt64),
                     fSeekFooter = readtype(local_io, UInt64),
-                    fNBytesFooter = readtype(local_io, UInt32),
-                    fLenFooter = readtype(local_io, UInt32),
-                    fReserved = readtype(local_io, UInt64),
+                    fNBytesFooter = readtype(local_io, UInt64),
+                    fLenFooter = readtype(local_io, UInt64),
+                    fChecksum = readtype(local_io, UInt64),
                                        )
+
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
     header_io = IOBuffer(header_bytes)
     header = _rntuple_read(header_io, RNTupleEnvelope{RNTupleHeader})
@@ -34,7 +37,7 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     footer_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekFooter, anchor.fNBytesFooter), anchor.fLenFooter)
     footer_io = IOBuffer(footer_bytes)
     footer = _rntuple_read(footer_io, RNTupleEnvelope{RNTupleFooter})
-    @assert header.crc32 == footer.payload.header_crc32 "header and footer don't go together"
+    @assert header.checksum == footer.payload.header_checksum "header and footer don't go together"
 
     schema = parse_fields(header.payload)
 
@@ -144,25 +147,28 @@ macro SimpleStruct(ex)
 end
 
 struct RNTupleEnvelope{T}
-    version::UInt16
-    min_version::UInt16
+    id::UInt16
+    envelope_length::UInt64
     payload::T
-    crc32::UInt32
+    checksum::UInt64
 end
 function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
     bytes = read(io)
     seek(io, 0)
-    version, min_version = (read(io, UInt16) for _=1:2)
+    id_length = read(io, UInt64)
+    # 16/48 split
+    id = UInt16(0xffff & id_length)
+    payload_length = id_length >> 16
     payload = _rntuple_read(io, T)
-    _crc32 = crc32(@view bytes[begin:end-4]) 
-    @assert _crc32 == reinterpret(UInt32, @view bytes[end-3:end])[1]
-    return RNTupleEnvelope(version, min_version, payload, _crc32)
+    _checksum = xxh3_64(bytes[begin:end-8])
+    @assert _checksum == reinterpret(UInt64, @view bytes[end-7:end])[1]
+    return RNTupleEnvelope(id, payload_length, payload, _checksum)
 end
 
 struct RNTupleFrame{T} end
 function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
     pos = position(io)
-    Size = read(io, UInt32)
+    Size = read(io, Int64)
     end_pos = pos + Size
     @assert Size >= 0
     res = _rntuple_read(io, T)
@@ -174,8 +180,9 @@ struct RNTupleListFrame{T} end
 _rntuple_read(io, ::Type{Vector{T}}) where T = _rntuple_read(io, RNTupleListFrame{T})
 function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
     pos = position(io)
-    Size, NumItems = (read(io, Int32) for _=1:2)
+    Size = read(io, Int64)
     @assert Size < 0
+    NumItems = read(io, Int32)
     end_pos = pos - Size
     res = [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
     seek(io, end_pos)
