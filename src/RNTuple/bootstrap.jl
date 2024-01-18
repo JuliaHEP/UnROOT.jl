@@ -193,8 +193,9 @@ end
 struct RNTupleListNoFrame{T} end
 function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
     pos = position(io)
-    Size, NumItems = (read(io, Int32) for _=1:2)
+    Size = read(io, Int64)
     @assert Size < 0
+    NumItems = read(io, Int32)
     end_pos = pos - Size
     res = [_rntuple_read(io, T) for _=1:NumItems]
     seek(io, end_pos)
