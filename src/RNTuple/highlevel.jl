@@ -35,13 +35,15 @@ Base.IndexStyle(::RNTupleField) = IndexLinear()
 The event number range a given cluster covers, in Julia's index
 """
 function _rntuple_clusterrange(cs)
-        first_entry = cs.num_first_entry 
-        n_entries = cs.num_entries
-        return first_entry+1:(first_entry+n_entries)
+    first_entry = cs.first_entry_number
+    n_entries = cs.number_of_entries
+    return first_entry+1:(first_entry+n_entries)
 end
 
 function _clusterranges(lbs::AbstractVector{<:RNTupleField})
-    ranges = map(_rntuple_clusterrange, first(lbs).rn.footer.cluster_summaries)
+    rn = first(lbs).rn
+    cluster_summaries = _read_page_list(rn, 1).cluster_summaries
+    ranges = map(_rntuple_clusterrange, cluster_summaries)
     return ranges
 end
 
@@ -110,9 +112,8 @@ function _read_page_list(rn, nth=1)
 end
 
 function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
-    (; header_checksum,
-    cluster_summaries,
-    nested_page_locations) = _read_page_list(rf.rn, 1)
+    page_list =_read_page_list(rf.rn, 1)
+    cluster_summaries, nested_page_locations = page_list.cluster_summaries, page_list.nested_page_locations
 
     for (cluster_idx, cluster) in enumerate(cluster_summaries)
         first_entry = cluster.first_entry_number 
@@ -185,10 +186,11 @@ struct RNTuple{O, S}
 end
 
 function _length(rn::RNTuple)::Int
-    last = lastindex(rn.footer.cluster_group_records)
-    page_list = _read_page_list(rn, last)
-    last_cluster = page_list.cluster_summaries[end]
-    return last_cluster.first_entry_number + last_cluster.number_of_entries
+    last_record_idx = lastindex(rn.footer.cluster_group_records)
+    page_list = _read_page_list(rn, last_record_idx)
+    last_cs = page_list.cluster_summaries[end]
+    range = _rntuple_clusterrange(last_cs)
+    return last(range)
 end
 
 function Base.keys(rn::RNTuple)
