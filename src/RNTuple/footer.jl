@@ -137,8 +137,22 @@ function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; s
     return res::Vector{UInt8}
 end
 
-struct PageLink end
-function _rntuple_read(io, ::Type{PageLink})::Vector{Vector{Vector{PageDescription}}}
-    _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
+# TODO: handle flags for shared cluster
+@SimpleStruct struct ClusterSummary
+    first_entry_number::Int64
+    number_of_entries::Int64
 end
 
+struct PageLink
+    header_checksum::UInt64
+    cluster_summaries::Vector{ClusterSummary}
+    nested_page_locations::Vector{Vector{Vector{PageDescription}}}
+end
+
+function _rntuple_read(io, ::Type{PageLink})
+    header_checksum = read(io, UInt64)
+    cluster_summaries = _rntuple_read(io, Vector{ClusterSummary})
+    nested_page_locations = _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
+    # PageLink(header_checksum, cluster_summaries, nested_page_locations)
+    return nested_page_locations
+end
