@@ -11,11 +11,6 @@ function Base.show(io::IO, f::AliasRecord)
     print(io, "AliasRecord(physical_id=$(f.physical_id), field_id=$(f.field_id))")
 end
 
-function Base.show(io::IO, f::ClusterSummary)
-    print(io, "ClusterSummary(num_first_entry=$(f.num_first_entry), ")
-    print(io, "num_entries=$(f.num_entries))")
-end
-
 function Base.show(io::IO, f::FieldRecord)
     print(io, "parent=$(lpad(Int(f.parent_field_id), 2, "0")), ")
     print(io, "role=$(Int(f.struct_role)), ")
