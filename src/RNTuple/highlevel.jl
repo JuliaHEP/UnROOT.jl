@@ -101,22 +101,25 @@ function Base.getindex(rf::RNTupleField, idx::Int)
     end
 end
 
-function _read_page_list(rn, nth_cluster_group=1)
-    #TODO add multiple cluster group support
-    bytes = _read_envlink(rn.io, only(rn.footer.cluster_group_records).page_list_link);
-    return _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
+function _read_page_list(rn, nth=1)
+    get!(rn.pagelinks, nth) do
+        #TODO add multiple cluster group support
+        bytes = _read_envlink(rn.io, rn.footer.cluster_group_records[nth].page_list_link);
+        _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
+    end
 end
 
 function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
-    page_list = _read_page_list(rf.rn, 1)
-    summaries = rf.rn.footer.cluster_summaries
+    (; header_checksum,
+    cluster_summaries,
+    nested_page_locations) = _read_page_list(rf.rn, 1)
 
-    for (cluster_idx, cluster) in enumerate(summaries)
-        first_entry = cluster.num_first_entry 
-        n_entries = cluster.num_entries
+    for (cluster_idx, cluster) in enumerate(cluster_summaries)
+        first_entry = cluster.first_entry_number 
+        n_entries = cluster.number_of_entries
         if first_entry + n_entries >= idx
             br = first_entry+1:(first_entry+n_entries)
-            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, page_list[cluster_idx])
+            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, nested_page_locations[cluster_idx])
             @inbounds rf.buffer_ranges[tid] = br
             return idx - br.start + 1
         end
@@ -168,20 +171,24 @@ struct RNTuple{O, S}
     io::O
     header::RNTupleHeader
     footer::RNTupleFooter
+    pagelinks::Dict{Int, PageLink}
     schema::S
     function RNTuple(io::O, header, footer, schema::S) where {O, S}
         new{O, RNTupleSchema{S}}(
             io,
             header,
             footer,
+            Dict{Int, PageLink}(),
             RNTupleSchema(schema),
         )
     end
 end
 
 function _length(rn::RNTuple)::Int
-    last_cluster = rn.footer.cluster_summaries[end]
-    return last_cluster.num_first_entry + last_cluster.num_entries
+    last = lastindex(rn.footer.cluster_group_records)
+    page_list = _read_page_list(rn, last)
+    last_cluster = page_list.cluster_summaries[end]
+    return last_cluster.first_entry_number + last_cluster.number_of_entries
 end
 
 function Base.keys(rn::RNTuple)
