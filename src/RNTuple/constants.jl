@@ -1,5 +1,5 @@
 # the signed ones are not used
-@define_integers 64 SignedSwitch Switch
+@define_integers 96 SignedSwitch Switch
 @define_integers 32 SignedIndex32 Index32
 @define_integers 64 SignedIndex64 Index64
 
@@ -38,7 +38,7 @@ const rntuple_col_type_dict = (
 const rntuple_col_nbits_dict = (
     64,
     32,
-    64, # Switch
+    96, # Switch
     8,
     8,  # char
     1,   # it's actually `Bit` in ROOT, there's no byte in RNTuple spec

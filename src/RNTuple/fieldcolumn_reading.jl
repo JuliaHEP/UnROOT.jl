@@ -150,7 +150,7 @@ end
 
 struct UnionVector{T, N} <: AbstractVector{T}
     kindex::Vector{UInt64}
-    tag::Vector{Int8}
+    tag::Vector{Int32}
     contents::N
     function UnionVector(kindex, tag, contents::N) where N
         T = Union{eltype.(contents)...}
@@ -167,8 +167,8 @@ function Base.getindex(ary::UnionVector, i::Int)
 end
 
 function _split_switch_bits(content)
-    kindex = content .& 0x00000000000FFFFF .+ 1
-    tags = Int8.(content .>> 44)
+    kindex = content .& (typemax(UInt128) >> 64) .+ 1
+    tags = Int32.(content .>> 64)
     return kindex, tags
 end
 function _field_output_type(::Type{UnionField{S, T}}) where {S, T}
