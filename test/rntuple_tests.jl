@@ -13,9 +13,9 @@ using Arrow, DataFrames
     footer1 = rn1.footer
     @test isempty(footer1.meta_data_links)
     @test length(footer1.cluster_group_records) == 1
-    summary1 = footer1.cluster_summaries[1]
-    @test summary1.num_first_entry == 0
-    @test summary1.num_entries == 5e4
+    summary1 = UnROOT._read_page_list(rn1).cluster_summaries[1]
+    @test summary1.first_entry_number == 0
+    @test summary1.number_of_entries == 5e4
 
     f2 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
     rn2 = f2["ntuple"]

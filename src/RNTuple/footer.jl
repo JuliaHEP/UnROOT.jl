@@ -134,7 +134,7 @@ function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; s
         tip += uncomp_size
     end
 
-    return res::Vector{UInt8}
+    return res
 end
 
 # TODO: handle flags for shared cluster
@@ -153,6 +153,5 @@ function _rntuple_read(io, ::Type{PageLink})
     header_checksum = read(io, UInt64)
     cluster_summaries = _rntuple_read(io, Vector{ClusterSummary})
     nested_page_locations = _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
-    # PageLink(header_checksum, cluster_summaries, nested_page_locations)
-    return nested_page_locations
+    return PageLink(header_checksum, cluster_summaries, nested_page_locations)
 end
