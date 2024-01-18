@@ -34,7 +34,7 @@ Base.IndexStyle(::RNTupleField) = IndexLinear()
 """
 The event number range a given cluster covers, in Julia's index
 """
-function _rntuple_clusterrange(cs::ClusterSummary)
+function _rntuple_clusterrange(cs)
         first_entry = cs.num_first_entry 
         n_entries = cs.num_entries
         return first_entry+1:(first_entry+n_entries)

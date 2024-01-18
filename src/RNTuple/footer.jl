@@ -4,7 +4,7 @@
 end
 
 @SimpleStruct struct EnvLink
-    uncomp_size::UInt32
+    uncomp_size::UInt64
     locator::Locator
 end
 
@@ -12,13 +12,10 @@ end
     column_ids::Vector{UInt32}
 end
 
-@SimpleStruct struct ClusterSummary
-    num_first_entry::UInt64
-    num_entries::UInt64
-end
-
 @SimpleStruct struct ClusterGroupRecord
-    num_clusters::UInt32
+    minimum_entry_number::Int64
+    entry_span::Int64
+    num_clusters::Int32
     page_list_link::EnvLink
 end
 
