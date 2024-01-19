@@ -47,6 +47,19 @@ end
     @test length(sample.content_col.content_cols) == 2
 end
 
+@testset "RNTuple Display" begin
+    f = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
+    _io1 = IOBuffer()
+    show(_io1, f)
+    _io2 = IOBuffer()
+    show(_io2, f.header)
+
+    s1 = String(take!(_io1))
+    s2 = String(take!(_io2))
+    # displaying just the header shows more details
+    @test length(s2) > length(s1)
+end
+
 @testset "RNTuple Int32 reading" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
     df = LazyTree(f1, "ntuple")

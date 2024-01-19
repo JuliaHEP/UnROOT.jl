@@ -11,22 +11,6 @@ function Base.show(io::IO, f::AliasRecord)
     print(io, "AliasRecord(physical_id=$(f.physical_id), field_id=$(f.field_id))")
 end
 
-# function Base.show(io::IO, f::FieldRecord)
-#     print(io, "parent=$(lpad(Int(f.parent_field_id), 2, "0")), ")
-#     print(io, "role=$(Int(f.struct_role)), ")
-#     print(io, "name=$(rpad(f.field_name, 30, " ")), ")
-#     print(io, "type=$(rpad(f.type_name, 60, " "))")
-#     print(io, "repetition=$(f.repetition),")
-#     # print(io, "desc=$(f.field_desc),")
-# end
-
-# function Base.show(io::IO, f::ColumnRecord)
-#     print(io, "type=$(lpad(Int(f.type), 2, "0")), ")
-#     print(io, "nbits=$(lpad(Int(f.nbits), 2, "0")), ")
-#     print(io, "field_id=$(lpad(Int(f.field_id), 2, "0")), ")
-#     print(io, "flags=$(f.flags)")
-# end
-
 function Base.show(io::IO, lf::StringField)
     print(io, "String(offset=$(lf.offset_col.content_col_idx), char=$(lf.content_col.content_col_idx))")
 end
@@ -51,12 +35,35 @@ function Base.summary(io::IO, rf::RNTupleField{R, F, O, E}) where {R, F, O, E}
     print(io, "$(length(rf))-element RNTupleField{$E}")
 end
 
-function Base.show(io::IO, header::RNTupleHeader, indent=0)
+function Base.show(io::IO, header::RNTupleHeader, indent=0, short=false)
     ind = " "^indent
     println(io, "UnROOT.RNTupleHeader:")
     println(io, "$ind    name: \"$(header.name)\"")
     println(io, "$ind    ntuple_description: \"$(header.ntuple_description)\"")
     println(io, "$ind    writer_identifier: \"$(header.writer_identifier)\"")
+    if !short
+        l1 = maximum(length, [f.field_name for f in header.field_records])
+        l2 = maximum(length, [f.type_name for f in header.field_records])
+        println(io, "$ind    field_records: ")
+        for f in header.field_records
+            print(io, "$ind        ")
+            print(io, "parent=$(lpad(Int(f.parent_field_id), 2, "0")), ")
+            print(io, "role=$(Int(f.struct_role)), ")
+            print(io, "name=$(rpad(f.field_name, l1+1, " ")), ")
+            print(io, "type=$(rpad(f.type_name, l2+1, " "))")
+            println(io, "repetition=$(f.repetition)")
+            # println(io, "desc=$(f.field_desc),")
+        end
+
+        println(io, "$ind    column_records: ")
+        for g in header.column_records
+            print(io, "$ind        ")
+            print(io, "type=$(lpad(Int(g.type), 2, "0")), ")
+            print(io, "nbits=$(lpad(Int(g.nbits), 2, "0")), ")
+            print(io, "field_id=$(lpad(Int(g.field_id), 3, "0")), ")
+            println(io, "flags=$(g.flags)")
+        end
+    end
 end
 
 function Base.show(io::IO, footer::RNTupleFooter, indent=0)
@@ -73,7 +80,7 @@ end
 function Base.show(io::IO, rn::RNTuple)
     println(io, "RNTuple")
     print(io, " └─ ")
-    show(io, rn.header, 2)
+    show(io, rn.header, 2, true)
     print(io, " └─ ")
     show(io, rn.footer, 2)
     print(io, " └─ ")
