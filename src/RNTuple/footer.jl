@@ -106,7 +106,7 @@ column since `pagedesc` only contains `num_elements` information.
     Boolean values are always stored as bit in RNTuple, so `nbits = 1`.
     
 """
-function read_pagedesc(io, pagedescs::Vector{PageDescription}, nbits::Integer; split=false)
+function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, nbits::Integer; split=false)
     output_L = div(sum((p.num_elements for p in pagedescs))*nbits, 8, RoundUp)
     res = Vector{UInt8}(undef, output_L)
 
@@ -143,15 +143,26 @@ end
     number_of_entries::Int64
 end
 
-struct PageLink
-    header_checksum::UInt64
-    cluster_summaries::Vector{ClusterSummary}
-    nested_page_locations::Vector{Vector{Vector{PageDescription}}}
+struct RNTupleListNoFrame{T} <: AbstractVector{T}
+    payload::Vector{T}
+end
+Base.size(r::RNTupleListNoFrame) = size(r.payload)
+Base.getindex(r::RNTupleListNoFrame, i) = r.payload[i]
+Base.setindex!(r::RNTupleListNoFrame, v, i) = (r.payload[i] = v)
+# without the inner Frame for each item
+function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
+    pos = position(io)
+    Size = read(io, Int64)
+    @assert Size < 0
+    NumItems = read(io, Int32)
+    end_pos = pos - Size
+    res = T[_rntuple_read(io, T) for _=1:NumItems]
+    seek(io, end_pos)
+    return RNTupleListNoFrame(res)
 end
 
-function _rntuple_read(io, ::Type{PageLink})
-    header_checksum = read(io, UInt64)
-    cluster_summaries = _rntuple_read(io, Vector{ClusterSummary})
-    nested_page_locations = _rntuple_read(io, RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}})
-    return PageLink(header_checksum, cluster_summaries, nested_page_locations)
+@SimpleStruct struct PageLink
+    header_checksum::UInt64
+    cluster_summaries::Vector{ClusterSummary}
+    nested_page_locations::RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}}
 end
