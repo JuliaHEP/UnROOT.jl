@@ -1042,15 +1042,18 @@ Direct parsing of streamed objects which are not sitting on branches. This funct
 rewritten, so that it can create proper types of TObject inherited data (like `TVectorT<*>`).
 
 """
-function parsetobject(io, tkey::TKey, streamer)
+function parsetobject(f, tkey::TKey, streamer)
     # pass the correct parser from f!
-    io = datastream(io, tkey)
+    io = datastream(f.fobj, tkey)
     preamble = Preamble(io, Missing)
 
     @initparse
 
     # the first entry in the streamer is a TObject
     parsefields!(io, fields, TObject)
+
+    # simple custom streamers which instantiate the full objects data
+    tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
 
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
     s = streamer.streamer.fElements.elements[2]
@@ -1073,7 +1076,11 @@ function parsetobject(io, tkey::TKey, streamer)
         skip(io, 1)
         return [readtype(io, Float64) for _ ∈ row_lwb+1:n]
     end
-    error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)'")
+
+    error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)', " *
+          "consider providing a custom streamer by passing " *
+          "`customstreamer=Dict(\"$(tkey.fClassName)\" => TheStreamer)` to the `ROOTFile` " *
+          "and implement the struct `TheStreamer` and `UnROOT.readtype(io, ::Type{TheStreamer}; tkey, original_streamer)`.")
 end
 
 
