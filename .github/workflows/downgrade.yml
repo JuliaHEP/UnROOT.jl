@@ -12,6 +12,7 @@ on:
       - 'docs/**'
 jobs:
   test:
+    name: "Downgrade Julia compats test"
     runs-on: ubuntu-latest
     strategy:
       matrix:
