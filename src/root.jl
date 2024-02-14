@@ -185,7 +185,7 @@ function _getindex(f::ROOTFile, s)
 
     @debug "Could not get streamer for $(typename), trying custom streamer."
     # last resort, try direct parsing
-    parsetobject(f.fobj, tkey, streamerfor(f, typename))
+    parsetobject(f, tkey, streamerfor(f, typename))
 end
 
 function getindex(d::ROOTDirectory, s)
