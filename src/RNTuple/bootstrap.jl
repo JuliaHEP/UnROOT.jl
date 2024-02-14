@@ -147,7 +147,7 @@ macro SimpleStruct(ex)
 end
 
 struct RNTupleEnvelope{T}
-    id::UInt16
+    type_id::UInt16
     envelope_length::UInt64
     payload::T
     checksum::UInt64
@@ -157,15 +157,17 @@ function _rntuple_read(io, ::Type{RNTupleEnvelope{T}}) where T
     seek(io, 0)
     id_length = read(io, UInt64)
     # 16/48 split
-    id = UInt16(0xffff & id_length)
+    type_id = UInt16(0xffff & id_length)
     payload_length = id_length >> 16
     payload = _rntuple_read(io, T)
     _checksum = xxh3_64(bytes[begin:end-8])
-    @assert _checksum == reinterpret(UInt64, @view bytes[end-7:end])[1]
-    return RNTupleEnvelope(id, payload_length, payload, _checksum)
+    @assert _checksum == reinterpret(UInt64, @view bytes[end-7:end])[1] "Envelope checksum doesn't match"
+    return RNTupleEnvelope(type_id, payload_length, payload, _checksum)
 end
 
-struct RNTupleFrame{T} end
+struct RNTupleFrame{T}
+    payload::T
+end
 function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
     pos = position(io)
     Size = read(io, Int64)
@@ -173,31 +175,17 @@ function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
     @assert Size >= 0
     res = _rntuple_read(io, T)
     seek(io, end_pos)
-    return res
+    return RNTupleFrame(res)
 end
 
-struct RNTupleListFrame{T} end
-_rntuple_read(io, ::Type{Vector{T}}) where T = _rntuple_read(io, RNTupleListFrame{T})
-function _rntuple_read(io, ::Type{RNTupleListFrame{T}}) where T
+# const RNTupleListFrame{T} = Vector{T}
+function _rntuple_read(io, ::Type{Vector{T}}) where T
     pos = position(io)
     Size = read(io, Int64)
     @assert Size < 0
     NumItems = read(io, Int32)
     end_pos = pos - Size
-    res = [_rntuple_read(io, RNTupleFrame{T}) for _=1:NumItems]
-    seek(io, end_pos)
-    return res
-end
-
-# without the inner Frame for each item
-struct RNTupleListNoFrame{T} end
-function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
-    pos = position(io)
-    Size = read(io, Int64)
-    @assert Size < 0
-    NumItems = read(io, Int32)
-    end_pos = pos - Size
-    res = [_rntuple_read(io, T) for _=1:NumItems]
+    res = T[_rntuple_read(io, RNTupleFrame{T}).payload for _=1:NumItems]
     seek(io, end_pos)
     return res
 end

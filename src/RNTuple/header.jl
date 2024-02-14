@@ -42,6 +42,7 @@ end
     type_ver_from::UInt32
     type_ver_to::UInt32
     content_identifier::UInt32
+    type_name::String
 end
 
 @SimpleStruct struct RNTupleHeader

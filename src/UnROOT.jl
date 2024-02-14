@@ -59,26 +59,20 @@ include("RNTuple/highlevel.jl")
 include("RNTuple/fieldcolumn_reading.jl")
 include("RNTuple/displays.jl")
 
-# let f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
-#     show(devnull, f1["ntuple"])
-#     df = LazyTree(f1, "ntuple")
-#     collect(df[1])
-#     show(devnull, df)
-#     show(devnull, df[1])
-# end
-#
-
 _maxthreadid() = @static if VERSION < v"1.9"
     Threads.nthreads()
 else
     Threads.maxthreadid()
 end
 
+using PrecompileTools: @compile_workload
+
 if VERSION >= v"1.9"
-    let
+    @compile_workload begin
         t = LazyTree(UnROOT.samplefile("tree_with_jagged_array.root"), "t1")
         show(devnull, t)
         show(devnull, t[1])
+        UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")["ntuple"]
     end
 end
 
