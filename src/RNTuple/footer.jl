@@ -107,7 +107,7 @@ column since `pagedesc` only contains `num_elements` information.
     
 """
 function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, nbits::Integer; split=false)
-    output_L = div(sum((p.num_elements for p in pagedescs))*nbits, 8, RoundUp)
+    output_L = div(sum(p.num_elements for p in pagedescs; init=UInt32(0))*nbits, 8, RoundUp)
     res = Vector{UInt8}(undef, output_L)
 
     # a page max size is 64KB

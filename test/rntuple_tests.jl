@@ -190,7 +190,14 @@ end
     @test sum(accumulator) == sum(1:5e4)
 end
 
-@testset "RNTuple Tables.jl and Arrow integration " begin
+@testset "Skip Recursively Empty Structs" begin
+    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+    df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    truth_jets_one_event = df.var"AntiKt4TruthDressedWZJetsAux:"[1]
+    @test length(truth_jets_one_event) == 5
+end
+
+@testset "RNTuple Tables.jl and Arrow integration" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
     rnt = LazyTree(f1, "ntuple")
     df_direct = DataFrame(rnt)

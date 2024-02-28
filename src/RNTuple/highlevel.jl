@@ -86,6 +86,7 @@ RNTupleSchema with 13 top fields
 struct RNTupleSchema{N}
     namedtuple::N
 end
+Base.propertynames(s::RNTupleSchema) = propertynames(getfield(s, :namedtuple))
 Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :namedtuple), sym)
 Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
 
@@ -194,15 +195,7 @@ function _length(rn::RNTuple)::Int
 end
 
 function Base.keys(rn::RNTuple)
-    keys = String[]
-    fn = rn.header.field_records
-    for (idx,f) in enumerate(fn)
-        # 0-index logic
-        if idx-1 == f.parent_field_id
-            push!(keys, f.field_name)
-        end
-    end
-    return keys
+    String.(propertynames(rn.schema))
 end
 
 function LazyTree(rn::RNTuple, selection)
