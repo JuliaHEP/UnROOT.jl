@@ -194,7 +194,8 @@ end
     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
     df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
     truth_jets_one_event = df.var"AntiKt4TruthDressedWZJetsAux:"[1]
-    @test length(truth_jets_one_event) == 5
+    @test :pt ∈ propertynames(truth_jets_one_event)
+    @test length(truth_jets_one_event.pt) == 5
 end
 
 @testset "RNTuple Tables.jl and Arrow integration" begin
