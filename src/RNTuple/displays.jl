@@ -1,12 +1,3 @@
-# stop crazy stracktrace
-function Base.show(io::IO, ::Type{<:RNTupleSchema{N}}) where {N}
-    print(io, "RNTupleSchema with $(length(N.layout)) top fields.")
-end
-
-function Base.show(io::IO, ::Type{<:RNTuple{O, NamedTuple{N, T}}}) where {O, N, T}
-    print(io, "RNTuple{$N}")
-end
-
 function Base.show(io::IO, f::AliasRecord)
     print(io, "AliasRecord(physical_id=$(f.physical_id), field_id=$(f.field_id))")
 end

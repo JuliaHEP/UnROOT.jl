@@ -83,8 +83,8 @@ RNTupleSchema with 13 top fields
 .
 ```
 """
-struct RNTupleSchema{N}
-    namedtuple::N
+struct RNTupleSchema
+    namedtuple::Any
 end
 Base.propertynames(s::RNTupleSchema) = propertynames(getfield(s, :namedtuple))
 Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :namedtuple), sym)
@@ -169,14 +169,14 @@ julia> LazyTree(f, "ntuple")
                                                                                                                                   5 columns omitted
 ```
 """
-struct RNTuple{O, S}
+struct RNTuple{O}
     io::O
     header::RNTupleHeader
     footer::RNTupleFooter
     pagelinks::Dict{Int, PageLink}
-    schema::S
+    schema::Any
     function RNTuple(io::O, header, footer, schema::S) where {O, S}
-        new{O, RNTupleSchema{S}}(
+        new{O}(
             io,
             header,
             footer,
@@ -198,6 +198,7 @@ function Base.keys(rn::RNTuple)
     String.(propertynames(rn.schema))
 end
 
+LazyTree(rn::RNTuple, selection::Union{AbstractString, Regex}) = LazyTree(rn, [selection])
 function LazyTree(rn::RNTuple, selection)
     field_names = keys(rn)
     _m(r::Regex) = Base.Fix1(occursin, r)
@@ -207,12 +208,12 @@ function LazyTree(rn::RNTuple, selection)
         elseif b isa String
             [b]
         else
-            error("branch selection must be string or regex")
+            error("branch selection must be String or Regex")
         end
     end
 
     N = Tuple(Symbol.(filtered_names))
-    T = Tuple(RNTupleField(rn, getproperty(rn.schema, Symbol(k))) for k in filtered_names)
+    T = Tuple(RNTupleField(rn, getproperty(rn.schema, k)) for k in N)
 
     return LazyTree(NamedTuple{N}(T))
 end

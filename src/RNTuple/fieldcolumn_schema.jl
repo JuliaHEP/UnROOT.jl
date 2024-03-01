@@ -226,8 +226,8 @@ function parse_fields(hr::RNTupleHeader)
 end
 
 function parse_fields(field_records, column_records, alias_columns)
-    fields = Dict{Symbol,Any}()
-    for (idx, field) in enumerate(field_records)
+    fields = tmap(eachindex(field_records)) do idx
+        field = field_records[idx]
         this_id = idx - 1 # 0-based
         if this_id == field.parent_field_id
             parsed = _parse_field(
@@ -237,11 +237,9 @@ function parse_fields(field_records, column_records, alias_columns)
                 alias_columns,
                 Val(field.struct_role)
             )
-            if isvoid(typeof(parsed))
-                continue
-            end
-            fields[Symbol(field.field_name)] = parsed
+            Symbol(field.field_name) => parsed
         end
     end
+    filter!(!isnothing, fields)
     NamedTuple(fields)
 end

@@ -148,7 +148,7 @@ end
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
     t = LazyTree(f1, "ntuple")
 
-    function f()
+    function func1()
         s = 0.0f0
         for evt in t
             s += evt.one_integers
@@ -157,7 +157,7 @@ end
     end
     g() = sum(t.one_integers)
 
-    @inferred f()
+    @inferred func1()
     @inferred g()
 end
 
@@ -188,6 +188,26 @@ end
         @inbounds accumulator[Threads.threadid()] += evt.one_integers
     end
     @test sum(accumulator) == sum(1:5e4)
+end
+
+@testset "String and Regex Selection" begin
+    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+    df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df)
+    df2 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+        "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    names(df) == names(df2)
+    df3 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+        "RNT:CollectionTree",
+        ["AntiKt4TruthDressedWZJetsAux:",
+            "AntiKt4TruthDressedWZJetsAux::ConeTruthLabelID"]
+    )
+    @test length(names(df3)) == 2
+    df4 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+        "RNT:CollectionTree",
+        "AntiKt4TruthDressedWZJetsAux::ConeTruthLabelID"
+    )
+    @test length(names(df4)) == 1
 end
 
 @testset "Skip Recursively Empty Structs" begin
