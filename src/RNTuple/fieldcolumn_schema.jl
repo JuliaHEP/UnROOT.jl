@@ -226,7 +226,7 @@ function parse_fields(hr::RNTupleHeader)
 end
 
 function parse_fields(field_records, column_records, alias_columns)
-    fields = tmap(eachindex(field_records)) do idx
+    fields = map(eachindex(field_records)) do idx
         field = field_records[idx]
         this_id = idx - 1 # 0-based
         if this_id == field.parent_field_id
