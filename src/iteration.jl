@@ -141,7 +141,7 @@ basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
     Makes a shallow copy of x.
 """
-Base.copy(x::LazyBranch{T,J,B}) where {T,J,B} = LazyBranch{T,J,B}(x.f, x.b, x.L, x.fEntry, deepcopy(x.buffer),
+Base.copy(x::LazyBranch{T,J,B}) where {T,J,B} = LazyBranch{T,J,B}(x.f, x.b, x.L, x.fEntry, copy.(x.buffer),
                                                                   x.thread_locks, copy(x.buffer_range))
 
 function Base.hash(lb::LazyBranch, h::UInt)
