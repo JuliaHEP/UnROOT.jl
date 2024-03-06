@@ -131,7 +131,22 @@ function readfields!(io, fields, T::Type{TAttAxis_4})
 end
 
 abstract type TAxis <: ROOTStreamedObject end
+struct TAxis_9 <: TAxis end
 struct TAxis_10 <: TAxis end
+function readfields!(io, fields, T::Type{TAxis_9})
+    # overrides things like fName,... that were set from the parent TH1 :(
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttAxis)
+    fields[:fNbins] = readtype(io, Int32)
+    fields[:fXmin] = readtype(io, Float64)
+    fields[:fXmax] = readtype(io, Float64)
+    fields[:fXbins] = readtype(io, TArrayD)
+    fields[:fFirst] = readtype(io, Int16)
+    fields[:fLast] = readtype(io, Int16)
+    fields[:fBits2] = readtype(io, UInt16)
+    fields[:fTimeDisplay] = readtype(io, Bool)
+    fields[:fTimeFormat] = readtype(io, String)
+end
 function readfields!(io, fields, T::Type{TAxis_10})
     # overrides things like fName,... that were set from the parent TH1 :(
     stream!(io, fields, TNamed)
@@ -148,6 +163,8 @@ function readfields!(io, fields, T::Type{TAxis_10})
 end
 
 abstract type TH1 <: ROOTStreamedObject end
+struct TH1_7 <: TH1 end
+function readfields!(io, fields, T::Type{TH1_7}) end
 struct TH1_8 <: TH1 end
 function readfields!(io, fields, T::Type{TH1_8}) end
 
@@ -976,6 +993,7 @@ function TH(io, tkey::TKey, refs)
         subfields = Dict{Symbol, Any}()
         stream!(io, subfields, TAxis, check=false)
         fields[Symbol(axis, :fLabels)] = readobjany!(io, tkey, refs)
+        # FIXME: fModLabs only for TAxis v8+ !! We currently don't have access to its version... argh
         fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
         for (k,v) in subfields
             fields[Symbol(axis, k)] = v
@@ -999,7 +1017,11 @@ function TH(io, tkey::TKey, refs)
     skip(io, 1) # speedbump
     fields[:fBuffer] = readtype(io, TArrayD)
     fields[:fBinStatErrOpt] = readtype(io, Int16)
-    fields[:fStatOverflows] = readtype(io, Int16)
+
+    if preamble.version > 7
+        fields[:fStatOverflows] = readtype(io, Int16)
+    end
+
 
     if is2d
         for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
@@ -1220,4 +1242,90 @@ function readfields!(c::Cursor, fields, ::Type{TFriendElement_2})
     stream!(c.io, fields, TNamed)
     fields[:fTreeName] = readtype(c.io, String)
     fields[:fOwnFile] = readtype(c.io, Bool)
+end
+
+
+abstract type TPaveStats <: ROOTStreamedObject end
+Base.@kwdef struct TPaveStats_4 <: TPaveStats
+    fOptFit::Int
+    fOptStat::Int
+    fFitFormat::String
+    fStatFormat::String
+    fParent
+end
+function readfields!(c::Cursor, fields, ::Type{TPaveStats_4})
+    io = c.io
+    tkey = c.tkey
+    refs = c.refs
+
+    fields[:fOptFit] = readtype(c.io, Int32)
+    fields[:fOptStat] = readtype(c.io, Int32)
+    fields[:fFitFormat] = readtype(c.io, String)
+    fields[:fStatFormat] = readtype(c.io, String)
+
+    fields[:fParent] = unpack(io, tkey, refs, TObjArray)
+end
+
+abstract type TText <: ROOTStreamedObject end
+Base.@kwdef struct TText_2 <: TText
+    fName
+    fTitle
+    fTextAngle::Float64
+    fTextSize::Float64
+    fTextAlign::Int8
+    fTextColor::Int8
+    fTextFont::Int8
+    fX::Float64
+    fY::Float64
+end
+function readfields!(io::IO, fields, ::Type{TText_2})
+    stream!(io, fields, TNamed)
+    stream!(io, fields, TAttText)
+    fields[:fX] = readtype(io, Float64)
+    fields[:fY] = readtype(io, Float64)
+end
+
+abstract type TAttText <: ROOTStreamedObject end
+Base.@kwdef struct TAttText_1 <: TText
+    fTextAngle::Float32
+    fTextSize::Float32
+    fTextAlign::Int16
+    fTextColor::Int16
+    fTextFont::Int16
+end
+function readfields!(io::IO, fields, ::Type{TAttText_1})
+    fields[:fTextAngle] = readtype(io, Float32)
+    fields[:fTextSize] = readtype(io, Float32)
+    fields[:fTextAlign] = readtype(io, Int16)
+    fields[:fTextColor] = readtype(io, Int16)
+    fields[:fTextFont] = readtype(io, Int16)
+end
+
+abstract type TLatex <: ROOTStreamedObject end
+Base.@kwdef struct TLatex_2 <: TLatex
+    cursor::Cursor
+    fName
+    fTitle
+    fTextAngle::Float32
+    fTextSize::Float32
+    fTextAlign::Int8
+    fTextColor::Int8
+    fTextFont::Int8
+    fX::Float64
+    fY::Float64
+
+    # TAttLine
+    fLineColor
+    fLineStyle
+    fLineWidth
+
+    fLimitFactorSize::Int
+    fOriginSize::Float64
+end
+
+function readfields!(c::Cursor, fields, ::Type{TLatex_2})
+    stream!(c.io, fields, TText)
+    stream!(c.io, fields, TAttLine)
+    fields[:fLimitFactorSize] = readtype(c.io, Int32)
+    fields[:fOriginSize] = readtype(c.io, Float64)
 end

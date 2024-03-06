@@ -47,6 +47,7 @@ include("root.jl")
 include("iteration.jl")
 include("custom.jl")
 include("displays.jl")
+include("debug.jl")
 
 using StructArrays: StructArray
 # using OhMyThreads: tmap
