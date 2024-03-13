@@ -39,6 +39,9 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     footer = _rntuple_read(footer_io, RNTupleEnvelope{RNTupleFooter})
     @assert header.checksum == footer.payload.header_checksum "header and footer don't go together"
 
+    append!(header.payload.field_records, footer.payload.extension_header_links.field_records)
+    append!(header.payload.column_records, footer.payload.extension_header_links.column_records)
+
     schema = parse_fields(header.payload)
 
     rnt = RNTuple(io, header.payload, footer.payload, schema)
