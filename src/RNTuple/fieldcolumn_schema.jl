@@ -177,7 +177,9 @@ end
 struct StructField{N, T}
     content_cols::T
 end
-isvoid(::Type{StructField{N,T}}) where {N,T} = isvoid(T)
+function isvoid(::Type{StructField{N,T}}) where {N,T} 
+    isvoid(T) #|| all(startswith(":_"), String.(N))
+end
 
 function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_struct})
     element_ids = findall(field_records) do field
