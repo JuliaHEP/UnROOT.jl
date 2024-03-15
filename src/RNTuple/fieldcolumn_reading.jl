@@ -82,6 +82,14 @@ end
 _from_zigzag(n) = (n >> 1) ⊻ -(n & 1)
 _to_zigzag(n) = (n << 1) ⊻ (n >> 63)
 
+function _reset_to_incremental(res::AbstractVector, pages, ::Type{T}) where T
+    endpoint = 0
+    for pi in firstindex(pages):lastindex(pages)-1
+        endpoint += pages[pi].num_elements
+        res[endpoint+1] -= sum(@view res[begin:endpoint])
+    end
+end
+
 _field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.nbits
@@ -98,6 +106,11 @@ function read_field(io, field::LeafField{T}, page_list) where T
             res[i] = _from_zigzag(res[i])
         end
     elseif delta
+        # the Index32/64 resets to absolute offset page-by-page
+        # https://github.com/JuliaHEP/UnROOT.jl/issues/312#issuecomment-1999875348
+        if T <: Union{Index32, Index64} && length(pages) > 1
+            _reset_to_incremental(res, pages, T)
+        end
         cumsum!(res, res)
     end
     return res::_field_output_type(field)
