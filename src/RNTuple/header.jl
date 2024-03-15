@@ -16,7 +16,7 @@ function _rntuple_read(io, ::Type{FieldRecord})
     parent_field_id = read(io, UInt32)
     struct_role = read(io, UInt16)
     flags = read(io, UInt16)
-    repetition = if flags == 0x0001
+    repetition = if flags == 0x01
         read(io, Int64)
     else
         0
@@ -26,12 +26,26 @@ function _rntuple_read(io, ::Type{FieldRecord})
                 struct_role, flags, repetition, field_name, type_name, type_alias, field_desc)
 end
 
-@SimpleStruct struct ColumnRecord
+struct ColumnRecord
     type::UInt16
     nbits::UInt16
     field_id::UInt32
     flags::UInt32
+    first_ele_idx::Int64
 end
+function _rntuple_read(io, ::Type{ColumnRecord})
+    type = read(io, UInt16)
+    nbits = read(io, UInt16)
+    field_id = read(io, UInt32)
+    flags = read(io, UInt32)
+    first_ele_idx = if flags == 0x08
+        read(io, Int64)
+    else
+        0
+    end
+    ColumnRecord(type, nbits, field_id, flags, first_ele_idx)
+end
+
 
 @SimpleStruct struct AliasRecord
     physical_id::UInt32

@@ -210,6 +210,15 @@ end
     @test length(names(df4)) == 1
 end
 
+@testset "Skim the schema" begin
+    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+    df_full = LazyTree(f1, "RNT:CollectionTree")
+    df1 = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    @test 0 < length(names(df1)) < length(names(df_full))
+    @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df1)
+    @test length(df1[!, 1].rn.schema) < length(df_full[!, 1].rn.schema)
+end
+
 @testset "Skip Recursively Empty Structs" begin
     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
     df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
