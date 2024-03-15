@@ -38,7 +38,7 @@ end
 
 _field_output_type(::Type{StringField{O, T}}) where {O, T} = Vector{String}
 function read_field(io, field::StringField{O, T}, page_list) where {O, T}
-    nbits = field.content_col.nbits
+    nbits = field.content_col.columnrecord.nbits
     pages = page_list[field.content_col.content_col_idx]
 
     offset = read_field(io, field.offset_col, page_list)
@@ -65,9 +65,9 @@ end
 
 _field_output_type(::Type{RNTupleCardinality{T}}) where {T} = CardinalityVector{T}
 function read_field(io, field::RNTupleCardinality{T}, page_list) where T
-    nbits = field.leaf_field.nbits
+    nbits = field.leaf_field.columnrecord.nbits
     pages = page_list[field.leaf_field.content_col_idx]
-    typenum = field.leaf_field.type
+    typenum = field.leaf_field.columnrecord.type
     split = 14 <= typenum <= 21 || 26 <= typenum <= 28
     delta = 14 <= typenum <= 15
     bytes = read_pagedesc(io, pages, nbits; split)
@@ -81,6 +81,27 @@ end
 
 _from_zigzag(n) = (n >> 1) ⊻ -(n & 1)
 _to_zigzag(n) = (n << 1) ⊻ (n >> 63)
+function _from_zigzag!(res::AbstractVector)
+    @simd for i in eachindex(res)
+        res[i] = _from_zigzag(res[i])
+    end
+    return res
+end
+
+function _to_zigzag!(res::AbstractVector)
+    @simd for i in eachindex(res)
+        res[i] = _to_zigzag(res[i])
+    end
+    return res
+end
+
+function _reset_to_incremental(res::AbstractVector, pages, ::Type{T}) where T
+    endpoint = 0
+    for pi in firstindex(pages):lastindex(pages)-1
+        endpoint += pages[pi].num_elements
+        res[endpoint+1] -= sum(@view res[begin:endpoint])
+    end
+end
 
 function _reset_to_incremental(res::AbstractVector, pages, ::Type{T}) where T
     endpoint = 0
@@ -92,19 +113,17 @@ end
 
 _field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
-    nbits = field.nbits
+    nbits = field.columnrecord.nbits
     pages = page_list[field.content_col_idx]
     # handle split encoding within page
-    typenum = field.type
+    typenum = field.columnrecord.type
     split = 14 <= typenum <= 21 || 26 <= typenum <= 28
     zigzag = 26 <= typenum <= 28
     delta = 14 <= typenum <= 15
     bytes = read_pagedesc(io, pages, nbits; split = split)
     res = collect(reinterpret(T, bytes))
     if zigzag
-        @simd for i in eachindex(res)
-            res[i] = _from_zigzag(res[i])
-        end
+        _from_zigzag!(res)
     elseif delta
         # the Index32/64 resets to absolute offset page-by-page
         # https://github.com/JuliaHEP/UnROOT.jl/issues/312#issuecomment-1999875348
@@ -118,7 +137,7 @@ end
 
 _field_output_type(::Type{LeafField{Bool}}) = BitVector
 function read_field(io, field::LeafField{Bool}, page_list)
-    nbits = field.nbits
+    nbits = field.columnrecord.nbits
     pages = page_list[field.content_col_idx]
     total_num_elements = sum(p.num_elements for p in pages)
 

@@ -84,11 +84,14 @@ RNTupleSchema with 13 top fields
 ```
 """
 struct RNTupleSchema
-    namedtuple::Any
+    namedtuple::NamedTuple
 end
 Base.propertynames(s::RNTupleSchema) = propertynames(getfield(s, :namedtuple))
 Base.getproperty(s::RNTupleSchema, sym::Symbol) = getproperty(getfield(s, :namedtuple), sym)
 Base.length(s::RNTupleSchema) = length(getfield(s, :namedtuple))
+function Base.getindex(s::RNTupleSchema, idx)
+    RNTupleSchema(getfield(s, :namedtuple)[idx])
+end
 
 function Base.getindex(rf::RNTupleField, idx::Int)
     tid = Threads.threadid()
@@ -174,8 +177,8 @@ struct RNTuple{O}
     header::RNTupleHeader
     footer::RNTupleFooter
     pagelinks::Dict{Int, PageLink}
-    schema::Any
-    function RNTuple(io::O, header, footer, schema::S) where {O, S}
+    schema::RNTupleSchema
+    function RNTuple(io::O, header, footer, schema) where {O}
         new{O}(
             io,
             header,
@@ -213,7 +216,9 @@ function LazyTree(rn::RNTuple, selection)
     end
 
     N = Tuple(Symbol.(filtered_names))
-    T = Tuple(RNTupleField(rn, getproperty(rn.schema, k)) for k in N)
+    skim_schema = getfield(rn.schema, :namedtuple)[N]
+    new_rn =  RNTuple(rn.io, rn.header, rn.footer, skim_schema)
+    T = Tuple(RNTupleField(new_rn, getproperty(new_rn.schema, k)) for k in N)
 
     return LazyTree(NamedTuple{N}(T))
 end

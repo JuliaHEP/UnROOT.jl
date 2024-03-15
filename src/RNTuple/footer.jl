@@ -96,11 +96,13 @@ function split8_reinterpret!(dst, src::Vector{UInt8})
 end
 
 """
-    read_pagedesc(io, pagedesc::Vector{PageDescription}, nbits::Integer)
+    read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, nbits::Integer; split=false)
 
 Read the decompressed raw bytes given a Page Description. The
 `nbits` need to be provided according to the element type of the
 column since `pagedesc` only contains `num_elements` information.
+
+`split` is true when split encoding is needed, this is done per page.
 
 !!! note
     Boolean values are always stored as bit in RNTuple, so `nbits = 1`.

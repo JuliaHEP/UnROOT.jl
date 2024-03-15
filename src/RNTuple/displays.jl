@@ -1,5 +1,27 @@
+function _showwithkw(io, @nospecialize(k))
+    T = typeof(k)
+
+    print(io, T)
+    print(io, "(")
+    for i in fieldnames(T)
+        print(io, i, "=", repr(getfield(k, i)), ", ")
+    end
+    println(io, ")")
+end
+
+function Base.show(io::IO, f::FieldRecord)
+    _showwithkw(io, f)
+end
+
+function Base.show(io::IO, f::ColumnRecord)
+    _showwithkw(io, f)
+end
+
 function Base.show(io::IO, f::AliasRecord)
-    print(io, "AliasRecord(physical_id=$(f.physical_id), field_id=$(f.field_id))")
+    _showwithkw(io, f)
+end
+function Base.show(io::IO, f::Locator)
+    _showwithkw(io, f)
 end
 
 function Base.show(io::IO, lf::StringField)
@@ -36,10 +58,11 @@ function Base.show(io::IO, header::RNTupleHeader, indent=0, short=false)
         l1 = maximum(length, [f.field_name for f in header.field_records])
         l2 = maximum(length, [f.type_name for f in header.field_records])
         println(io, "$ind    field_records: ")
-        for f in header.field_records
+        for (fidx, f) in enumerate(header.field_records)
             print(io, "$ind        ")
+            print(io, "(implicit idx=$(lpad(fidx-1, 2, "0"))), ")
             print(io, "parent=$(lpad(Int(f.parent_field_id), 2, "0")), ")
-            print(io, "role=$(Int(f.struct_role)), ")
+            print(io, "struct_role=$(Int(f.struct_role)), ")
             print(io, "name=$(rpad(f.field_name, l1+1, " ")), ")
             print(io, "type=$(rpad(f.type_name, l2+1, " "))")
             println(io, "repetition=$(f.repetition)")
@@ -52,7 +75,8 @@ function Base.show(io::IO, header::RNTupleHeader, indent=0, short=false)
             print(io, "type=$(lpad(Int(g.type), 2, "0")), ")
             print(io, "nbits=$(lpad(Int(g.nbits), 2, "0")), ")
             print(io, "field_id=$(lpad(Int(g.field_id), 3, "0")), ")
-            println(io, "flags=$(g.flags)")
+            print(io, "flags=$(g.flags), ")
+            println(io, "first_ele_index=$(g.first_ele_idx)")
         end
     end
 end
@@ -77,13 +101,13 @@ function Base.show(io::IO, rn::RNTuple)
     print(io, " └─ ")
     println(io, "Schema: ")
     _io = IOBuffer()
-    print_tree(_io, rn.schema; maxdepth=1, indicate_truncation=false)
+    print_tree(_io, rn.schema; maxdepth=3, indicate_truncation=true)
     for l in split(String(take!(_io)), '\n')
         print(io, "      ")
         println(io, l)
     end
 end
-Base.show(io::IO, s::RNTupleSchema) = print_tree(io, s)
+Base.show(io::IO, s::RNTupleSchema) = print_tree(io, s; maxdepth=10)
 printnode(io::IO, s::RNTupleSchema) = print(io, "RNTupleSchema with $(length(s)) top fields")
 children(s::RNTupleSchema) = Dict(pairs(getfield(s, :namedtuple)))
 
