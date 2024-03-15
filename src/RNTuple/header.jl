@@ -1,6 +1,6 @@
-Base.@kwdef struct FieldRecord
-    field_version::UInt32 = 0x0000
-    type_version::UInt32 = 0x0000
+struct FieldRecord
+    field_version::UInt32
+    type_version::UInt32
     parent_field_id::UInt32
     struct_role::UInt16
     flags::UInt16

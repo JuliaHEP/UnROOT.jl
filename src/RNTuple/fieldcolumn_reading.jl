@@ -103,14 +103,6 @@ function _reset_to_incremental(res::AbstractVector, pages, ::Type{T}) where T
     end
 end
 
-function _reset_to_incremental(res::AbstractVector, pages, ::Type{T}) where T
-    endpoint = 0
-    for pi in firstindex(pages):lastindex(pages)-1
-        endpoint += pages[pi].num_elements
-        res[endpoint+1] -= sum(@view res[begin:endpoint])
-    end
-end
-
 _field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     nbits = field.columnrecord.nbits
