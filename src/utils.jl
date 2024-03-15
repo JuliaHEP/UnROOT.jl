@@ -41,7 +41,7 @@ Return the following information:
 - compressedbytes and uncompressedbytes according to [uproot3](https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/source/compressed.py#L132)
 """
 function unpack(x::CompressionHeader)
-    algname = String(x.algo)
+    algname = x.algo
     # shift without casting to `Int` will give you 0x00 because we're shifting 0 bits into UInt8
     compressedbytes = x.c1 + (Int(x.c2) << 8) + (Int(x.c3) << 16)
     uncompressedbytes = x.u1 + (Int(x.u2) << 8) + (Int(x.u3) << 16)

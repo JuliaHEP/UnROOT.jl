@@ -154,7 +154,7 @@ function decompress_datastreambytes(compbytes, tkey)
         @debug "Compression type: $(cname)"
         @debug "Compressed/uncompressed size in bytes: $(compbytes) / $(uncompbytes)"
 
-        if cname == "L4"
+        if cname == @SVector UInt8['L', '4']
             # skip checksum which is 8 bytes
             # original: lz4_decompress(rawbytes[9:end], uncompbytes)
             input = @view rawbytes[9:end]
@@ -163,12 +163,12 @@ function decompress_datastreambytes(compbytes, tkey)
             output_ptr = pointer(uncomp_data) + fulfilled
             output_size = uncompbytes
             _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
-        elseif cname == "ZL"
+        elseif cname == @SVector UInt8['Z', 'L']
             output = @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes])
             zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
-        elseif cname == "XZ"
+        elseif cname == @SVector UInt8['X', 'Z']
             @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
-        elseif cname == "ZS"
+        elseif cname == @SVector UInt8['Z', 'S']
             @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")

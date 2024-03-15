@@ -80,17 +80,17 @@ function Streamers(io)
         # notice our `TKey` size is not the same as official TKey, can't use sizeof()
         skipped = position(io) - start
         compressedbytes = read(io, tkey.fNbytes - skipped)
-        cname = String(compression_header.algo)
+        cname = compression_header.algo
 
-        if cname == "ZL"
+        if cname == @SVector UInt8['Z', 'L']
             output = Vector{UInt8}(undef, tkey.fObjlen)
             zlib_decompress!(Decompressor(), output, compressedbytes, length(output))
             IOBuffer(output)
-        elseif cname == "XZ"
+        elseif cname == @SVector UInt8['X', 'Z']
             IOBuffer(transcode(XzDecompressor, compressedbytes))
-        elseif cname == "ZS"
+        elseif cname == @SVector UInt8['Z', 'S']
             IOBuffer(transcode(ZstdDecompressor, compressedbytes))
-        elseif cname == "L4"
+        elseif cname == @SVector UInt8['L', '4']
             IOBuffer(lz4_decompress(compressedbytes[9:end], tkey.fObjlen))
         else
             error("Unsupported compression type '$(String(compression_header.algo))'")
