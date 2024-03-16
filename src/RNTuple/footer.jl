@@ -95,50 +95,6 @@ function split8_reinterpret!(dst, src::Vector{UInt8})
     return dst
 end
 
-"""
-    read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, nbits::Integer; split=false)
-
-Read the decompressed raw bytes given a Page Description. The
-`nbits` need to be provided according to the element type of the
-column since `pagedesc` only contains `num_elements` information.
-
-`split` is true when split encoding is needed, this is done per page.
-
-!!! note
-    Boolean values are always stored as bit in RNTuple, so `nbits = 1`.
-    
-"""
-function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, nbits::Integer; split=false)
-    output_L = div(sum(p.num_elements for p in pagedescs; init=UInt32(0))*nbits, 8, RoundUp)
-    res = Vector{UInt8}(undef, output_L)
-
-    # a page max size is 64KB
-    tmp = Vector{UInt8}(undef, 65536)
-
-    tip = 1
-    for i in eachindex(pagedescs)
-        pagedesc = pagedescs[i]
-        # when nbits == 1 for bits, need RoundUp
-        uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp)
-        dst = @view res[tip:tip+uncomp_size-1]
-        _read_locator!(tmp, io, pagedesc.locator, uncomp_size)
-        if !split
-            dst .= tmp
-        elseif split
-            if nbits == 16
-                split2_reinterpret!(dst, tmp)
-            elseif nbits == 32
-                split4_reinterpret!(dst, tmp)
-            elseif nbits == 64
-                split8_reinterpret!(dst, tmp)
-            end
-        end
-        tip += uncomp_size
-    end
-
-    return res
-end
-
 # TODO: handle flags for shared cluster
 @SimpleStruct struct ClusterSummary
     first_entry_number::Int64
