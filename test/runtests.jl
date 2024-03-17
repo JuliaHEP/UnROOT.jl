@@ -934,8 +934,8 @@ end
     s1 = sum(t.nMuon)
     s2 = sum(tt.nMuon)
     @test s2 == 2*s1
-    alloc1 = @allocated sum(length, t.Muon_pt)
-    alloc2 = @allocated sum(evt->length(evt.Muon_pt), tt)
+    alloc1 = @allocated length.(t.Muon_pt)
+    alloc2 = @allocated length.(tt.Muon_pt)
     @test alloc2 < 2.1 * alloc1
     close(rootfile)
 end
