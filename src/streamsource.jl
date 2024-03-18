@@ -146,9 +146,8 @@ end
 
 function read_seek_nb(fobj::XRDStream, seek, nb)
     buffer = Vector{UInt8}(undef, nb)
-    @threadcall((:ReadAt, xrootdgo), Cvoid, (Ptr{UInt8}, Cstring, Clong, Clong), buffer, fobj.gofile_id, nb, seek)
-    # @ccall xrootdgo.ReadAt(buffer::Ptr{UInt8}, 
-    #                   fobj.gofile_id::Cstring, nb::Clong, seek::Clong)::Cvoid
+    # @threadcall((:ReadAt, xrootdgo), Cvoid, (Ptr{UInt8}, Cstring, Clong, Clong), buffer, fobj.gofile_id, nb, seek)
+    @ccall xrootdgo.ReadAt(buffer::Ptr{UInt8}, fobj.gofile_id::Cstring, nb::Clong, seek::Clong)::Cvoid
     return buffer
 end
 function _read!(ptr, fobj, nb, seekloc)
