@@ -731,7 +731,7 @@ end
 
     # issue 323
     f = ROOTFile(joinpath(SAMPLES_DIR, "issue323.root"))
-    LazyTree(f, "sim", [r"ghost/ghost\.(.*)" => s"\1"])
+    t = LazyTree(f, "sim", [r"ghost/ghost\.(.*)" => s"\1"])
     @test 1200 == length(t)
     @test t[1].time[2] ≈ 36.396744f0
     @test t[end].xpos[end] ≈ 788.35144f0
