@@ -255,6 +255,11 @@ end
     @test [row.int32_array for row in table[20:30]] == BA[20:30]
     @test sum(table.int32_array) == sum(row.int32_array for row in table)
     @test [row.int32_array for row in table] == BA
+    BA_copy = copy(BA)
+    #Check the copy is a LazyBranch:
+    @test typeof(BA_copy) == typeof(BA)
+    #Check the content:
+    @test all(BA .== BA_copy)
     
     # do some hardcoded value checks
     bunches = Float32[]
