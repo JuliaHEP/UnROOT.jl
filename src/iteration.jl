@@ -120,7 +120,7 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
         if J != Nojagg
             # if branch is jagged, fix the buffer and eltype according to what
             # VectorOfVectors would return in `getindex`
-            _buffer = VectorOfVectors(T(), Int32[1])
+            _buffer = isbitstype(T) ? VectorOfVectors(T[], Int32[1]) : VectorOfVectors(T(), Int32[1])
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
         Nthreads = _maxthreadid()
