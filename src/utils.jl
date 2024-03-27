@@ -135,9 +135,15 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
     if raw
         return counts, edges, sumw2, nentries
     elseif dimension > 1
-        return Hist2D(FHist.Histogram(edges, counts),sumw2, nentries)
+        if pkgversion(FHist) < v"0.11"
+            return Hist2D(FHist.Histogram(edges, counts), sumw2, nentries)
+        end
+        return Hist2D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
     else
-        return Hist1D(FHist.Histogram(edges, counts),sumw2, nentries)
+        if pkgversion(FHist) < v"0.11"
+            return Hist1D(FHist.Histogram(edges, counts), sumw2, nentries)
+        end
+        return Hist1D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
     end
 end
 
