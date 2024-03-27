@@ -147,6 +147,6 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
     end
 end
 
-function samplefile(filename::AbstractString)
-    return ROOTFile(normpath(joinpath(@__DIR__, "../test/samples", filename)))
+function samplefile(filename::AbstractString; kwargs...)
+    return ROOTFile(normpath(joinpath(@__DIR__, "../test/samples", filename)); kwargs...)
 end
