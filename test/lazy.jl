@@ -1,5 +1,6 @@
 using Test
 using UnROOT
+using DataFrames
 
 
 @testset "LazyBranch and LazyTree" begin

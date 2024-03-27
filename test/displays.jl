@@ -1,6 +1,8 @@
 using Test
 using UnROOT
 
+SAMPLES_DIR = joinpath(@__DIR__, "samples")
+
 
 @testset "Displaying files" begin
     files = filter(x->endswith(x, ".root"), readdir(SAMPLES_DIR))

@@ -1,11 +1,5 @@
 using Test
-using UnROOT, LorentzVectors
-using UnROOT.FHist
-using StaticArrays
-using InteractiveUtils
-using DataFrames, SHA
-
-SAMPLES_DIR = joinpath(@__DIR__, "samples")
+using UnROOT
 
 nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"

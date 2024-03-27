@@ -1,6 +1,8 @@
 using Test
 using UnROOT
 
+SAMPLES_DIR = joinpath(@__DIR__, "samples")
+
 
 @testset "Issues" begin
     rootfile = UnROOT.samplefile("issue7.root")

@@ -1,5 +1,6 @@
 using Test
 using UnROOT
+using FHist
 
 
 @testset "histograms" begin

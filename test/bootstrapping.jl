@@ -1,6 +1,9 @@
 using Test
+using SHA
 using UnROOT
+using StaticArrays
 
+SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
 UnROOT.@io struct Foo
     a::Int32

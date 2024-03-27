@@ -1,3 +1,5 @@
+using Test
+using UnROOT
 using Aqua
 
 @testset "Aqua.jl" begin
