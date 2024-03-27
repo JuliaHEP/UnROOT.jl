@@ -2,6 +2,8 @@
 @define_integers 96 SignedSwitch Switch
 @define_integers 32 SignedIndex32 Index32
 @define_integers 64 SignedIndex64 Index64
+Base.promote_rule(::Type{Int64}, ::Type{Index64}) = Int64
+Base.promote_rule(::Type{Index64}, ::Type{Int64}) = Int64
 
 #https://github.com/root-project/root/blob/master/tree/ntuple/v7/doc/specifications.md
 const rntuple_col_type_dict = (
