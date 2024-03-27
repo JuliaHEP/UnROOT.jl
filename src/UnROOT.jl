@@ -20,6 +20,11 @@ using BitIntegers: @define_integers
 
 import Tables, PrettyTables
 
+if VERSION < v"1.9"
+  using TOML
+  pkgversion(m::Module) = TOML.parsefile(joinpath(pkgdir(m), "Project.toml"))["version"] |> VersionNumber
+end
+
 """
     OffsetBuffer
 
