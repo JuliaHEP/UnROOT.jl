@@ -229,13 +229,17 @@ end
 
 @testset "Footer extension header links backfill" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_extension_columns.root")
-    df = LazyTree(f1, "EventData", ["HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb", "HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:"])
+    df = LazyTree(f1, "EventData")
     pbs = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb")
     @test length(pbs) == 40
     @test findfirst(!isempty, pbs) == 37
     jets = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:")
 
     @test length.(pbs) == length.(getproperty.(jets, :pt))
+
+    # backfilled booleans
+    xTrigDecisionAux = collect(df.var"xTrigDecisionAux:")
+    @test length(xTrigDecisionAux) == length(pbs)
 end
 
 @testset "RNTuple Tables.jl and Arrow integration" begin
