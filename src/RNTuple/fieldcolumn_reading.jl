@@ -94,6 +94,11 @@ function read_field(io, field::LeafField{T}, page_list) where T
     cr = field.columnrecord
     pages = page_list[field.content_col_idx]
     res = collect(reinterpret(T, read_pagedesc(io, pages, cr)))
+    fei = cr.first_ele_idx
+    if !iszero(fei)
+        z = zero(eltype(res))
+        prepend!(res, fill(z, fei))
+    end
     return res::_field_output_type(field)
 end
 
@@ -110,6 +115,11 @@ function read_field(io, field::LeafField{Bool}, page_list)
 
     res = BitVector(undef, total_num_elements)
     copyto!(res.chunks, chunks) # don't want jam ReinterpretArray into BitVector
+
+    fei = cr.first_ele_idx
+    if !iszero(fei)
+        prepend!(res, fill(false, fei))
+    end
     return res::_field_output_type(field)
 end
 
@@ -117,8 +127,8 @@ _field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{elt
 function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
     offset = read_field(io, field.offset_col, page_list)
     content = read_field(io, field.content_col, page_list)
-
     o = one(eltype(offset))
+
     jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
     res = VectorOfVectors(content, jloffset)
     return res::_field_output_type(field)
