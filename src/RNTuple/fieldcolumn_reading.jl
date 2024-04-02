@@ -93,12 +93,15 @@ _field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     cr = field.columnrecord
     pages = page_list[field.content_col_idx]
-    res = collect(reinterpret(T, read_pagedesc(io, pages, cr)))
     fei = cr.first_ele_idx
-    if !iszero(fei)
-        z = zero(eltype(res))
-        prepend!(res, fill(z, fei))
+    res = if !iszero(fei)
+        z = zero(T)
+        fill(z, fei)
+    else
+        T[]
     end
+
+    append!(res, reinterpret(T, read_pagedesc(io, pages, cr)))
     return res::_field_output_type(field)
 end
 
@@ -110,7 +113,7 @@ function read_field(io, field::LeafField{Bool}, page_list)
 
     # pad to nearest 8*k bytes because each chunk needs to be UInt64
     bytes = read_pagedesc(io, pages, cr)
-    append!(bytes, zeros(eltype(bytes), 8 - rem(total_num_elements, 8)))
+    append!(bytes, zeros(eltype(bytes), (64 - rem(total_num_elements, 64))÷8))
     chunks = reinterpret(UInt64, bytes)
 
     res = BitVector(undef, total_num_elements)
