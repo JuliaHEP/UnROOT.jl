@@ -227,6 +227,17 @@ end
     @test length(truth_jets_one_event.pt) == 5
 end
 
+@testset "Footer extension header links backfill" begin
+    f1 = UnROOT.samplefile("RNTuple/test_ntuple_extension_columns.root")
+    df = LazyTree(f1, "EventData", ["HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb", "HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:"])
+    pbs = collect(data22_aod_rnt.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb")
+    @test length(pbs) == 40
+    @test findfirst(!isempty, pbs) == 37
+    jets = collect(data22_aod_rnt.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:")
+
+    @test length.(pbs) == length.(jets)
+end
+
 @testset "RNTuple Tables.jl and Arrow integration" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")
     rnt = LazyTree(f1, "ntuple")

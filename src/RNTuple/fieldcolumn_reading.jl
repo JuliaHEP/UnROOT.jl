@@ -93,12 +93,15 @@ _field_output_type(::Type{LeafField{T}}) where {T} = Vector{T}
 function read_field(io, field::LeafField{T}, page_list) where T
     cr = field.columnrecord
     pages = page_list[field.content_col_idx]
-    res = collect(reinterpret(T, read_pagedesc(io, pages, cr)))
     fei = cr.first_ele_idx
-    if !iszero(fei)
-        z = zero(eltype(res))
-        prepend!(res, fill(z, fei))
+    res = if !iszero(fei)
+        z = zero(T)
+        fill(z, fei)
+    else
+        T[]
     end
+
+    append!(res, reinterpret(T, read_pagedesc(io, pages, cr)))
     return res::_field_output_type(field)
 end
 
