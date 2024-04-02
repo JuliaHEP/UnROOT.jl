@@ -235,7 +235,7 @@ end
     @test findfirst(!isempty, pbs) == 37
     jets = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:")
 
-    @test length.(pbs) == length.(jets)
+    @test length.(pbs) == length.(getproperty.(jets, :pt))
 end
 
 @testset "RNTuple Tables.jl and Arrow integration" begin
