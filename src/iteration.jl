@@ -271,12 +271,11 @@ Base.getindex(lt::LazyTree, row::Int) = LazyEvent(Tables.columns(lt), row)
 Base.getindex(lt::LazyTree, row::CartesianIndex{1}) = LazyEvent(Tables.columns(lt), row[1])
 function Base.getindex(lt::LazyTree, rang)
     bnames = propertynames(lt)
-    branches = asyncmap(b->getproperty(lt, b)[rang], bnames)
+    branches = map(b->getproperty(lt, b)[rang], bnames)
     return LazyTree(NamedTuple{bnames}(branches))
 end
 
 function Base.view(lt::LazyTree, idx...)
-    bnames = propertynames(lt)
     return LazyTree(map(x->view(x, idx...), Tables.columns(lt)))
 end
 
@@ -484,7 +483,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
         iths = ib1-1:ib2-1
     end
     range = (first(range)-offset):(last(range)-offset)
-    return ChainedVector(asyncmap(i->basketarray(ba, i), iths))[range]
+    return ChainedVector(map(i->basketarray(ba, i), iths))[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
