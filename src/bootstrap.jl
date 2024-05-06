@@ -1239,3 +1239,179 @@ function readfields!(c::Cursor, fields, ::Type{TFriendElement_2})
     fields[:fTreeName] = readtype(c.io, String)
     fields[:fOwnFile] = readtype(c.io, Bool)
 end
+
+abstract type TAttBox2D <: ROOTStreamedObject end
+struct TAttBox2D_0 <: TAttBox2D end
+readfields!(c::Cursor, fields, ::Type{TAttBox2D_0}) = nothing
+
+abstract type TText <: ROOTStreamedObject end
+Base.@kwdef struct TText_3 <: TText
+    # TNamed
+    # TAttText
+    # TAttBox2D
+    fX::Float64
+    fY::Float64
+end
+function readfields!(c::Cursor, fields, ::Type{TText_3})
+    stream!(c, fields, TNamed)
+    stream!(c, fields, TAttText)
+    stream!(c, fields, TAttBox2D)
+    fields[:fX] = readtype(c.io, Float64)
+    fields[:fY] = readtype(c.io, Float64)
+end
+
+abstract type TLatex <: ROOTStreamedObject end
+Base.@kwdef struct TLatex_2 <: TLatex
+    cursor::Cursor
+    # TText
+    fName::String
+    fTitle::String
+    fTextAngle::Float32
+    fTextSize::Float32
+    fTextAlign::Int16
+    fTextColor::Int16
+    fTextFont::Int16
+    fX::Float64
+    fY::Float64
+
+    # TAttLine
+    fLineColor::Int16
+    fLineStyle::Int16
+    fLineWidth::Int16
+
+    fLimitFactorSize::Int32
+    fOriginSize::Float64
+end
+function readfields!(c::Cursor, fields, ::Type{TLatex_2})
+    stream!(c, fields, TText)
+    stream!(c.io, fields, TAttLine)  # TODO: define all these methods for the Cursor!
+    fields[:fLimitFactorSize] = readtype(c.io, Int32)
+    fields[:fOriginSize] = readtype(c.io, Float64)
+end
+
+abstract type TAttText <: ROOTStreamedObject end
+Base.@kwdef struct TAttText_2 <: TAttText
+    cursor::Cursor
+    fTextAngle::Float32
+    fTextSize::Float32
+    fTextAlign::Int16
+    fTextColor::Int16
+    fTextFont::Int16
+end
+function readfields!(c::Cursor, fields, ::Type{TAttText_2})
+    fields[:fTextAngle] = readtype(c.io, Float32)
+    fields[:fTextSize] = readtype(c.io, Float32)
+    fields[:fTextAlign] = readtype(c.io, Int16)
+    fields[:fTextColor] = readtype(c.io, Int16)
+    fields[:fTextFont] = readtype(c.io, Int16)
+end
+
+# abstract type TBox <: ROOTStreamedObject end
+# struct TBox_3 <: TBox
+#     fields::Dict{Symbol, Any}
+# end
+# function readfields!(io::IO, fields, ::Type{TBox_3})
+#     # skiptobj(io)
+#     # skip(io, 1)
+#     # stream!(io, fields, TAttLine)
+#     # stream!(io, fields, TAttFill)
+#     # skip(io, 6)  # TAttBBox2D with cnt (u4) and vers (u2)
+#     skip(io, 140)
+# end
+
+abstract type TPaveText <: ROOTStreamedObject end
+Base.@kwdef struct TPaveText_2 <: TPaveText
+    cursor::Cursor
+    # TBox
+    fX1NDC::Float64
+    fY1NDC::Float64
+    fX2NDC::Float64
+    fY2NDC::Float64
+    fBorderSize::Int32
+    fInit::Int32
+    fShadowColor::Int32
+    fCornerRadius::Float64
+    fOption::String
+    fName::String
+
+    fLabel::String
+    fLongest::Int32
+    fMargin::Float32
+    fLines
+end
+function readfields!(c::Cursor, fields, ::Type{TPaveText_2})
+    io = c.io
+    tkey = c.tkey
+    refs = c.refs
+
+    skip(io, 82)  # TODO: what is this??
+
+    # TPave
+    # stream!(io, fields, TBox)  # below is TBox readout since we could not
+    # figure out how to read it (see above)
+    fields[:fX1NDC] = readtype(io, Float64)
+    fields[:fY1NDC] = readtype(io, Float64)
+    fields[:fX2NDC] = readtype(io, Float64)
+    fields[:fY2NDC] = readtype(io, Float64)
+    fields[:fBorderSize] = readtype(io, Int32)
+    fields[:fInit] = readtype(io, Int32)
+    fields[:fShadowColor] = readtype(io, Int32)
+    fields[:fCornerRadius] = readtype(io, Float64)
+    fields[:fOption] = readtype(io, String)
+    fields[:fName] = readtype(io, String)
+
+    stream!(c, fields, TAttText)
+
+    fields[:fLabel] = readtype(io, String)
+    fields[:fLongest] = readtype(io, Int32)
+    fields[:fMargin] = readtype(io, Float32)
+    fields[:fLines] = readobjany!(io, tkey, refs)
+end
+
+abstract type TVirtualPaveStats <: ROOTStreamedObject end
+struct TVirtualPaveStats_0 <: TVirtualPaveStats end
+readfields!(c::Cursor, fields, ::Type{TVirtualPaveStats_0}) = nothing
+
+abstract type TPaveStats <: ROOTStreamedObject end
+Base.@kwdef struct TPaveStats_5 <: TPaveStats
+    cursor::Cursor
+    # TPaveText
+    fX1NDC::Float64
+    fY1NDC::Float64
+    fX2NDC::Float64
+    fY2NDC::Float64
+    fBorderSize::Int32
+    fInit::Int32
+    fShadowColor::Int32
+    fCornerRadius::Float64
+    fOption::String
+    fName::String
+    fLabel::String
+    fLongest::Int32
+    fMargin::Float32
+    fLines
+
+    fTextAngle::Float32
+    fTextSize::Float32
+    fTextAlign::Int16
+    fTextColor::Int16
+    fTextFont::Int16
+
+    fOptFit::Int32
+    fOptStat::Int32
+    fFitFormat::String
+    fStatFormat::String
+    fParent
+end
+function readfields!(c::Cursor, fields, ::Type{TPaveStats_5})
+    tkey = c.tkey
+    refs = c.refs
+
+    stream!(c, fields, TPaveText)
+    stream!(c, fields, TVirtualPaveStats)
+    fields[:fOptFit] = readtype(c.io, Int32)
+    fields[:fOptStat] = readtype(c.io, Int32)
+    fields[:fFitFormat] = readtype(c.io, String)
+    fields[:fStatFormat] = readtype(c.io, String)
+    fields[:fParent] = readobjany!(c.io, tkey, refs)
+end
