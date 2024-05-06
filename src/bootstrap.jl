@@ -157,6 +157,9 @@ struct TH2_5 <: TH2 end
 function readfields!(io, fields, T::Type{TH2_4}) end
 function readfields!(io, fields, T::Type{TH2_5}) end
 
+abstract type TH3 <: ROOTStreamedObject end
+struct TH3_6 <: TH3 end
+function readfields!(io, fields, T::Type{TH3_6}) end
 
 @with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
@@ -944,8 +947,10 @@ end
 
 TH1F(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH2F(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH3F(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH1D(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH2D(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH3D(io, tkey::TKey, refs) = TH(io, tkey, refs)
 
 """
     TH(io, tkey::TKey, refs)
@@ -962,6 +967,11 @@ function TH(io, tkey::TKey, refs)
     is2d = startswith(tkey.fClassName, "TH2")
     if is2d
         stream!(io, fields, TH2, check=false)
+    end
+    @show tkey.fClassName
+    is3d = startswith(tkey.fClassName, "TH3")
+    if is3d
+        stream!(io, fields, TH3, check=false)
     end
 
     stream!(io, fields, TH1, check=false)
@@ -1001,8 +1011,17 @@ function TH(io, tkey::TKey, refs)
     fields[:fBinStatErrOpt] = readtype(io, Int16)
     fields[:fStatOverflows] = readtype(io, Int16)
 
+    @show fields
     if is2d
         for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
+            fields[symb] = readtype(io, Float64)
+        end
+    end
+
+
+    if is3d
+        readtype(io, Int64)  # TAtt3D, not used yet...
+        for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy, :fTsumwz, :fTsumwz2, :fTsumxz, :fTsumyz]
             fields[symb] = readtype(io, Float64)
         end
     end
