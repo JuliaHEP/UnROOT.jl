@@ -219,7 +219,10 @@ function readobjany!(io, tkey::TKey, refs)
         if tag == 0
             return missing
         elseif tag == 1
-            error("Returning parent is not implemented yet")
+            # TODO: Returning parent is not implemented yet but
+            # "missing" works fine so far ;) Create an issue if
+            # you have to deal with a "missing" from here.
+            return missing
         elseif !haskey(refs, tag)
             # skipping
             seek(io, origin(tkey) + beg + bcnt + 4)
