@@ -1019,8 +1019,8 @@ function TH(io, tkey::TKey, refs)
 
 
     if is3d
-        readtype(io, Int64)  # TAtt3D, not used yet...
-        for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy, :fTsumwz, :fTsumwz2, :fTsumxz, :fTsumyz]
+        skip(io, 6)  # TAtt3D, not used yet, consist of two fields: cnt (u4), vers (u2)
+        for symb in [:fTsumwy, :fTsumwy2, :fTsumwxy, :fTsumwz, :fTsumwz2, :fTsumwxz, :fTsumwyz]
             fields[symb] = readtype(io, Float64)
         end
     end

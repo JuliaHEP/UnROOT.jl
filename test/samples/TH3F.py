@@ -15,10 +15,10 @@ histogram = ROOT.TH3F(
 random.seed(42)
 
 # Fill the histogram with some random data
-for i in range(1, 10000):
-    x = random.random() * 2 - 1
-    y = random.random() * 4 - 2
-    z = random.random() * 6 - 3
+for i in range(1, 100000):
+    x = random.random() * 3 - 1.5
+    y = random.random() * 5 - 2.5
+    z = random.random() * 7 - 3.5
     histogram.Fill(x, y, z)
 
 # Write the histogram to the ROOT file
