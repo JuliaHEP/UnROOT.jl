@@ -968,7 +968,7 @@ function TH(io, tkey::TKey, refs)
     if is2d
         stream!(io, fields, TH2, check=false)
     end
-    @show tkey.fClassName
+
     is3d = startswith(tkey.fClassName, "TH3")
     if is3d
         stream!(io, fields, TH3, check=false)
@@ -1011,7 +1011,6 @@ function TH(io, tkey::TKey, refs)
     fields[:fBinStatErrOpt] = readtype(io, Int16)
     fields[:fStatOverflows] = readtype(io, Int16)
 
-    @show fields
     if is2d
         for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
             fields[symb] = readtype(io, Float64)
