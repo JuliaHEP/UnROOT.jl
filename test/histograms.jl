@@ -116,4 +116,42 @@ using FHist
     @test 0 == h[:fZaxis_fFirst]
     @test 0 == h[:fZaxis_fLast]
     close(f)
+
+    f = UnROOT.samplefile("TH3D.root")
+    h = f["histogram"]
+    @test 45699.0 ≈ h[:fTsumw]
+    @test 45699.0 ≈ h[:fTsumw2]
+    @test 1338408313.7224275 ≈ h[:fTsumwx]
+    @test 1.5255146094082097e+18 ≈ h[:fTsumwx2]
+    @test 4896839597.196363 ≈ h[:fTsumwy]
+    @test 6.085356004202659e+18 ≈ h[:fTsumwy2]
+    @test 2.0684178180322988e+16 ≈ h[:fTsumwxy]
+    @test -4245948793.9911203 ≈ h[:fTsumwz]
+    @test 1.371446541434572e+19 ≈ h[:fTsumwz2]
+    @test -2.3310169613924896e+16 ≈ h[:fTsumwxz]
+    @test -3.838438776730456e+16 ≈ h[:fTsumwyz]
+    @test 2 == h[:fStatOverflows]
+    @test -1111 == h[:fMinimum]
+    @test -1111 == h[:fMaximum]
+    @test 99999.0 == h[:fEntries]
+    @test 0.0 == h[:fNormFactor]
+
+    @test 10 == h[:fXaxis_fNbins]
+    @test -10000000.0 == h[:fXaxis_fXmin]
+    @test 10000000.0 == h[:fXaxis_fXmax]
+    @test 0 == h[:fXaxis_fFirst]
+    @test 0 == h[:fXaxis_fLast]
+
+    @test 20 == h[:fYaxis_fNbins]
+    @test -20000000.0 == h[:fYaxis_fXmin]
+    @test 20000000.0 == h[:fYaxis_fXmax]
+    @test 0 == h[:fYaxis_fFirst]
+    @test 0 == h[:fYaxis_fLast]
+
+    @test 30 == h[:fZaxis_fNbins]
+    @test -30000000.0 == h[:fZaxis_fXmin]
+    @test 30000000.0 == h[:fZaxis_fXmax]
+    @test 0 == h[:fZaxis_fFirst]
+    @test 0 == h[:fZaxis_fLast]
+    close(f)
 end
