@@ -1,8 +1,8 @@
-using xrootdgo_jll
+using XRootD.XrdCl
 import HTTP
 
 mutable struct XRDStream
-    gofile_id::Cstring # used as key to a global `map` on the Go side
+    file::File     # encapsulates a XRootD.XrdCl!File object
     seekloc::Int
     size::Int
 end
@@ -130,33 +130,23 @@ function Base.read(fobj::SourceStream)
     read(fobj, fobj.size - fobj.seekloc + 1)
 end
 
-function XRDStream(urlbase::AbstractString, filepath::AbstractString, username::AbstractString)
-    file_id = @ccall xrootdgo.Open(urlbase::Cstring, filepath::Cstring, username::Cstring)::Cstring
-    if unsafe_string(file_id) == "error"
-        error("xrootd Go library errored.")
-    end
-    # file_id = @threadcall((:Open, xrootdgo), Cstring, (Cstring, Cstring, Cstring), urlbase, filepath, username)
-    size = @ccall xrootdgo.Size(file_id::Cstring)::Int
-    XRDStream(file_id, 0, size)
+function XRDStream(url::AbstractString)
+    file = File()
+    st, _ = open(file, url, OpenFlags.Read)
+    isError(st) && error("XRootD file open error: $st")
+    st, statinfo = stat(file)
+    isError(st) && error("XRootD file stat error: $st")
+    XRDStream(file, 0, statinfo.size)
 end
 
 function Base.close(fobj::XRDStream)
-    xrootdgo.Close(fobj.gofile_id)
+    close(fobj.file)
 end
 
 function read_seek_nb(fobj::XRDStream, seek, nb)
-    buffer = Vector{UInt8}(undef, nb)
-    # @threadcall((:ReadAt, xrootdgo), Cvoid, (Ptr{UInt8}, Cstring, Clong, Clong), buffer, fobj.gofile_id, nb, seek)
-    @ccall xrootdgo.ReadAt(buffer::Ptr{UInt8}, fobj.gofile_id::Cstring, nb::Clong, seek::Clong)::Cvoid
+    st, buffer = read(fobj.file, nb, seek)
+    isError(st) && error("XRootD file read error: $st")
     return buffer
-end
-function _read!(ptr, fobj, nb, seekloc)
-    @ccall xrootdgo.ReadAt(ptr::Ptr{UInt8}, 
-                      fobj.gofile_id::Cstring, nb::Clong, seekloc::Clong)::Cvoid
-end
-
-function _read!(ptr, fobj, nb)
-    _read!(ptr, fobj, nb, fobj.seekloc)
 end
 
 function Base.read(fobj::XRDStream, ::Type{T}) where T
@@ -164,16 +154,16 @@ function Base.read(fobj::XRDStream, ::Type{T}) where T
     nb = sizeof(T)
     output = Ref{T}()
     tko = Base.@_gc_preserve_begin output
-    po = Ptr{UInt8}(pointer_from_objref(output))
-    _read!(po, fobj, nb, fobj.seekloc)
+    po = pointer_from_objref(output)
+    unsafe_read(fobj.file, po, nb, fobj.seekloc)
     Base.@_gc_preserve_end tko
     fobj.seekloc += nb
     return output[]
 end
 
 function Base.read(fobj::XRDStream, nb::Integer)
-    buffer = Vector{UInt8}(undef, nb)
-    GC.@preserve buffer _read!(buffer, fobj, nb, fobj.seekloc)
+    st, buffer = read(fobj.file, nb, fobj.seekloc)
+    isError(st) && error("XRootD file read error: $st")
     fobj.seekloc += nb
     return buffer
 end
