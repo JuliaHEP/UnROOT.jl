@@ -5,7 +5,7 @@ nthreads = UnROOT._maxthreadid()
 nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite with at least two threads (`julia --threads 2 ...`)"
 
 @testset "UnROOT tests" verbose = true begin
-    #include("Aqua.jl")
+    include("Aqua.jl")
     include("bootstrapping.jl")
     include("compressions.jl")
     include("jagged.jl")
