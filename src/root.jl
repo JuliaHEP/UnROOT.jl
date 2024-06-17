@@ -247,6 +247,10 @@ function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
     # specialized case to get Vector{Bool} instead of BitVector
     return map(ntoh,reinterpret(Bool, rawdata))
 end
+function interped_data(rawdata, rawoffsets, ::Type{Vector{Char}}, ::Type{Nooffsetjagg})
+    rawoffsets .= rawoffsets .+ 1
+    return VectorOfVectors(Char.(rawdata), rawoffsets)
+end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
     # magic offsets, seems to be common for a lot of types, see auto.py in uproot3
@@ -481,12 +485,16 @@ function leaf_jaggtype(leaf, _jaggtype)
             _fTitle = replace(leaf.fTitle, "[$(leafLen)]" => "")
             # looking for more `[var]`
             m = match(r"\[\D+\]", _fTitle)
-            _type = FixLenVector{Int(leafLen), _type}
+            _vtype = FixLenVector{Int(leafLen), _type}
             if isnothing(m)
-                return _type, Nojagg
+                if leaf isa TLeafC
+                    return Vector{Char}, Nooffsetjagg
+                else
+                    return _vtype, Nojagg
+                end
             else
                 #FIXME this only handles [var][fix] case
-                return Vector{_type}, Nooffsetjagg
+                return Vector{_vtype}, Nooffsetjagg
             end
         end
         _type = _jaggtype === Nojagg ? _type : Vector{_type}
