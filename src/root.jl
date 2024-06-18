@@ -247,9 +247,10 @@ function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
     # specialized case to get Vector{Bool} instead of BitVector
     return map(ntoh,reinterpret(Bool, rawdata))
 end
-function interped_data(rawdata, rawoffsets, ::Type{Vector{Char}}, ::Type{Nooffsetjagg})
+function interped_data(rawdata, rawoffsets, ::Type{String}, ::Type{Nojagg})
     rawoffsets .= rawoffsets .+ 1
-    return VectorOfVectors(Char.(rawdata), rawoffsets)
+    vov_bytes = VectorOfVectors(rawdata, rawoffsets)
+    return [readtype(IOBuffer(v), String) for v in vov_bytes]
 end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
     # there are two possibility, one is the leaf is just normal leaf but the title has "[...]" in it
@@ -488,7 +489,7 @@ function leaf_jaggtype(leaf, _jaggtype)
             _vtype = FixLenVector{Int(leafLen), _type}
             if isnothing(m)
                 if leaf isa TLeafC
-                    return Vector{Char}, Nooffsetjagg
+                    return String, Nojagg
                 else
                     return _vtype, Nojagg
                 end
