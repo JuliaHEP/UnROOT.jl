@@ -32,7 +32,7 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
                     fChecksum = readtype(local_io, UInt64),
                                        )
 
-                                       @show dump(anchor)
+   @show dump(anchor)
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
     header_io = IOBuffer(header_bytes)
     header = _rntuple_read(header_io, RNTupleEnvelope{RNTupleHeader})
