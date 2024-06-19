@@ -101,26 +101,32 @@ end
     number_of_entries::Int64
 end
 
-struct RNTupleListNoFrame{T} <: AbstractVector{T}
-    payload::Vector{T}
-end
-Base.size(r::RNTupleListNoFrame) = size(r.payload)
-Base.getindex(r::RNTupleListNoFrame, i) = r.payload[i]
-Base.setindex!(r::RNTupleListNoFrame, v, i) = (r.payload[i] = v)
-# without the inner Frame for each item
-function _rntuple_read(io, ::Type{RNTupleListNoFrame{T}}) where T
-    pos = position(io)
-    Size = read(io, Int64)
-    @assert Size < 0
-    NumItems = read(io, Int32)
-    end_pos = pos - Size
-    res = T[_rntuple_read(io, T) for _=1:NumItems]
-    seek(io, end_pos)
-    return RNTupleListNoFrame(res)
+for x in (:RNTuplePageTopList, :RNTuplePageOuterList, :RNTuplePageInnerList)
+    @eval begin
+        struct ($x){T} <: AbstractVector{T}
+            payload::Vector{T}
+        end
+
+        function _rntuple_read(io, ::Type{$x{T}}) where T
+            pos = position(io)
+            Size = read(io, Int64)
+            @assert Size < 0
+            NumItems = read(io, Int32)
+            end_pos = pos - Size
+            res = T[_rntuple_read(io, T) for _=1:NumItems]
+            seek(io, end_pos)
+            return $x(res)
+        end
+
+        Base.size(r::$x) = size(r.payload)
+        Base.getindex(r::$x, i) = r.payload[i]
+        Base.setindex!(r::$x, v, i) = (r.payload[i] = v)
+        
+    end
 end
 
 @SimpleStruct struct PageLink
     header_checksum::UInt64
     cluster_summaries::Vector{ClusterSummary}
-    nested_page_locations::RNTupleListNoFrame{RNTupleListNoFrame{RNTupleListNoFrame{PageDescription}}}
+    nested_page_locations::RNTuplePageTopList{RNTuplePageOuterList{RNTuplePageInnerList{PageDescription}}}
 end
