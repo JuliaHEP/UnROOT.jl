@@ -162,9 +162,9 @@ function rnt_write(io::IO, x::AbstractVector{UInt8}; legacy=false)
     end
 end
 
-function test_io(obj, expected)
+function test_io(obj, expected; kw...)
     a = IOBuffer()
-    rnt_write(a, obj)
+    rnt_write(a, obj; kw...)
     ours = take!(a)
     if ours != expected
         color_diff(ours, expected)
@@ -386,7 +386,7 @@ rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "ROOT v6.33.01",
 ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
 
 
-# ==================================== side tests ====================================
+# ==================================== side tests begin ====================================
 function rnt_write(io::IO, x::UnROOT.FieldRecord)
     rnt_write(io, x.field_version)
     rnt_write(io, x.type_version)
@@ -430,18 +430,6 @@ dummy_column_record = [
     0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 ]
 test_io(column_record, dummy_column_record)
-
-function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
-    temp_io = IOBuffer()
-    id_type = 0x0001
-    _rnt_write(temp_io, x)
-    envelope_size = temp_io.size + 18
-    payload_ary = take!(temp_io)
-    id_length = (UInt64(envelope_size & 0xff) << 24) | id_type
-    write(io, id_length)
-    write(io, payload_ary)
-    write(io, xxh3_64(payload_ary))
-end
 # reference from reading code
 # function _rntuple_read(io, ::Type{Vector{T}}) where T
 #     pos = position(io)
@@ -466,7 +454,6 @@ end
     # seek(io, end_pos)
     # return RNTupleFrame(res)
 # end
-
 function rnt_write(io::IO, x::RNTupleFrame{T}) where T
     temp_io = IOBuffer()
     rnt_write(temp_io, x.payload)
@@ -500,16 +487,35 @@ dummy_envelope_frame_field_record = [
 
 test_io(envelope_frame_field_record, dummy_envelope_frame_field_record)
 
-function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
-    rnt_write(io, x.feature_flag)
-    rnt_write(io, x.name)
-    rnt_write(io, x.ntuple_description)
-    rnt_write(io, x.writer_identifier)
-    rnt_write(io, x.field_records)
-    rnt_write(io, x.column_records)
-    rnt_write(io, x.alias_columns)
-    rnt_write(io, x.extra_type_infos)
+function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.feature_flag)
+    rnt_write(temp_io, x.name)
+    rnt_write(temp_io, x.ntuple_description)
+    rnt_write(temp_io, x.writer_identifier)
+    rnt_write(temp_io, x.field_records)
+    rnt_write(temp_io, x.column_records)
+    rnt_write(temp_io, x.alias_columns)
+    rnt_write(temp_io, x.extra_type_infos)
+
+    # add id_length size and checksum size
+    envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
+    id_type = 0x0001
+
+    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+
+    payload_ary = take!(temp_io)
+
+    if envelope
+        prepend!(payload_ary, reinterpret(UInt8, [id_length]))
+        checksum = xxh3_64(payload_ary)
+        write(io, payload_ary)
+        write(io, checksum)
+    else
+        write(io, payload_ary)
+    end
 end
+
 dummy_rnt_header_payload = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x6D, 0x79, 0x6E, 0x74, 
     0x75, 0x70, 0x6C, 0x65, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00, 0x52, 0x4F, 0x4F, 0x54, 
@@ -524,14 +530,31 @@ dummy_rnt_header_payload = [
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 
 ]
 
-test_io(rnt_header, dummy_rnt_header_payload)
+test_io(rnt_header, dummy_rnt_header_payload; envelope=false)
 
-# ====================================================================================
-# ==================================== side tests ====================================
+# ==================================== side tests end ====================================
+
+# reading struct looks like this:
+# struct RNTupleEnvelope{T}
+    # type_id::UInt16
+    # envelope_length::UInt64
+    # payload::T
+    # checksum::UInt64
+# end
+#
+function rnt_write_envelope(io::IO, x; type_id)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.payload)
+    size = temp_io.size + 8
+    write(io, Int64(size))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
 
 dummy_rnt_header = [
     0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_rnt_header_payload..., 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
 ]
+test_io(rnt_header, dummy_rnt_header; envelope=true)
 
 RBlob2 = [
     0x00, 0x00, 0x00, 0x26, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
