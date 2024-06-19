@@ -1,5 +1,6 @@
 using StaticArrays
 using UnROOT
+using UnROOT: RNTupleFrame
 using XXHashNative: xxh3_64
 
 const REFERENCE_BYTES = [
@@ -429,20 +430,19 @@ dummy_column_record = [
     0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 ]
 test_io(column_record, dummy_column_record)
-# ==================================== side tests ====================================
 
-# function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
-#     temp_io = IOBuffer()
-#     id_type = 0x0001
-#     _rnt_write(temp_io, x)
-#     envelope_size = temp_io.size + 18
-#     payload_ary = take!(temp_io)
-#     id_length = (UInt64(envelope_size & 0xff) << 24) | id_type
-#     write(io, id_length)
-#     write(io, payload_ary)
-#     write(io, xxh3_64(payload_ary))
-# end
-#
+function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
+    temp_io = IOBuffer()
+    id_type = 0x0001
+    _rnt_write(temp_io, x)
+    envelope_size = temp_io.size + 18
+    payload_ary = take!(temp_io)
+    id_length = (UInt64(envelope_size & 0xff) << 24) | id_type
+    write(io, id_length)
+    write(io, payload_ary)
+    write(io, xxh3_64(payload_ary))
+end
+# reference from reading code
 # function _rntuple_read(io, ::Type{Vector{T}}) where T
 #     pos = position(io)
 #     Size = read(io, Int64)
@@ -453,17 +453,52 @@ test_io(column_record, dummy_column_record)
 #     seek(io, end_pos)
 #     return res
 # end
+#
+# struct RNTupleFrame{T}
+    # payload::T
+# end
+# function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
+    # pos = position(io)
+    # Size = read(io, Int64)
+    # end_pos = pos + Size
+    # @assert Size >= 0
+    # res = _rntuple_read(io, T)
+    # seek(io, end_pos)
+    # return RNTupleFrame(res)
+# end
+
+function rnt_write(io::IO, x::RNTupleFrame{T}) where T
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.payload)
+    size = temp_io.size + 8
+    write(io, Int64(size))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
 function rnt_write(io::IO, ary::AbstractArray)
     N = length(ary)
     temp_io = IOBuffer()
     for x in ary
-        rnt_write(temp_io, x)
+        rnt_write(temp_io, RNTupleFrame(x))
     end
     size = temp_io.size + sizeof(Int64) + sizeof(Int32)
     write(io, Int64(-size))
     write(io, Int32(N))
+    seekstart(temp_io)
     write(io, temp_io)
 end
+
+envelope_frame_field_record = [field_record]
+dummy_envelope_frame_field_record = [
+    0xB7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x3D, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E, 0x74, 
+    0x0D, 0x00, 0x00, 0x00, 0x73, 0x74, 0x64, 0x3A, 0x3A, 0x75, 0x69, 0x6E, 0x74, 0x33, 0x32, 0x5F, 
+    0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+]
+
+test_io(envelope_frame_field_record, dummy_envelope_frame_field_record)
 
 function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
     rnt_write(io, x.feature_flag)
@@ -490,6 +525,9 @@ dummy_rnt_header_payload = [
 ]
 
 test_io(rnt_header, dummy_rnt_header_payload)
+
+# ====================================================================================
+# ==================================== side tests ====================================
 
 dummy_rnt_header = [
     0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_rnt_header_payload..., 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
