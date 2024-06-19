@@ -1,6 +1,6 @@
 using StaticArrays
 using UnROOT
-using UnROOT: RNTupleFrame
+using UnROOT: RNTupleFrame, ClusterSummary, PageDescription
 using XXHashNative: xxh3_64
 
 const REFERENCE_BYTES = [
@@ -144,6 +144,10 @@ function rnt_write(io::IO, x::AbstractString; legacy=false)
         write(io, UInt32(L))
         write(io, codeunits(x))
     end
+end
+
+function rnt_write(io::IO, x::AbstractVector)
+    error("Ambiguous type: $(typeof(x)), use Write_RNTupleListFrame or similar wrapper")
 end
 
 function rnt_write(io::IO, x; legacy=false)
@@ -329,7 +333,6 @@ struct RBlob
     fName::String
     fTitle::String
 end
-RBlob1 = RBlob(220, 0x0004, 0x000000BA, 0x7567176D, 0x0022, 0x0001, 244, 100, "RBlob", "", "")
 function rnt_write(io::IO, x::RBlob)
     rnt_write(io, x.fNbytes; legacy=true)
     rnt_write(io, x.fVersion; legacy=true)
@@ -344,12 +347,12 @@ function rnt_write(io::IO, x::RBlob)
     rnt_write(io, x.fTitle; legacy=true)
 end
 
+RBlob1 = RBlob(0x00DC, 0x0004, 0x000000BA, 0x7567176D, 0x0022, 0x0001, 244, 100, "RBlob", "", "")
 dummy_RBlob1 = [
     0x00, 0x00, 0x00, 0xDC, 0x00, 0x04, 0x00, 0x00, 0x00, 0xBA, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
     0x00, 0x01, 0x00, 0x00, 0x00, 0xF4, 0x00, 0x00, 0x00, 0x64, 0x05, 0x52, 0x42, 0x6C, 0x6F, 0x62,
     0x00, 0x00,
 ]
-
 test_io(RBlob1, dummy_RBlob1)
 
 
@@ -463,7 +466,11 @@ function rnt_write(io::IO, x::RNTupleFrame{T}) where T
     write(io, temp_io)
 end
 
-function rnt_write(io::IO, ary::AbstractArray)
+struct Write_RNTupleListFrame{T<:AbstractArray}
+    payload::T
+end
+function rnt_write(io::IO, x::Write_RNTupleListFrame)
+    ary = x.payload
     N = length(ary)
     temp_io = IOBuffer()
     for x in ary
@@ -476,7 +483,7 @@ function rnt_write(io::IO, ary::AbstractArray)
     write(io, temp_io)
 end
 
-envelope_frame_field_record = [field_record]
+envelope_frame_field_record = Write_RNTupleListFrame([field_record])
 dummy_envelope_frame_field_record = [
     0xB7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x3D, 0x00, 0x00, 0x00, 
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -493,10 +500,10 @@ function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
     rnt_write(temp_io, x.name)
     rnt_write(temp_io, x.ntuple_description)
     rnt_write(temp_io, x.writer_identifier)
-    rnt_write(temp_io, x.field_records)
-    rnt_write(temp_io, x.column_records)
-    rnt_write(temp_io, x.alias_columns)
-    rnt_write(temp_io, x.extra_type_infos)
+    rnt_write(temp_io, Write_RNTupleListFrame(x.field_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.alias_columns))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.extra_type_infos))
 
     # add id_length size and checksum size
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
@@ -556,21 +563,156 @@ dummy_rnt_header = [
 ]
 test_io(rnt_header, dummy_rnt_header; envelope=true)
 
-RBlob2 = [
+RBlob2 = RBlob(0x0026, 0x0004, 0x00000004, 0x7567176D, 0x0022, 0x0001, 0x01D0, 100, "RBlob", "", "")
+dummy_RBlob2 = [
     0x00, 0x00, 0x00, 0x26, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
     0x00, 0x01, 0x00, 0x00, 0x01, 0xD0, 0x00, 0x00, 0x00, 0x64, 0x05, 0x52, 0x42, 0x6C, 0x6F, 0x62,
     0x00, 0x00,
 ]
+test_io(RBlob2, dummy_RBlob2)
+
 page1 = [
     0xCE, 0xCE, 0xCE, 0xCE,
 ]
 
-RBlob3 = [
+RBlob3 = RBlob(0x009E, 0x0004, 0x0000007C, 0x7567176D, 0x0022, 0x0001, 0x01F6, 100, "RBlob", "", "")
+dummy_RBlob3 = [
     0x00, 0x00, 0x00, 0x9E, 0x00, 0x04, 0x00, 0x00, 0x00, 0x7C, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
     0x00, 0x01, 0x00, 0x00, 0x01, 0xF6, 0x00, 0x00, 0x00, 0x64, 0x05, 0x52, 0x42, 0x6C, 0x6F, 0x62,
     0x00, 0x00,
 ]
-linkedlist_envelope = [
+test_io(RBlob3, dummy_RBlob3)
+
+function rnt_write(io::IO, x::ClusterSummary)
+    rnt_write(io, x.first_entry_number)
+    rnt_write(io, x.number_of_entries)
+end
+
+function rnt_write(io::IO, x::UnROOT.Locator)
+    rnt_write(io, x.num_bytes)
+    rnt_write(io, x.offset)
+end
+
+function rnt_write(io::IO, x::PageDescription)
+    rnt_write(io, x.num_elements)
+    rnt_write(io, x.locator)
+end
+
+function rnt_write(io::IO, x::UnROOT.RNTuplePageTopList)
+    ary = x.payload
+    N = length(ary)
+    temp_io = IOBuffer()
+    for x in ary
+        rnt_write(temp_io, x)
+    end
+    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    write(io, Int64(-size))
+    write(io, Int32(N))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+function rnt_write(io::IO, x::UnROOT.RNTuplePageOuterList)
+    ary = x.payload
+    N = length(ary)
+    temp_io = IOBuffer()
+    for x in ary
+        rnt_write(temp_io, x)
+    end
+    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    write(io, Int64(-size))
+    write(io, Int32(N))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+function rnt_write(io::IO, x::UnROOT.RNTuplePageInnerList)
+    ary = x.payload
+    N = length(ary)
+    temp_io = IOBuffer()
+    for x in ary
+        rnt_write(temp_io, x)
+    end
+    offset = zero(UInt64)
+    compression = zero(UInt32)
+    write(temp_io, offset, compression)
+    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    write(io, Int64(-size))
+    write(io, Int32(N))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+# ================= side tests begin =================
+dummy_cluster_summary = [
+    0xDC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 
+]
+cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, 1)])
+test_io(cluster_summary, dummy_cluster_summary)
+
+# > https://github.com/root-project/root/blob/1a854602e42d4493f56a26e35e19bdf23b7d0933/tree/ntuple/v7/doc/specifications.md?plain=1#L672
+# > The inner list is followed by a 64bit unsigned integer element offset and the 32bit compression settings
+dummy_inner_list_frame = [
+    0xD8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 
+    0x04, 0x00, 0x00, 0x00, 0xF2, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+]
+
+innert_list_frame = UnROOT.RNTuplePageInnerList([
+    PageDescription(0x00000001, UnROOT.Locator(4, 0x00000000000001f2, )),
+])
+test_io(innert_list_frame, dummy_inner_list_frame)
+# ================= side tests end =================
+
+nested_page_locations = 
+UnROOT.RNTuplePageTopList([
+    UnROOT.RNTuplePageOuterList([
+        UnROOT.RNTuplePageInnerList([
+            PageDescription(0x00000001, UnROOT.Locator(4, 0x00000000000001f2, )),
+        ]),
+    ]),
+])
+
+function rnt_write(io::IO, x::UnROOT.PageLink; envelope=true)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.header_checksum)
+    rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_summaries))
+    rnt_write(temp_io, x.nested_page_locations)
+
+    # add id_length size and checksum size
+    envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
+    id_type = 0x0003
+
+    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+
+    payload_ary = take!(temp_io)
+
+    if envelope
+        prepend!(payload_ary, reinterpret(UInt8, [id_length]))
+        checksum = xxh3_64(payload_ary)
+        write(io, payload_ary)
+        write(io, checksum)
+    else
+        write(io, payload_ary)
+    end
+end
+pagelink = UnROOT.PageLink(0x3dec59c009c67e28, cluster_summary.payload, nested_page_locations)
+
+# ================= side tests begin =================
+dummy_pagelink_noenvelope = [
+    0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
+    0xDC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00,
+    0xCC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0xD8, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
+    0xF2, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
+]
+test_io(pagelink, dummy_pagelink_noenvelope; envelope=false)
+# ================= side tests end =================
+
+
+dummy_pagelink = [
     0x03, 0x00, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
     0xDC, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -580,14 +722,97 @@ linkedlist_envelope = [
     0xF2, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x1C, 0xA0, 0xDF, 0x2E, 0x25, 0x1E, 0x55, 0x4C,
 ]
+test_io(pagelink, dummy_pagelink)
 
-
-RBlob4 = [
+RBlob4 = RBlob(0x00CE, 0x0004, 0x000000AC, 0x7567176D, 0x0022, 0x0001, 0x0294, 100, "RBlob", "", "")
+dummy_RBlob4 = [
     0x00, 0x00, 0x00, 0xCE, 0x00, 0x04, 0x00, 0x00, 0x00, 0xAC, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
     0x00, 0x01, 0x00, 0x00, 0x02, 0x94, 0x00, 0x00, 0x00, 0x64, 0x05, 0x52, 0x42, 0x6C, 0x6F, 0x62,
     0x00, 0x00,
 ]
-rnt_footer = [
+test_io(RBlob4, dummy_RBlob4)
+
+"""
+UnROOT.RNTupleFooter:
+    feature_flag: 0
+    header_checksum: 0x3dec59c009c67e28
+    extension_header_links: UnROOT.RNTupleSchemaExtension(UnROOT.FieldRecord[], UnROOT.ColumnRecord[], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    column_group_records: UnROOT.ColumnGroupRecord[]
+    cluster_group_records: UnROOT.ClusterGroupRecord[UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(num_bytes=124, offset=0x0000000000000218, )
+))]
+    meta_data_links: UnROOT.EnvLink[]
+"""
+
+"""
+@SimpleStruct struct EnvLink
+    uncomp_size::UInt64
+    locator::Locator
+end
+"""
+function rnt_write(io::IO, x::UnROOT.EnvLink)
+    rnt_write(io, x.uncomp_size)
+    rnt_write(io, x.locator)
+end
+
+"""
+@SimpleStruct struct ClusterGroupRecord
+    minimum_entry_number::Int64
+    entry_span::Int64
+    num_clusters::Int32
+    page_list_link::EnvLink
+end
+"""
+function rnt_write(io::IO, x::UnROOT.ClusterGroupRecord)
+    rnt_write(io, x.minimum_entry_number)
+    rnt_write(io, x.entry_span)
+    rnt_write(io, x.num_clusters)
+    rnt_write(io, x.page_list_link)
+end
+
+function rnt_write(io::IO, x::UnROOT.RNTupleSchemaExtension)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, Write_RNTupleListFrame(x.field_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.alias_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.extra_type_info))
+
+    size = temp_io.size + sizeof(Int64)
+    write(io, Int64(size))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
+function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.feature_flag)
+    rnt_write(temp_io, x.header_checksum)
+    rnt_write(temp_io, x.extension_header_links)
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_group_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_group_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.meta_data_links))
+
+    # add id_length size and checksum size
+    envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
+    id_type = 0x0002
+
+    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+
+    payload_ary = take!(temp_io)
+
+    if envelope
+        prepend!(payload_ary, reinterpret(UInt8, [id_length]))
+        checksum = xxh3_64(payload_ary)
+        write(io, payload_ary)
+        write(io, checksum)
+    else
+        write(io, payload_ary)
+    end
+end
+
+rnt_footer = UnROOT.RNTupleFooter(0, 0x3dec59c009c67e28, UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
+    UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, 0x0000000000000218, ))),
+], UnROOT.EnvLink[])
+dummy_rnt_footer = [
     0x02, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF,
@@ -600,6 +825,7 @@ rnt_footer = [
     0x18, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0x00, 0x00, 0x00, 0x00, 0xA1, 0xD9, 0x13, 0x0B, 0x80, 0xBB, 0xFE, 0x3C,
 ]
+test_io(rnt_footer, dummy_rnt_footer)
 
 """
 UnROOT.TKey32
@@ -615,7 +841,8 @@ UnROOT.TKey32
   fName: String "myntuple"
   fTitle: String ""
 """
-tkey32_anchor = [
+tkey32_anchor = UnROOT.TKey32(134, 4, 70, 0x7567176d, 64, 1, 866, 100, "ROOT::Experimental::RNTuple", "myntuple", "")
+dummy_tkey32_anchor = [
     0x00, 0x00, 0x00, 0x86, 0x00, 0x04, 0x00, 0x00, 0x00, 0x46, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x40,
     0x00, 0x01, 0x00, 0x00, 0x03, 0x62, 0x00, 0x00, 0x00, 0x64, 0x1B, 0x52, 0x4F, 0x4F, 0x54, 0x3A,
     0x3A, 0x45, 0x78, 0x70, 0x65, 0x72, 0x69, 0x6D, 0x65, 0x6E, 0x74, 0x61, 0x6C, 0x3A, 0x3A, 0x52,
@@ -638,12 +865,28 @@ UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple
   fLenFooter: UInt64 0x00000000000000ac
   fChecksum: UInt64 0xdc495fd01479af1b
 """
-rnt_anchor = [
+function rnt_write(io::IO, x::UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple)
+    rnt_write(io, x.fVersionEpoch; legacy=true)
+    rnt_write(io, x.fVersionMajor; legacy=true)
+    rnt_write(io, x.fVersionMinor; legacy=true)
+    rnt_write(io, x.fVersionPatch; legacy=true)
+    rnt_write(io, x.fSeekHeader; legacy=true)
+    rnt_write(io, x.fNBytesHeader; legacy=true)
+    rnt_write(io, x.fLenHeader; legacy=true)
+    rnt_write(io, x.fSeekFooter; legacy=true)
+    rnt_write(io, x.fNBytesFooter; legacy=true)
+    rnt_write(io, x.fLenFooter; legacy=true)
+    rnt_write(io, x.fChecksum; legacy=true)
+end
+
+rnt_anchor = UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple(0x0000, 0x0002, 0x0000, 0x0000, 0x0000000000000116, 0x00000000000000ba, 0x00000000000000ba, 0x00000000000002b6, 0x00000000000000ac, 0x00000000000000ac, 0xdc495fd01479af1b)
+dummy_rnt_anchor = [
     0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x16,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBA,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xB6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAC,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAC, 0xDC, 0x49, 0x5F, 0xD0, 0x14, 0x79, 0xAF, 0x1B,
 ]
+test_io(rnt_anchor, dummy_rnt_anchor)
 
 tkey32_TDirectory = [
     0x00, 0x00, 0x00, 0x79, 0x00, 0x04, 0x00, 0x00, 0x00, 0x44, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x35,
@@ -657,7 +900,7 @@ n_keys = [
     0x00, 0x00, 0x00, 0x01,
 ]
 
-@assert tkey32_anchor == [
+@assert dummy_tkey32_anchor == [
     0x00, 0x00, 0x00, 0x86, 0x00, 0x04, 0x00, 0x00, 0x00, 0x46, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x40,
     0x00, 0x01, 0x00, 0x00, 0x03, 0x62, 0x00, 0x00, 0x00, 0x64, 0x1B, 0x52, 0x4F, 0x4F, 0x54, 0x3A,
     0x3A, 0x45, 0x78, 0x70, 0x65, 0x72, 0x69, 0x6D, 0x65, 0x6E, 0x74, 0x61, 0x6C, 0x3A, 0x3A, 0x52,
@@ -665,12 +908,14 @@ n_keys = [
 ]
 
 
-tkey32_TStreamerInfo = [
+tkey32_TStreamerInfo = UnROOT.TKey32(419, 4, 1266, 0x7567176d, 64, 1, 1121, 100, "TList", "StreamerInfo", "Doubly linked list")
+dummy_tkey32_TStreamerInfo = [
     0x00, 0x00, 0x01, 0xA3, 0x00, 0x04, 0x00, 0x00, 0x04, 0xF2, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x40,
     0x00, 0x01, 0x00, 0x00, 0x04, 0x61, 0x00, 0x00, 0x00, 0x64, 0x05, 0x54, 0x4C, 0x69, 0x73, 0x74,
     0x0C, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6D, 0x65, 0x72, 0x49, 0x6E, 0x66, 0x6F, 0x12, 0x44, 0x6F,
     0x75, 0x62, 0x6C, 0x79, 0x20, 0x6C, 0x69, 0x6E, 0x6B, 0x65, 0x64, 0x20, 0x6C, 0x69, 0x73, 0x74,
 ]
+test_io(tkey32_TStreamerInfo, dummy_tkey32_TStreamerInfo)
 
 tsreamerinfo_compressed = [
     0x5A, 0x4C, 0x08, 0x5A, 0x01, 0x00, 0xF2, 0x04, 0x00, 0x78, 0x01, 0xBD, 0x92, 0x4D, 0x4E, 0xC2,
@@ -712,12 +957,12 @@ MINE = [
     dummy_tkey32_tfile; dummy_tfile;
     dummy_tdirectory32; dummy_padding2;
     dummy_RBlob1; dummy_rnt_header;
-    RBlob2; page1;
-    RBlob3; linkedlist_envelope;
-    RBlob4; rnt_footer;
-    tkey32_anchor; magic_6bytes; rnt_anchor;
-    tkey32_TDirectory; n_keys; tkey32_anchor;
-    tkey32_TStreamerInfo; tsreamerinfo_compressed;
+    dummy_RBlob2; page1;
+    dummy_RBlob3; dummy_pagelink;
+    dummy_RBlob4; dummy_rnt_footer;
+    dummy_tkey32_anchor; magic_6bytes; dummy_rnt_anchor;
+    tkey32_TDirectory; n_keys; dummy_tkey32_anchor;
+    dummy_tkey32_TStreamerInfo; tsreamerinfo_compressed;
     tfile_end
 ]
 
@@ -735,17 +980,25 @@ function write_rntuple(file::IO, table; rntuple_name="myntuple")
     rnt_write(file, dummy_padding2)
 
     rnt_write(file, RBlob1)
-    rnt_write(file, dummy_rnt_header)
+    rnt_write(file, rnt_header)
 
-    rnt_write(file, [RBlob2; page1])
+    rnt_write(file, RBlob2)
+    rnt_write(file, page1)
 
-    rnt_write(file, [RBlob3; linkedlist_envelope])
+    rnt_write(file, RBlob3)
+    rnt_write(file, pagelink)
 
-    rnt_write(file, [RBlob4; rnt_footer])
+    rnt_write(file, RBlob4)
+    rnt_write(file, rnt_footer)
 
-    rnt_write(file, [tkey32_anchor; magic_6bytes; rnt_anchor])
-    rnt_write(file, [tkey32_TDirectory; n_keys; tkey32_anchor])
-    rnt_write(file, [tkey32_TStreamerInfo; tsreamerinfo_compressed])
+    rnt_write(file, tkey32_anchor)
+    rnt_write(file, magic_6bytes)
+    rnt_write(file, rnt_anchor)
+
+    rnt_write(file, [tkey32_TDirectory; n_keys])
+    rnt_write(file, tkey32_anchor)
+    rnt_write(file, tkey32_TStreamerInfo)
+    rnt_write(file, tsreamerinfo_compressed)
     rnt_write(file, tfile_end)
 end
 
