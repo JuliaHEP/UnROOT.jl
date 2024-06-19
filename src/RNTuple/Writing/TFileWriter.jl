@@ -732,7 +732,87 @@ dummy_RBlob4 = [
 ]
 test_io(RBlob4, dummy_RBlob4)
 
-rnt_footer = [
+"""
+UnROOT.RNTupleFooter:
+    feature_flag: 0
+    header_checksum: 0x3dec59c009c67e28
+    extension_header_links: UnROOT.RNTupleSchemaExtension(UnROOT.FieldRecord[], UnROOT.ColumnRecord[], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    column_group_records: UnROOT.ColumnGroupRecord[]
+    cluster_group_records: UnROOT.ClusterGroupRecord[UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(num_bytes=124, offset=0x0000000000000218, )
+))]
+    meta_data_links: UnROOT.EnvLink[]
+"""
+
+"""
+@SimpleStruct struct EnvLink
+    uncomp_size::UInt64
+    locator::Locator
+end
+"""
+function rnt_write(io::IO, x::UnROOT.EnvLink)
+    rnt_write(io, x.uncomp_size)
+    rnt_write(io, x.locator)
+end
+
+"""
+@SimpleStruct struct ClusterGroupRecord
+    minimum_entry_number::Int64
+    entry_span::Int64
+    num_clusters::Int32
+    page_list_link::EnvLink
+end
+"""
+function rnt_write(io::IO, x::UnROOT.ClusterGroupRecord)
+    rnt_write(io, x.minimum_entry_number)
+    rnt_write(io, x.entry_span)
+    rnt_write(io, x.num_clusters)
+    rnt_write(io, x.page_list_link)
+end
+
+function rnt_write(io::IO, x::UnROOT.RNTupleSchemaExtension)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, Write_RNTupleListFrame(x.field_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.alias_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.extra_type_info))
+
+    size = temp_io.size + sizeof(Int64)
+    write(io, Int64(size))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
+function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.feature_flag)
+    rnt_write(temp_io, x.header_checksum)
+    rnt_write(temp_io, x.extension_header_links)
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_group_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_group_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.meta_data_links))
+
+    # add id_length size and checksum size
+    envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
+    id_type = 0x0002
+
+    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+
+    payload_ary = take!(temp_io)
+
+    if envelope
+        prepend!(payload_ary, reinterpret(UInt8, [id_length]))
+        checksum = xxh3_64(payload_ary)
+        write(io, payload_ary)
+        write(io, checksum)
+    else
+        write(io, payload_ary)
+    end
+end
+
+rnt_footer = UnROOT.RNTupleFooter(0, 0x3dec59c009c67e28, UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
+    UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, 0x0000000000000218, ))),
+], UnROOT.EnvLink[])
+dummy_rnt_footer = [
     0x02, 0x00, 0xAC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF,
@@ -745,6 +825,7 @@ rnt_footer = [
     0x18, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0x00, 0x00, 0x00, 0x00, 0xA1, 0xD9, 0x13, 0x0B, 0x80, 0xBB, 0xFE, 0x3C,
 ]
+test_io(rnt_footer, dummy_rnt_footer)
 
 """
 UnROOT.TKey32
@@ -859,7 +940,7 @@ MINE = [
     dummy_RBlob1; dummy_rnt_header;
     dummy_RBlob2; page1;
     dummy_RBlob3; dummy_pagelink;
-    dummy_RBlob4; rnt_footer;
+    dummy_RBlob4; dummy_rnt_footer;
     tkey32_anchor; magic_6bytes; rnt_anchor;
     tkey32_TDirectory; n_keys; tkey32_anchor;
     tkey32_TStreamerInfo; tsreamerinfo_compressed;
@@ -886,7 +967,7 @@ function write_rntuple(file::IO, table; rntuple_name="myntuple")
     rnt_write(file, page1)
 
     rnt_write(file, RBlob3)
-    rnt_write(file, dummy_pagelink)
+    rnt_write(file, pagelink)
 
     rnt_write(file, RBlob4)
     rnt_write(file, rnt_footer)
