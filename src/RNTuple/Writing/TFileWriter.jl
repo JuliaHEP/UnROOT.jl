@@ -888,12 +888,14 @@ dummy_rnt_anchor = [
 ]
 test_io(rnt_anchor, dummy_rnt_anchor)
 
-tkey32_TDirectory = [
+tkey32_TDirectory = UnROOT.TKey32(121, 4, 68, 0x7567176d, 53, 1, 1000, 100, "", "test_ntuple_minimal.root", "")
+dummy_tkey32_TDirectory = [
     0x00, 0x00, 0x00, 0x79, 0x00, 0x04, 0x00, 0x00, 0x00, 0x44, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x35,
     0x00, 0x01, 0x00, 0x00, 0x03, 0xE8, 0x00, 0x00, 0x00, 0x64, 0x00, 0x18, 0x74, 0x65, 0x73, 0x74,
     0x5F, 0x6E, 0x74, 0x75, 0x70, 0x6C, 0x65, 0x5F, 0x6D, 0x69, 0x6E, 0x69, 0x6D, 0x61, 0x6C, 0x2E,
     0x72, 0x6F, 0x6F, 0x74, 0x00,
 ]
+test_io(tkey32_TDirectory, dummy_tkey32_TDirectory)
 
 # 1 key, and it is the RNTuple Anchor
 n_keys = [
@@ -961,21 +963,23 @@ MINE = [
     dummy_RBlob3; dummy_pagelink;
     dummy_RBlob4; dummy_rnt_footer;
     dummy_tkey32_anchor; magic_6bytes; dummy_rnt_anchor;
-    tkey32_TDirectory; n_keys; dummy_tkey32_anchor;
+    dummy_tkey32_TDirectory; n_keys; dummy_tkey32_anchor;
     dummy_tkey32_TStreamerInfo; tsreamerinfo_compressed;
     tfile_end
 ]
 
-@show MINE == REFERENCE_BYTES
-
 function write_rntuple(file::IO, table; rntuple_name="myntuple")
     rnt_write(file, file_preamble)
+    FileHeader32_update = Dict{Symbol, Any}()
     rnt_write(file, fileheader)
     rnt_write(file, dummy_padding1)
+
+    FileHeader32_update[:fBEGIN] = UInt32(position(file))
 
     rnt_write(file, tkey32_tfile)
     rnt_write(file, tfile)
 
+    DirectoryHeader32_update = Dict{Symbol, Any}()
     rnt_write(file, tdirectory32)
     rnt_write(file, dummy_padding2)
 
@@ -995,13 +999,23 @@ function write_rntuple(file::IO, table; rntuple_name="myntuple")
     rnt_write(file, magic_6bytes)
     rnt_write(file, rnt_anchor)
 
-    rnt_write(file, [tkey32_TDirectory; n_keys])
+    DirectoryHeader32_update[:fSeekKeys] = UInt32(position(file))
+    rnt_write(file, tkey32_TDirectory)
+    rnt_write(file, n_keys)
     rnt_write(file, tkey32_anchor)
+
+    FileHeader32_update[:fSeekInfo] = UInt32(position(file))
     rnt_write(file, tkey32_TStreamerInfo)
     rnt_write(file, tsreamerinfo_compressed)
+    FileHeader32_update[:fSeekFree] = UInt32(position(file))
     rnt_write(file, tfile_end)
+    FileHeader32_update[:fEND] = UInt32(position(file))
+
+    @show FileHeader32_update
+    @show DirectoryHeader32_update
 end
 
 myio = IOBuffer()
 write_rntuple(myio, [])
+@show MINE == REFERENCE_BYTES
 @show MINE == take!(myio)
