@@ -1,4 +1,7 @@
 using StaticArrays
+using UnROOT
+using UnROOT: RNTupleFrame
+using XXHashNative: xxh3_64
 
 const REFERENCE_BYTES = [
     0x72, 0x6F, 0x6F, 0x74, 0x00, 0x00, 0xF7, 0x45, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x06, 0x43,
@@ -104,6 +107,70 @@ const REFERENCE_BYTES = [
     0x35, 0x94, 0x00,
 ]
 
+function color_diff(ary1, ary2)
+    if length(ary1) != length(ary2)
+        printstyled("!!! Length mismatch !!!: length(ary1)=$(length(ary1)), length(ary2)=$(length(ary2))\n", color=:red)
+    end
+    print("[")
+    x = 0
+    for (i,j) in zip(ary1, ary2)
+        if x % 8 == 0
+            print("    ")
+        end
+        if x % 16 == 0
+            println()
+            x = 0
+        end
+        if i != j
+            printstyled("$(repr(i))/$(repr(j)), ", color=:red)
+        else
+            printstyled("$(repr(i)), ", color=:green)
+        end
+        x += 1
+    end
+    println()
+    println("]")
+end
+
+function rnt_write(io::IO, x::AbstractString; legacy=false)
+    L = length(x)
+    if legacy
+        if L > typemax(UInt8)
+            error("String longer than 255 not implemented")
+        end
+        write(io, UInt8(L))
+        write(io, codeunits(x))
+    else
+        write(io, UInt32(L))
+        write(io, codeunits(x))
+    end
+end
+
+function rnt_write(io::IO, x; legacy=false)
+    if legacy
+        write(io, bswap(x))
+    else
+        write(io, x)
+    end
+end
+
+function rnt_write(io::IO, x::AbstractVector{UInt8}; legacy=false)
+    if legacy
+        write(io, reverse(x))
+    else
+        write(io, x)
+    end
+end
+
+function test_io(obj, expected)
+    a = IOBuffer()
+    rnt_write(a, obj)
+    ours = take!(a)
+    if ours != expected
+        color_diff(ours, expected)
+    end
+end
+
 """
 struct FilePreamble
     identifier::SVector{4, UInt8}  # Root file identifier ("root")
@@ -130,7 +197,21 @@ struct FileHeader32
     fUUID::SVector{18, UInt8}  # Universal Unique ID
 end
 """
-# dummy_FileHeader = UnROOT.FileHeader32(100, 0x00000643, 0x00000604, 63, 1, 84, 0x04, 0, 0x00000461, 419, UInt8[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+fileheader = UnROOT.FileHeader32(100, 0x00000643, 0x00000604, 63, 1, 84, 0x04, 0, 0x00000461, 419, UInt8[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+function rnt_write(io::IO, x::UnROOT.FileHeader32)
+    rnt_write(io, x.fBEGIN; legacy=true)
+    rnt_write(io, x.fEND; legacy=true)
+    rnt_write(io, x.fSeekFree; legacy=true)
+    rnt_write(io, x.fNbytesFree; legacy=true)
+    rnt_write(io, x.nfree; legacy=true)
+    rnt_write(io, x.fNbytesName; legacy=true)
+    rnt_write(io, x.fUnits; legacy=true)
+    rnt_write(io, x.fCompress; legacy=true)
+    rnt_write(io, x.fSeekInfo; legacy=true)
+    rnt_write(io, x.fNbytesInfo; legacy=true)
+    rnt_write(io, x.fUUID; legacy=true)
+end
+
 dummy_FileHeader = [
     0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x06, 0x43, 0x00, 0x00, 0x06, 0x04, 0x00, 0x00, 0x00, 0x3F,
     0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x54, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
@@ -138,23 +219,67 @@ dummy_FileHeader = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ]
 
+test_io(fileheader, dummy_FileHeader)
+
 dummy_padding1 = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00,
 ]
 
-tkey32_tfile = [
+"""
+struct TKey32
+    fNbytes::Int32
+    fVersion::Int16
+    fObjlen::Int32
+    fDatime::UInt32
+    fKeylen::Int16
+    fCycle::Int16
+    fSeekKey::Int32
+    fSeekPdir::Int32
+    fClassName::String
+    fName::String
+    fTitle::String
+end
+"""
+tkey32_tfile = UnROOT.TKey32(144, 4, 86, 0x7567176d, 58, 1, 100, 0, "TFile", "test_ntuple_minimal.root", "")
+function rnt_write(io::IO, x::UnROOT.TKey32)
+    rnt_write(io, x.fNbytes; legacy=true)
+    rnt_write(io, x.fVersion; legacy=true)
+    rnt_write(io, x.fObjlen; legacy=true)
+    rnt_write(io, x.fDatime; legacy=true)
+    rnt_write(io, x.fKeylen; legacy=true)
+    rnt_write(io, x.fCycle; legacy=true)
+    rnt_write(io, x.fSeekKey; legacy=true)
+    rnt_write(io, x.fSeekPdir; legacy=true)
+    rnt_write(io, x.fClassName; legacy=true)
+    rnt_write(io, x.fName; legacy=true)
+    rnt_write(io, x.fTitle; legacy=true)
+end
+
+dummy_tkey32_tfile = [
     0x00, 0x00, 0x00, 0x90, 0x00, 0x04, 0x00, 0x00, 0x00, 0x56, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x3A,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x05, 0x54, 0x46, 0x69, 0x6C, 0x65,
     0x18, 0x74, 0x65, 0x73, 0x74, 0x5F, 0x6E, 0x74, 0x75, 0x70, 0x6C, 0x65, 0x5F, 0x6D, 0x69, 0x6E,
     0x69, 0x6D, 0x61, 0x6C, 0x2E, 0x72, 0x6F, 0x6F, 0x74, 0x00,
 ]
 
-tfile = [
+test_io(tkey32_tfile, dummy_tkey32_tfile)
+
+struct TFile_write
+    filename::String
+    unknown::String
+end
+tfile = TFile_write("test_ntuple_minimal.root", "")
+function rnt_write(io::IO, x::TFile_write)
+    rnt_write(io, x.filename; legacy=true)
+    rnt_write(io, x.unknown; legacy=true)
+end
+dummy_tfile = [
     0x18, 0x74, 0x65, 0x73, 0x74, 0x5F, 0x6E, 0x74, 0x75, 0x70, 0x6C, 0x65, 0x5F, 0x6D, 0x69, 0x6E,
     0x69, 0x6D, 0x61, 0x6C, 0x2E, 0x72, 0x6F, 0x6F, 0x74, 0x00,
 ]
+test_io(tfile, dummy_tfile)
 
 
 """
@@ -169,11 +294,22 @@ struct ROOTDirectoryHeader32
     fSeekKeys::Int32
 end
 """
-# tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, 0x7567176d, 0x7567176d, 121, 84, 100, 0, 1000)
-tdirectory32 = [
+tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, 0x7567176d, 0x7567176d, 121, 84, 100, 0, 1000)
+function rnt_write(io::IO, x::UnROOT.ROOTDirectoryHeader32)
+    rnt_write(io, x.fVersion; legacy=true)
+    rnt_write(io, x.fDatimeC; legacy=true)
+    rnt_write(io, x.fDatimeM; legacy=true)
+    rnt_write(io, x.fNbytesKeys; legacy=true)
+    rnt_write(io, x.fNbytesName; legacy=true)
+    rnt_write(io, x.fSeekDir; legacy=true)
+    rnt_write(io, x.fSeekParent; legacy=true)
+    rnt_write(io, x.fSeekKeys; legacy=true)
+end
+dummy_tdirectory32 = [
     0x00, 0x05, 0x75, 0x67, 0x17, 0x6D, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x00, 0x00, 0x79, 0x00, 0x00,
     0x00, 0x54, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xE8,
 ]
+test_io(tdirectory32, dummy_tdirectory32)
 
 dummy_padding2 = [
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -187,19 +323,34 @@ struct RBlob
     fDatime::UInt32
     fKeyLen::Int16
     fCycle::Int16
-    fSeekKey::Int64
-    fClassName::SVector{5,UInt8}
-    fName::SVector{1,UInt8}
-    fTitle::SVector{1,UInt8}
+    fSeekKey::Int32
+    fSeekPdir::Int32
+    fClassName::String
+    fName::String
+    fTitle::String
+end
+RBlob1 = RBlob(220, 0x0004, 0x000000BA, 0x7567176D, 0x0022, 0x0001, 244, 100, "RBlob", "", "")
+function rnt_write(io::IO, x::RBlob)
+    rnt_write(io, x.fNbytes; legacy=true)
+    rnt_write(io, x.fVersion; legacy=true)
+    rnt_write(io, x.fObjLen; legacy=true)
+    rnt_write(io, x.fDatime; legacy=true)
+    rnt_write(io, x.fKeyLen; legacy=true)
+    rnt_write(io, x.fCycle; legacy=true)
+    rnt_write(io, x.fSeekKey; legacy=true)
+    rnt_write(io, x.fSeekPdir; legacy=true)
+    rnt_write(io, x.fClassName; legacy=true)
+    rnt_write(io, x.fName; legacy=true)
+    rnt_write(io, x.fTitle; legacy=true)
 end
 
-# RBlob1 = RBlob(220, 0x0004, 0x000000BA, 0x7567176D, 0x0022, 0x0001, 0x000000F4, b"RBlob", b"\0", b"\0")
-
-RBlob1 = [
+dummy_RBlob1 = [
     0x00, 0x00, 0x00, 0xDC, 0x00, 0x04, 0x00, 0x00, 0x00, 0xBA, 0x75, 0x67, 0x17, 0x6D, 0x00, 0x22,
     0x00, 0x01, 0x00, 0x00, 0x00, 0xF4, 0x00, 0x00, 0x00, 0x64, 0x05, 0x52, 0x42, 0x6C, 0x6F, 0x62,
     0x00, 0x00,
 ]
+
+test_io(RBlob1, dummy_RBlob1)
 
 
 """
@@ -230,23 +381,156 @@ UnROOT.RNTupleHeader
   alias_columns: Array{UnROOT.AliasRecord}((0,))
   extra_type_infos: Array{UnROOT.ExtraTypeInfo}((0,))
 """
-# rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "UnROOT v6.33.", [
-#     UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, "one_uint", "std::uint32_t", "", ""),
-# ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "ROOT v6.33.01", [
+    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, "one_uint", "std::uint32_t", "", ""),
+], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
 
-rnt_header = [
-    0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x08, 0x00, 0x00, 0x00, 0x6D, 0x79, 0x6E, 0x74, 0x75, 0x70, 0x6C, 0x65, 0x00, 0x00, 0x00, 0x00,
-    0x0D, 0x00, 0x00, 0x00, 0x52, 0x4F, 0x4F, 0x54, 0x20, 0x76, 0x36, 0x2E, 0x33, 0x33, 0x2E, 0x30,
-    0x31, 0xB7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x3D, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E,
-    0x74, 0x0D, 0x00, 0x00, 0x00, 0x73, 0x74, 0x64, 0x3A, 0x3A, 0x75, 0x69, 0x6E, 0x74, 0x33, 0x32,
-    0x5F, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00,
-    0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
-    0x00, 0x00, 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
+
+# ==================================== side tests ====================================
+function rnt_write(io::IO, x::UnROOT.FieldRecord)
+    rnt_write(io, x.field_version)
+    rnt_write(io, x.type_version)
+    rnt_write(io, x.parent_field_id)
+    rnt_write(io, x.struct_role)
+    rnt_write(io, x.flags)
+    if !iszero(x.repetition)
+        if x.flags != 0x01
+            error("Repetition is set but flags is not 0x01")
+        end
+        rnt_write(io, x.repetition)
+    end
+    rnt_write(io, x.field_name)
+    rnt_write(io, x.type_name)
+    rnt_write(io, x.type_alias)
+    rnt_write(io, x.field_desc)
+end
+field_record = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, "one_uint", "std::uint32_t", "", "")
+dummy_field_record = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x08, 0x00, 0x00, 0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E, 0x74, 0x0D, 0x00, 0x00, 0x00, 
+    0x73, 0x74, 0x64, 0x3A, 0x3A, 0x75, 0x69, 0x6E, 0x74, 0x33, 0x32, 0x5F, 0x74, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 
+]
+test_io(field_record, dummy_field_record)
+
+function rnt_write(io::IO, x::UnROOT.ColumnRecord)
+    rnt_write(io, x.type)
+    rnt_write(io, x.nbits)
+    rnt_write(io, x.field_id)
+    rnt_write(io, x.flags)
+    if !iszero(x.first_ele_idx)
+        if x.flags != 0x08
+            error("First element index is set but flags is not 0x08")
+        end
+        rnt_write(io, x.first_ele_idx)
+    end
+end
+column_record = UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0)
+dummy_column_record = [
+    0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+]
+test_io(column_record, dummy_column_record)
+
+function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
+    temp_io = IOBuffer()
+    id_type = 0x0001
+    _rnt_write(temp_io, x)
+    envelope_size = temp_io.size + 18
+    payload_ary = take!(temp_io)
+    id_length = (UInt64(envelope_size & 0xff) << 24) | id_type
+    write(io, id_length)
+    write(io, payload_ary)
+    write(io, xxh3_64(payload_ary))
+end
+# reference from reading code
+# function _rntuple_read(io, ::Type{Vector{T}}) where T
+#     pos = position(io)
+#     Size = read(io, Int64)
+#     @assert Size < 0
+#     NumItems = read(io, Int32)
+#     end_pos = pos - Size
+#     res = T[_rntuple_read(io, RNTupleFrame{T}).payload for _=1:NumItems]
+#     seek(io, end_pos)
+#     return res
+# end
+#
+# struct RNTupleFrame{T}
+    # payload::T
+# end
+# function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
+    # pos = position(io)
+    # Size = read(io, Int64)
+    # end_pos = pos + Size
+    # @assert Size >= 0
+    # res = _rntuple_read(io, T)
+    # seek(io, end_pos)
+    # return RNTupleFrame(res)
+# end
+
+function rnt_write(io::IO, x::RNTupleFrame{T}) where T
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.payload)
+    size = temp_io.size + 8
+    write(io, Int64(size))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
+function rnt_write(io::IO, ary::AbstractArray)
+    N = length(ary)
+    temp_io = IOBuffer()
+    for x in ary
+        rnt_write(temp_io, RNTupleFrame(x))
+    end
+    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    write(io, Int64(-size))
+    write(io, Int32(N))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
+envelope_frame_field_record = [field_record]
+dummy_envelope_frame_field_record = [
+    0xB7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x3D, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E, 0x74, 
+    0x0D, 0x00, 0x00, 0x00, 0x73, 0x74, 0x64, 0x3A, 0x3A, 0x75, 0x69, 0x6E, 0x74, 0x33, 0x32, 0x5F, 
+    0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+]
+
+test_io(envelope_frame_field_record, dummy_envelope_frame_field_record)
+
+function rnt_write(io::IO, x::UnROOT.RNTupleHeader)
+    rnt_write(io, x.feature_flag)
+    rnt_write(io, x.name)
+    rnt_write(io, x.ntuple_description)
+    rnt_write(io, x.writer_identifier)
+    rnt_write(io, x.field_records)
+    rnt_write(io, x.column_records)
+    rnt_write(io, x.alias_columns)
+    rnt_write(io, x.extra_type_infos)
+end
+dummy_rnt_header_payload = [
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x6D, 0x79, 0x6E, 0x74, 
+    0x75, 0x70, 0x6C, 0x65, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00, 0x52, 0x4F, 0x4F, 0x54, 
+    0x20, 0x76, 0x36, 0x2E, 0x33, 0x33, 0x2E, 0x30, 0x31, 0xB7, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
+    0xFF, 0x01, 0x00, 0x00, 0x00, 0x3D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 
+    0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E, 0x74, 0x0D, 0x00, 0x00, 0x00, 0x73, 0x74, 0x64, 
+    0x3A, 0x3A, 0x75, 0x69, 0x6E, 0x74, 0x33, 0x32, 0x5F, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0xE0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x14, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0xF4, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xF4, 0xFF, 
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 
+]
+
+test_io(rnt_header, dummy_rnt_header_payload)
+
+# ====================================================================================
+# ==================================== side tests ====================================
+
+dummy_rnt_header = [
+    0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_rnt_header_payload..., 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
 ]
 
 RBlob2 = [
@@ -402,9 +686,9 @@ tfile_end = [
 MINE = [
     file_preamble;
     dummy_FileHeader; dummy_padding1;
-    tkey32_tfile; tfile;
-    tdirectory32; dummy_padding2;
-    RBlob1; rnt_header;
+    dummy_tkey32_tfile; dummy_tfile;
+    dummy_tdirectory32; dummy_padding2;
+    dummy_RBlob1; dummy_rnt_header;
     RBlob2; page1;
     RBlob3; linkedlist_envelope;
     RBlob4; rnt_footer;
@@ -414,4 +698,34 @@ MINE = [
     tfile_end
 ]
 
-@assert MINE == REFERENCE_BYTES
+@show MINE == REFERENCE_BYTES
+
+function write_rntuple(file::IO, table; rntuple_name="myntuple")
+    rnt_write(file, file_preamble)
+    rnt_write(file, fileheader)
+    rnt_write(file, dummy_padding1)
+
+    rnt_write(file, tkey32_tfile)
+    rnt_write(file, tfile)
+
+    rnt_write(file, tdirectory32)
+    rnt_write(file, dummy_padding2)
+
+    rnt_write(file, RBlob1)
+    rnt_write(file, dummy_rnt_header)
+
+    rnt_write(file, [RBlob2; page1])
+
+    rnt_write(file, [RBlob3; linkedlist_envelope])
+
+    rnt_write(file, [RBlob4; rnt_footer])
+
+    rnt_write(file, [tkey32_anchor; magic_6bytes; rnt_anchor])
+    rnt_write(file, [tkey32_TDirectory; n_keys; tkey32_anchor])
+    rnt_write(file, [tkey32_TStreamerInfo; tsreamerinfo_compressed])
+    rnt_write(file, tfile_end)
+end
+
+myio = IOBuffer()
+write_rntuple(myio, [])
+@show MINE == take!(myio)
