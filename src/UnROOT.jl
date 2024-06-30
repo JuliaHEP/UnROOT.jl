@@ -66,6 +66,7 @@ include("RNTuple/fieldcolumn_reading.jl")
 include("RNTuple/displays.jl")
 
 include("RNTuple/Writing/TFileWriter.jl")
+include("RNTuple/Writing/Stubs.jl")
 
 _maxthreadid() = @static if VERSION < v"1.9"
     Threads.nthreads()
