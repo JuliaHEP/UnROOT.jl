@@ -28,5 +28,6 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
 
     if VERSION >= v"1.9"
         include("rntuple.jl")
+        include("./RNTupleWriting/lowlevel.jl")
     end
 end
