@@ -16,6 +16,9 @@ end
 function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
     local_io = datastream(io, tkey)
     skip(local_io, 6)
+    _before_anchor = position(local_io)
+    anchor_checksum = xxh3_64(read(local_io, 2*4 + 6*8))
+    seek(local_io, _before_anchor)
     anchor = ROOT_3a3a_Experimental_3a3a_RNTuple(;
                     fVersionEpoch = readtype(local_io, UInt16),
                     fVersionMajor = readtype(local_io, UInt16),
@@ -29,6 +32,9 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
                     fLenFooter = readtype(local_io, UInt64),
                     fChecksum = readtype(local_io, UInt64),
                                        )
+
+    @assert anchor.fChecksum == anchor_checksum "RNtuple anchor checksum doesn't match"
+
 
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)
     header_io = IOBuffer(header_bytes)
