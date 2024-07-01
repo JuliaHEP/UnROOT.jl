@@ -1,6 +1,7 @@
 using UnROOT: rnt_write, RNTupleFrame, ClusterSummary, PageDescription, Write_RNTupleListFrame, RBlob
 using XXHashNative: xxh3_64
 using Tables: columntable
+using Random
 
 const REFERENCE_BYTES = [
     0x72, 0x6F, 0x6F, 0x74, 0x00, 0x00, 0xF7, 0x45, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x06, 0x43,
@@ -334,15 +335,15 @@ MINE = [
     UnROOT.Stubs.tfile_end
 ]
 
-mytable = Dict("a" => UInt32[0xcececece])
+mytable = Dict("one_uint" => UInt32[0xcececece])
 myio = IOBuffer()
-UnROOT.write_rntuple(myio, mytable)
+UnROOT.write_rntuple(myio, mytable; rntuple_name="myntuple")
 @test MINE == REFERENCE_BYTES
 mio = take!(myio)
 @test MINE == mio
 
 for _ = 1:100
-    newtable = Dict("a" => rand(UInt32, rand(1:1000)))
+    newtable = Dict(randstring(rand(2:10)) => rand(UInt32, rand(1:1000)))
     newio = IOBuffer()
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
@@ -355,7 +356,9 @@ for _ = 1:100
         write(f, nio)
     end
 
-    t = LazyTree("a.root", "myntuple")
+    rntuple_name = "myntuple"
+    t = LazyTree("a.root", rntuple_name)
+    @test sort(names(t)) == sort(collect(keys(newtable)))
     @test only(columntable(t)) == only(columntable(newtable))
 
 end

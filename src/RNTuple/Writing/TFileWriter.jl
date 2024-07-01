@@ -180,35 +180,7 @@ function rnt_write(io::IO, x::UnROOT.ColumnRecord)
         rnt_write(io, x.first_ele_idx)
     end
 end
-column_record = UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0)
-dummy_column_record = [
-    0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-]
-test_io(column_record, dummy_column_record)
-# reference from reading code
-# function _rntuple_read(io, ::Type{Vector{T}}) where T
-#     pos = position(io)
-#     Size = read(io, Int64)
-#     @assert Size < 0
-#     NumItems = read(io, Int32)
-#     end_pos = pos - Size
-#     res = T[_rntuple_read(io, RNTupleFrame{T}).payload for _=1:NumItems]
-#     seek(io, end_pos)
-#     return res
-# end
-#
-# struct RNTupleFrame{T}
-    # payload::T
-# end
-# function _rntuple_read(io, ::Type{RNTupleFrame{T}}) where T
-    # pos = position(io)
-    # Size = read(io, Int64)
-    # end_pos = pos + Size
-    # @assert Size >= 0
-    # res = _rntuple_read(io, T)
-    # seek(io, end_pos)
-    # return RNTupleFrame(res)
-# end
+
 function rnt_write(io::IO, x::RNTupleFrame{T}) where T
     temp_io = IOBuffer()
     rnt_write(temp_io, x.payload)
@@ -233,6 +205,29 @@ function rnt_write(io::IO, x::Write_RNTupleListFrame)
     write(io, Int32(N))
     seekstart(temp_io)
     write(io, temp_io)
+end
+
+function _checksum(x::UnROOT.RNTupleHeader)
+    temp_io = IOBuffer()
+    rnt_write(temp_io, x.feature_flag)
+    rnt_write(temp_io, x.name)
+    rnt_write(temp_io, x.ntuple_description)
+    rnt_write(temp_io, x.writer_identifier)
+    rnt_write(temp_io, Write_RNTupleListFrame(x.field_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.column_records))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.alias_columns))
+    rnt_write(temp_io, Write_RNTupleListFrame(x.extra_type_infos))
+
+    # add id_length size and checksum size
+    envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
+    id_type = 0x0001
+
+    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+
+    payload_ary = take!(temp_io)
+    prepend!(payload_ary, reinterpret(UInt8, [id_length]))
+
+    return xxh3_64(payload_ary)
 end
 
 function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
@@ -262,15 +257,6 @@ function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
     else
         write(io, payload_ary)
     end
-end
-
-function rnt_write_envelope(io::IO, x; type_id)
-    temp_io = IOBuffer()
-    rnt_write(temp_io, x.payload)
-    size = temp_io.size + 8
-    write(io, Int64(size))
-    seekstart(temp_io)
-    write(io, temp_io)
 end
 
 function rnt_write(io::IO, x::ClusterSummary)
@@ -436,6 +422,7 @@ end
 mutable struct WriteObservable{O, T}
     io::O
     position::Int64
+    len::Int64
     object::T
 end
 
@@ -467,7 +454,8 @@ end
 function rnt_write_observe(io::IO, x::T) where T
     pos = position(io)
     rnt_write(io, x)
-    WriteObservable(io, pos, x)
+    len = position(io) - pos
+    WriteObservable(io, pos, len, x)
 end
 
 function split4_encode(src::AbstractVector{UInt8})
@@ -512,9 +500,13 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
 
     RBlob1_obs = rnt_write_observe(file, Stubs.RBlob1)
     rntAnchor_update[:fSeekHeader] = UInt32(position(file))
-    rnt_header_obs = rnt_write_observe(file, Stubs.rnt_header)
-    rntAnchor_update[:fNBytesHeader] = 0xba
-    rntAnchor_update[:fLenHeader] = 0xba
+    rnt_header = UnROOT.RNTupleHeader(zero(UInt64), rntuple_name, "", "ROOT v6.33.01", [
+    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0,     string(only(input_schema.names)), "std::uint32_t", "", ""),
+    ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+
+    rnt_header_obs = rnt_write_observe(file, rnt_header)
+    rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
+    rntAnchor_update[:fLenHeader] = rnt_header_obs.len
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
     page1 = reinterpret(UInt8, input_col)
@@ -533,13 +525,14 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         ]),
     ])
 
-    pagelink = UnROOT.PageLink(0x3dec59c009c67e28, cluster_summary.payload, nested_page_locations)
+    # stub checksum 0x3dec59c009c67e28
+    pagelink = UnROOT.PageLink(_checksum(rnt_header_obs.object), cluster_summary.payload, nested_page_locations)
     pagelink_position = position(file)
     pagelink_obs = rnt_write_observe(file, pagelink)
 
     RBlob4_obs = rnt_write_observe(file, Stubs.RBlob4)
     rntAnchor_update[:fSeekFooter] = UInt32(position(file))
-    rnt_footer = UnROOT.RNTupleFooter(0, 0x3dec59c009c67e28, UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
+    rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
         UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, pagelink_position, ))),
     ], UnROOT.EnvLink[])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)
@@ -547,7 +540,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     rntAnchor_update[:fLenFooter] = 0xac
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(134, 4, 70, 0x7567176d, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", "myntuple", "")
+    tkey32_anchor = UnROOT.TKey32(134, 4, 70, 0x7567176d, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
     rnt_anchor_obs = rnt_write_observe(file, Stubs.rnt_anchor)
