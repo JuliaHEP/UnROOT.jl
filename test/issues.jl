@@ -94,3 +94,8 @@ end
     @test length(tree.PandoraPFOs_energy[1]) == 79
     @test length(tree.var"PandoraPFOs_covMatrix[10]"[1]) == 790
 end
+
+@testset "PR 342 TLeafC" begin
+    df = LazyTree(UnROOT.samplefile("TLeafC_pr342.root"), "G4Sim")
+    @test all(df.Process[1:10] .== ["Radioactivation", "msc", "eIoni", "Transportation", "ionIoni", "Radioactivation", "msc", "eIoni", "ionIoni", "Radioactivation"])
+end
