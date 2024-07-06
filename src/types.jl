@@ -110,7 +110,7 @@ end
 
 iscompressed(t::T) where T<:Union{TKey, TBasketKey} = t.fObjlen != t.fNbytes - t.fKeylen
 origin(t::T) where T<:Union{TKey, TBasketKey} = iscompressed(t) ? -t.fKeylen : t.fSeekKey
-seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
+Base.seekstart(io, t::T) where T<:Union{TKey, TBasketKey} = seek(io, t.fSeekKey + t.fKeylen)
 
 datastream(io, tkey::TKey) = IOBuffer(decompress_datastreambytes(compressed_datastream(io, tkey), tkey))
 
