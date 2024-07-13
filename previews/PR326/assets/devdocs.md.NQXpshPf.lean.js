@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as r,a7 as a}from"./chunks/framework.-tkVdUys.js";const f=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"devdocs.md","filePath":"devdocs.md","lastUpdated":null}'),o={name:"devdocs.md"},i=a("",5),s=[i];function l(n,c,d,h,p,u){return r(),t("div",null,s)}const g=e(o,[["render",l]]);export{f as __pageData,g as default};
