@@ -143,7 +143,7 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
         if pkgversion(FHist) < v"0.11"
             return Hist1D(FHist.Histogram(edges, counts), sumw2, nentries)
         end
-        return Hist1D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
+        return Hist1D(;binedges=only(edges), bincounts=counts, sumw2=sumw2, nentries=nentries)
     end
 end
 
