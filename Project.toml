@@ -5,6 +5,7 @@ version = "0.10.32"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
 BitIntegers = "c3b6d118-76ef-56ca-8cc7-ebb389d030a1"
 CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
@@ -32,6 +33,7 @@ XXHashNative = "e5d8e439-e7fa-4681-9c12-1c64bda517be"
 
 [compat]
 AbstractTrees = "^0.4"
+Accessors = "0.1.36"
 Aqua = "^0.8"
 ArraysOfArrays = "^0.6"
 Arrow = "~2.7.1"
@@ -54,6 +56,7 @@ Parameters = "^0.12"
 Pkg = "^1.0"
 PrecompileTools = "^1.2.0"
 PrettyTables = "^2.1"
+Random = "^1.0"
 SHA = "^0.7, ^1.0"
 SentinelArrays = "^1.3"
 StaticArrays = "^1"
@@ -72,10 +75,11 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LorentzVectors = "3f54b04b-17fc-5cd4-9758-90c048d965e3"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Arrow", "DataFrames", "InteractiveUtils", "LorentzVectors", "Pkg", "SHA", "StaticArrays", "TOML", "Test"]
+test = ["Aqua", "Arrow", "DataFrames", "InteractiveUtils", "LorentzVectors", "Pkg", "Random", "SHA", "StaticArrays", "TOML", "Test"]
