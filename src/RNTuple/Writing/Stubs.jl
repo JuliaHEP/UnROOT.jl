@@ -16,7 +16,7 @@ const dummy_padding1 = [
 
 const tkey32_tfile = UnROOT.TKey32(144, 4, 86, WRITE_TIME, 58, 1, 100, 0, "TFile", "test_ntuple_minimal.root", "")
 const tfile = UnROOT.TFile_write("test_ntuple_minimal.root", "")
-const tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, WRITE_TIME, WRITE_TIME, 121, 84, 100, 0, 1000)
+const tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, WRITE_TIME, WRITE_TIME, 121, 84, 100, 0, 0x000003ec)
 const dummy_padding2 = [
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -29,12 +29,12 @@ const rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "ROOT v6.3
 ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
     
 
-const RBlob2 = UnROOT.RBlob(0x0026, 0x0004, 0x00000004, WRITE_TIME, 0x0022, 0x0001, 0x01D0, 100, "RBlob", "", "")
+const RBlob2 = UnROOT.RBlob(0x002e, 0x0004, 0x00000004, WRITE_TIME, 0x0022, 0x0001, 0x01D0, 100, "RBlob", "", "")
 const page1 = [
     0xCE, 0xCE, 0xCE, 0xCE,
 ]
 
-const RBlob3 = UnROOT.RBlob(0x009E, 0x0004, 0x0000007C, WRITE_TIME, 0x0022, 0x0001, 0x01F6, 100, "RBlob", "", "")
+const RBlob3 = UnROOT.RBlob(0x009E, 0x0004, 0x0000007C, WRITE_TIME, 0x0022, 0x0001, 0x01FE, 100, "RBlob", "", "")
 const cluster_summary = UnROOT.Write_RNTupleListFrame([UnROOT.ClusterSummary(0, 1)])
 const nested_page_locations = 
 UnROOT.RNTuplePageTopList([
@@ -46,7 +46,7 @@ UnROOT.RNTuplePageTopList([
 ])
 const pagelink = UnROOT.PageLink(0x3dec59c009c67e28, cluster_summary.payload, nested_page_locations)
 
-const RBlob4 = UnROOT.RBlob(0x00CE, 0x0004, 0x000000AC, WRITE_TIME, 0x0022, 0x0001, 0x0294, 100, "RBlob", "", "")
+const RBlob4 = UnROOT.RBlob(0x00C2, 0x0004, 0x000000A0, WRITE_TIME, 0x0022, 0x0001, 0x029c, 100, "RBlob", "", "")
 const rnt_footer = UnROOT.RNTupleFooter(0, 0x3dec59c009c67e28, UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
     UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, 0x0000000000000220, ))),
 ])
@@ -54,15 +54,15 @@ const tkey32_anchor = UnROOT.TKey32(134, 4, 70, WRITE_TIME, 64, 1, 866, 100, "RO
 # these 6 bytes are between tkey32_anchor and the actual anchor
 const magic_6bytes = [0x40, 0x00, 0x00, 0x42, 0x00, 0x06]
 
-const rnt_anchor = UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple(0x0000, 0x0002, 0x0000, 0x0000, 0x0000000000000116, 0x00000000000000ba, 0x00000000000000ba, 0x00000000000002b6, 0x00000000000000ac, 0x00000000000000ac, 0x0000000040000000, 0xdc495fd01479af1b)
-const tkey32_TDirectory = UnROOT.TKey32(121, 4, 68, WRITE_TIME, 53, 1, 1000, 100, "", "test_ntuple_minimal.root", "")
+const rnt_anchor = UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple(0x0000, 0x0002, 0x0000, 0x0000, 0x0000000000000116, 0x00000000000000ba, 0x00000000000000ba, 0x00000000000002be, 0x00000000000000a0, 0x00000000000000a0, 0x0000000040000000, 0xdc495fd01479af1b)
+const tkey32_TDirectory = UnROOT.TKey32(121, 4, 68, WRITE_TIME, 53, 1, 0x000003ec, 100, "", "test_ntuple_minimal.root", "")
 # 1 key, and it is the RNTuple Anchor
 const n_keys = [
     0x00, 0x00, 0x00, 0x01,
 ]
 
 
-const tkey32_TStreamerInfo = UnROOT.TKey32(419, 4, 1266, WRITE_TIME, 64, 1, 1121, 100, "TList", "StreamerInfo", "Doubly linked list")
+const tkey32_TStreamerInfo = UnROOT.TKey32(0x00000194, 4, 0x000004f4, WRITE_TIME, 64, 1, 0x00000465, 100, "TList", "StreamerInfo", "Doubly linked list")
 
 const tsreamerinfo_compressed = [
     0x5A, 0x4C, 0x08, 0x4B, 0x01, 0x00, 0xF4, 0x04, 0x00, 0x78, 0x01, 0xBD, 0x92, 0xC1, 0x4E, 0xC2, 

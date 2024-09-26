@@ -237,6 +237,7 @@ myio = IOBuffer()
 UnROOT.write_rntuple(myio, mytable; rntuple_name="myntuple")
 @test MINE == REFERENCE_BYTES
 mio = take!(myio)
+write("/tmp/mine.root", mio)
 @test MINE == mio
 
 for _ = 1:100

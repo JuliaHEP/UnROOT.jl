@@ -56,6 +56,17 @@ function rnt_write(io::IO, x; legacy=false)
     end
 end
 
+struct Page_write{T <: AbstractVector{UInt8}}
+    data::T
+end
+
+function rnt_write(io::IO, x::Page_write; checksum=true)
+    write(io, x.data)
+    if checksum
+        write(io, xxh3_64(x.data))
+    end
+end
+
 function rnt_write(io::IO, x::AbstractVector{UInt8}; legacy=false)
     if legacy
         write(io, reverse(x))
@@ -514,7 +525,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
     page1 = reinterpret(UInt8, input_col)
-    page1_bytes = split4_encode(page1)
+    page1_bytes = Page_write(split4_encode(page1))
     page1_position = position(file)
     page1_obs = rnt_write_observe(file, page1_bytes)
 
@@ -540,11 +551,11 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, pagelink_position, ))),
     ])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)
-    rntAnchor_update[:fNBytesFooter] = 0x53
-    rntAnchor_update[:fLenFooter] = 0x53
+    rntAnchor_update[:fNBytesFooter] = 0xA0
+    rntAnchor_update[:fLenFooter] = 0xA0
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(134, 4, 70, Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
+    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, 0x0000004E, Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
     rnt_anchor_obs = rnt_write_observe(file, Stubs.rnt_anchor)
