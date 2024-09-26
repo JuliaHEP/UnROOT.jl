@@ -182,6 +182,7 @@ function rnt_write(io::IO, x::UnROOT.ColumnRecord)
         end
         rnt_write(io, x.first_ele_idx)
     end
+    rnt_write(io, x.representation_idx)
 end
 
 function rnt_write(io::IO, x::RNTupleFrame{T}) where T
@@ -297,7 +298,7 @@ function rnt_write(io::IO, x::UnROOT.RNTuplePageOuterList)
     for x in ary
         rnt_write(temp_io, x)
     end
-    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    size = position(temp_io) + sizeof(Int64) + sizeof(Int32)
     write(io, Int64(-size))
     write(io, Int32(N))
     seekstart(temp_io)
@@ -313,7 +314,7 @@ function rnt_write(io::IO, x::UnROOT.RNTuplePageInnerList)
     offset = zero(UInt64)
     compression = zero(UInt32)
     write(temp_io, offset, compression)
-    size = temp_io.size + sizeof(Int64) + sizeof(Int32)
+    size = position(temp_io) + sizeof(offset) + sizeof(compression)
     write(io, Int64(-size))
     write(io, Int32(N))
     seekstart(temp_io)
@@ -415,6 +416,7 @@ function rnt_write(io::IO, x::UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple)
     rnt_write(temp_io, x.fSeekFooter; legacy=true)
     rnt_write(temp_io, x.fNBytesFooter; legacy=true)
     rnt_write(temp_io, x.fLenFooter; legacy=true)
+    rnt_write(temp_io, x.fMaxKeySize; legacy=true)
     payload_ary = take!(temp_io)
     checksum = xxh3_64(payload_ary)
     rnt_write(io, payload_ary)
@@ -538,11 +540,11 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, pagelink_position, ))),
     ])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)
-    rntAnchor_update[:fNBytesFooter] = 0xac
-    rntAnchor_update[:fLenFooter] = 0xac
+    rntAnchor_update[:fNBytesFooter] = 0x53
+    rntAnchor_update[:fLenFooter] = 0x53
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(134, 4, 70, 0x7567176d, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
+    tkey32_anchor = UnROOT.TKey32(134, 4, 70, Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
     rnt_anchor_obs = rnt_write_observe(file, Stubs.rnt_anchor)
