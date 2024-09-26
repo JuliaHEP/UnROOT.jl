@@ -109,7 +109,7 @@ _field_output_type(::Type{LeafField{Bool}}) = BitVector
 function read_field(io, field::LeafField{Bool}, page_list)
     cr = field.columnrecord
     pages = page_list[field.content_col_idx]
-    total_num_elements = sum(p.num_elements for p in pages)
+    total_num_elements = sum(abs(p.num_elements) for p in pages)
 
     # pad to nearest 8*k bytes because each chunk needs to be UInt64
     bytes = read_pagedesc(io, pages, cr)
@@ -209,7 +209,12 @@ column since `pagedesc` only contains `num_elements` information.
 function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, cr::ColumnRecord)
     nbits = cr.nbits
     split, zigzag, delta = _detect_encoding(cr.type)
-    output_L = div(sum(p.num_elements for p in pagedescs; init=UInt32(0))*nbits, 8, RoundUp)
+    list_num_elements = [-p.num_elements for p in pagedescs]
+    total_num_elements = sum(list_num_elements)
+    if any(<(0), total_num_elements)
+        error("Page checksum not implemented")
+    end
+    output_L = div(total_num_elements*nbits, 8, RoundUp)
     res = Vector{UInt8}(undef, output_L)
 
     # a page max size is 64KB
@@ -219,7 +224,7 @@ function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, cr::Colum
     for i in eachindex(pagedescs)
         pagedesc = pagedescs[i]
         # when nbits == 1 for bits, need RoundUp
-        uncomp_size = div(pagedesc.num_elements * nbits, 8, RoundUp)
+        uncomp_size = div(list_num_elements[i] * nbits, 8, RoundUp)
         dst = @view res[tip:tip+uncomp_size-1]
         _read_locator!(tmp, io, pagedesc.locator, uncomp_size)
         if split

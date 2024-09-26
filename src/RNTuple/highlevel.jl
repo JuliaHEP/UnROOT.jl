@@ -174,13 +174,15 @@ julia> LazyTree(f, "ntuple")
 """
 struct RNTuple{O}
     io::O
+    anchor::ROOT_3a3a_Experimental_3a3a_RNTuple
     header::RNTupleHeader
     footer::RNTupleFooter
     pagelinks::Dict{Int, PageLink}
     schema::RNTupleSchema
-    function RNTuple(io::O, header, footer, schema) where {O}
+    function RNTuple(io::O, anchor, header, footer, schema) where {O}
         new{O}(
             io,
+            anchor,
             header,
             footer,
             Dict{Int, PageLink}(),
@@ -217,7 +219,7 @@ function LazyTree(rn::RNTuple, selection)
 
     N = Tuple(Symbol.(filtered_names))
     skim_schema = getfield(rn.schema, :namedtuple)[N]
-    new_rn =  RNTuple(rn.io, rn.header, rn.footer, skim_schema)
+    new_rn =  RNTuple(rn.io, rn.anchor, rn.header, rn.footer, skim_schema)
     T = Tuple(RNTupleField(new_rn, getproperty(new_rn.schema, k)) for k in N)
 
     return LazyTree(NamedTuple{N}(T))

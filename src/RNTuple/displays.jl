@@ -89,7 +89,6 @@ function Base.show(io::IO, footer::RNTupleFooter, indent=0)
     println(io, "$ind    extension_header_links: $(footer.extension_header_links)")
     println(io, "$ind    column_group_records: $(footer.column_group_records)")
     println(io, "$ind    cluster_group_records: $(footer.cluster_group_records)")
-    println(io, "$ind    meta_data_links: $(footer.meta_data_links)")
 end
 
 function Base.show(io::IO, rn::RNTuple)
