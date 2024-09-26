@@ -156,11 +156,14 @@ function rnt_write(io::IO, x::UnROOT.FieldRecord)
     rnt_write(io, x.parent_field_id)
     rnt_write(io, x.struct_role)
     rnt_write(io, x.flags)
-    if !iszero(x.repetition)
-        if x.flags != 0x01
-            error("Repetition is set but flags is not 0x01")
-        end
+    if !iszero(0x0001 & x.flags)
         rnt_write(io, x.repetition)
+    end
+    if !iszero(0x0002 & x.flags)
+        rnt_write(io, x.source_field_id)
+    end
+    if !iszero(0x0004 & x.flags)
+        rnt_write(io, x.root_streamer_checksum)
     end
     rnt_write(io, x.field_name)
     rnt_write(io, x.type_name)
@@ -270,7 +273,7 @@ function rnt_write(io::IO, x::UnROOT.Locator)
 end
 
 function rnt_write(io::IO, x::PageDescription)
-    rnt_write(io, x.num_elements)
+    rnt_write(io, -x.num_elements)
     rnt_write(io, x.locator)
 end
 
@@ -381,7 +384,6 @@ function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
     rnt_write(temp_io, x.extension_header_links)
     rnt_write(temp_io, Write_RNTupleListFrame(x.column_group_records))
     rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_group_records))
-    rnt_write(temp_io, Write_RNTupleListFrame(x.meta_data_links))
 
     # add id_length size and checksum size
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
@@ -501,8 +503,8 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     RBlob1_obs = rnt_write_observe(file, Stubs.RBlob1)
     rntAnchor_update[:fSeekHeader] = UInt32(position(file))
     rnt_header = UnROOT.RNTupleHeader(zero(UInt64), rntuple_name, "", "ROOT v6.33.01", [
-    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0,     string(only(input_schema.names)), "std::uint32_t", "", ""),
-    ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, string(only(input_schema.names)), "std::uint32_t", "", ""),
+    ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
 
     rnt_header_obs = rnt_write_observe(file, rnt_header)
     rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
@@ -534,7 +536,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     rntAnchor_update[:fSeekFooter] = UInt32(position(file))
     rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
         UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, pagelink_position, ))),
-    ], UnROOT.EnvLink[])
+    ])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)
     rntAnchor_update[:fNBytesFooter] = 0xac
     rntAnchor_update[:fLenFooter] = 0xac

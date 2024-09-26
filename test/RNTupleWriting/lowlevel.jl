@@ -158,7 +158,7 @@ test_io(UnROOT.Stubs.RBlob1, dummy_RBlob1)
 
 # ==================================== side tests begin ====================================
     
-field_record = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, "one_uint", "std::uint32_t", "", "")
+field_record = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, "one_uint", "std::uint32_t", "", "")
 dummy_field_record = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
     0x08, 0x00, 0x00, 0x00, 0x6F, 0x6E, 0x65, 0x5F, 0x75, 0x69, 0x6E, 0x74, 0x0D, 0x00, 0x00, 0x00, 
@@ -167,10 +167,8 @@ dummy_field_record = [
 ]
 test_io(field_record, dummy_field_record)
 
-column_record = UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0)
-dummy_column_record = [
-    0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-]
+column_record = UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0)
+dummy_column_record = [0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 test_io(column_record, dummy_column_record)
 
 envelope_frame_field_record = Write_RNTupleListFrame([field_record])

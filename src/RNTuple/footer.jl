@@ -46,7 +46,6 @@ end
     extension_header_links::RNTupleSchemaExtension
     column_group_records::Vector{ColumnGroupRecord}
     cluster_group_records::Vector{ClusterGroupRecord}
-    meta_data_links::Vector{EnvLink}
 end
 
 function _read_locator(io, locator, uncomp_size::Integer)
@@ -62,7 +61,7 @@ end
 end
 
 @SimpleStruct struct PageDescription
-    num_elements::UInt32
+    num_elements::Int32
     locator::Locator
 end
 

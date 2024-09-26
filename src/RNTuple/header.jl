@@ -5,6 +5,8 @@ struct FieldRecord
     struct_role::UInt16
     flags::UInt16
     repetition::Int64
+    source_field_id::Int32
+    root_streamer_checksum::Int32
     field_name::String
     type_name::String
     type_alias::String
@@ -16,34 +18,46 @@ function _rntuple_read(io, ::Type{FieldRecord})
     parent_field_id = read(io, UInt32)
     struct_role = read(io, UInt16)
     flags = read(io, UInt16)
-    repetition = if flags == 0x01
+    repetition = if !iszero(flags & 0x0001)
         read(io, Int64)
     else
         0
     end
+    source_field_id = if !iszero(flags & 0x0002)
+        read(io, Int32)
+    else
+        -1
+    end
+    root_streamer_checksum = if !iszero(flags & 0x0004)
+        read(io, Int32)
+    else
+        -1
+    end
     field_name, type_name, type_alias, field_desc = (_rntuple_read(io, String) for _=1:4)
     FieldRecord(field_version, type_version, parent_field_id, 
-                struct_role, flags, repetition, field_name, type_name, type_alias, field_desc)
+                struct_role, flags, repetition, source_field_id, root_streamer_checksum, field_name, type_name, type_alias, field_desc)
 end
 
 struct ColumnRecord
     type::UInt16
     nbits::UInt16
     field_id::UInt32
-    flags::UInt32
+    flags::UInt16
+    representation_idx::UInt16
     first_ele_idx::Int64
 end
 function _rntuple_read(io, ::Type{ColumnRecord})
     type = read(io, UInt16)
     nbits = read(io, UInt16)
     field_id = read(io, UInt32)
-    flags = read(io, UInt32)
-    first_ele_idx = if flags == 0x08
+    flags = read(io, UInt16)
+    first_ele_idx = if !iszero(flags & 0x0008)
         read(io, Int64)
     else
         0
     end
-    ColumnRecord(type, nbits, field_id, flags, first_ele_idx)
+    representation_idx = read(io, UInt16)
+    ColumnRecord(type, nbits, field_id, flags, representation_idx, first_ele_idx)
 end
 
 

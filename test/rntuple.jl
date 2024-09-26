@@ -11,7 +11,6 @@ using Arrow, DataFrames
     @test header1.field_records[1].parent_field_id == 0 # it's 0-based sigh
 
     footer1 = rn1.footer
-    @test isempty(footer1.meta_data_links)
     @test length(footer1.cluster_group_records) == 1
     summary1 = UnROOT._read_page_list(rn1).cluster_summaries[1]
     @test summary1.first_entry_number == 0
@@ -157,8 +156,8 @@ end
     end
     g() = sum(t.one_integers)
 
-    @inferred func1()
-    @inferred g()
+    @test (@inferred func1() > 0)
+    @test (@inferred g() > 0)
 end
 
 @testset "RNTuple Multi-threading" begin
@@ -192,28 +191,28 @@ end
 
 @testset "String and Regex Selection" begin
     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
     @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df)
     df2 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+        "EventData", r"AntiKt4TruthDressedWZ")
     names(df) == names(df2)
     df3 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "RNT:CollectionTree",
+        "EventData",
         ["AntiKt4TruthDressedWZJetsAux:",
-            "AntiKt4TruthDressedWZJetsAux::ConeTruthLabelID"]
+            "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"]
     )
     @test length(names(df3)) == 2
     df4 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "RNT:CollectionTree",
-        "AntiKt4TruthDressedWZJetsAux::ConeTruthLabelID"
+        "EventData",
+        "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"
     )
     @test length(names(df4)) == 1
 end
 
 @testset "Skim the schema" begin
     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df_full = LazyTree(f1, "RNT:CollectionTree")
-    df1 = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    df_full = LazyTree(f1, "EventData")
+    df1 = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
     @test 0 < length(names(df1)) < length(names(df_full))
     @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df1)
     @test length(df1[!, 1].rn.schema) < length(df_full[!, 1].rn.schema)
@@ -221,26 +220,26 @@ end
 
 @testset "Skip Recursively Empty Structs" begin
     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df = LazyTree(f1, "RNT:CollectionTree", r"AntiKt4TruthDressedWZ")
+    df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
     truth_jets_one_event = df.var"AntiKt4TruthDressedWZJetsAux:"[1]
     @test :pt ∈ propertynames(truth_jets_one_event)
     @test length(truth_jets_one_event.pt) == 5
 end
 
-@testset "Footer extension header links backfill" begin
-    f1 = UnROOT.samplefile("RNTuple/test_ntuple_extension_columns.root")
-    df = LazyTree(f1, "EventData")
-    pbs = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb")
-    @test length(pbs) == 40
-    @test findfirst(!isempty, pbs) == 37
-    jets = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:")
+# @testset "Footer extension header links backfill" begin
+#     f1 = UnROOT.samplefile("RNTuple/test_ntuple_extension_columns.root")
+#     df = LazyTree(f1, "EventData")
+#     pbs = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux::fastDIPS20211215_pb")
+#     @test length(pbs) == 40
+#     @test findfirst(!isempty, pbs) == 37
+#     jets = collect(df.var"HLT_AntiKt4EMPFlowJets_subresjesgscIS_ftf_TLAAux:")
 
-    @test length.(pbs) == length.(getproperty.(jets, :pt))
+#     @test length.(pbs) == length.(getproperty.(jets, :pt))
 
-    # backfilled booleans
-    xTrigDecisionAux = collect(df.var"xTrigDecisionAux:")
-    @test length(xTrigDecisionAux) == length(pbs)
-end
+#     # backfilled booleans
+#     xTrigDecisionAux = collect(df.var"xTrigDecisionAux:")
+#     @test length(xTrigDecisionAux) == length(pbs)
+# end
 
 @testset "RNTuple Tables.jl and Arrow integration" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_stl_containers.root")

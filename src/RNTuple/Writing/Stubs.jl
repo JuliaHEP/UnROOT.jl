@@ -23,8 +23,8 @@ const dummy_padding2 = [
 
 const RBlob1 = UnROOT.RBlob(0x00DC, 0x0004, 0x000000BA, 0x7567176D, 0x0022, 0x0001, 244, 100, "RBlob", "", "")
 const rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "ROOT v6.33.01", [
-    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, "one_uint", "std::uint32_t", "", ""),
-], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), zero(UInt32), 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, "one_uint", "std::uint32_t", "", ""),
+], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
     
 
 const RBlob2 = UnROOT.RBlob(0x0026, 0x0004, 0x00000004, 0x7567176D, 0x0022, 0x0001, 0x01D0, 100, "RBlob", "", "")
@@ -47,12 +47,12 @@ const pagelink = UnROOT.PageLink(0x3dec59c009c67e28, cluster_summary.payload, ne
 const RBlob4 = UnROOT.RBlob(0x00CE, 0x0004, 0x000000AC, 0x7567176D, 0x0022, 0x0001, 0x0294, 100, "RBlob", "", "")
 const rnt_footer = UnROOT.RNTupleFooter(0, 0x3dec59c009c67e28, UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
     UnROOT.ClusterGroupRecord(0, 1, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, 0x0000000000000218, ))),
-], UnROOT.EnvLink[])
+])
 const tkey32_anchor = UnROOT.TKey32(134, 4, 70, 0x7567176d, 64, 1, 866, 100, "ROOT::Experimental::RNTuple", "myntuple", "")
 # these 6 bytes are between tkey32_anchor and the actual anchor
 const magic_6bytes = [0x40, 0x00, 0x00, 0x42, 0x00, 0x04]
 
-const rnt_anchor = UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple(0x0000, 0x0002, 0x0000, 0x0000, 0x0000000000000116, 0x00000000000000ba, 0x00000000000000ba, 0x00000000000002b6, 0x00000000000000ac, 0x00000000000000ac, 0xdc495fd01479af1b)
+const rnt_anchor = UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple(0x0000, 0x0002, 0x0000, 0x0000, 0x0000000000000116, 0x00000000000000ba, 0x00000000000000ba, 0x00000000000002b6, 0x00000000000000ac, 0x00000000000000ac, 0x0000000040000000, 0xdc495fd01479af1b)
 const tkey32_TDirectory = UnROOT.TKey32(121, 4, 68, 0x7567176d, 53, 1, 1000, 100, "", "test_ntuple_minimal.root", "")
 # 1 key, and it is the RNTuple Anchor
 const n_keys = [
