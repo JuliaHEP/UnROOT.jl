@@ -473,10 +473,6 @@ function rnt_write_observe(io::IO, x::T) where T
     WriteObservable(io, pos, len, x)
 end
 
-function split4_encode(src::AbstractVector{UInt8})
-    @views [src[1:4:end-3]; src[2:4:end-2]; src[3:4:end-1]; src[4:4:end]]
-end
-
 function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
     if !istable(table)
         error("RNTuple writing accepts object compatible with Tables.jl interface, got type $(typeof(table))")
@@ -488,15 +484,11 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         error("Currently, RNTuple writing only supports a single, UInt32 column, got $input_Ncols columns")
     end
     input_T = only(input_schema.types)
-    if input_T != UInt32
-        error("Currently, RNTuple writing only supports a single, UInt32 column, got type $input_T")
-    end
     input_col = only(columntable(table))
     input_length = length(input_col)
     if input_length > 65535
         error("Input too long: RNTuple writing currently only supports a single page (65535 elements)")
     end
-
 
     rntAnchor_update = Dict{Symbol, Any}()
 
@@ -516,18 +508,16 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     RBlob1_obs = rnt_write_observe(file, Stubs.RBlob1)
     rntAnchor_update[:fSeekHeader] = UInt32(position(file))
     rnt_header = UnROOT.RNTupleHeader(zero(UInt64), rntuple_name, "", "ROOT v6.33.01", [
-    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, string(only(input_schema.names)), "std::uint32_t", "", ""),
-    ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, string(only(input_schema.names)), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", ""),
+    ], [UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
 
     rnt_header_obs = rnt_write_observe(file, rnt_header)
     rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
     rntAnchor_update[:fLenHeader] = rnt_header_obs.len
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
-    page1 = reinterpret(UInt8, input_col)
-    page1_bytes = Page_write(split4_encode(page1))
-    page1_position = position(file)
-    page1_obs = rnt_write_observe(file, page1_bytes)
+    page1 = rnt_ary_to_page(input_col)
+    page1_obs = rnt_write_observe(file, page1)
 
     RBlob3_obs = rnt_write_observe(file, Stubs.RBlob3)
     cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
@@ -535,36 +525,38 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     UnROOT.RNTuplePageTopList([
         UnROOT.RNTuplePageOuterList([
             UnROOT.RNTuplePageInnerList([
-                PageDescription(input_length, UnROOT.Locator(sizeof(input_T) * input_length, page1_position, )),
+                PageDescription(input_length, UnROOT.Locator(sizeof(input_T) * input_length, page1_obs.position, )),
             ]),
         ]),
     ])
 
-    # stub checksum 0x3dec59c009c67e28
     pagelink = UnROOT.PageLink(_checksum(rnt_header_obs.object), cluster_summary.payload, nested_page_locations)
-    pagelink_position = position(file)
     pagelink_obs = rnt_write_observe(file, pagelink)
 
     RBlob4_obs = rnt_write_observe(file, Stubs.RBlob4)
     rntAnchor_update[:fSeekFooter] = UInt32(position(file))
     rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
-        UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(0x000000000000007c, UnROOT.Locator(124, pagelink_position, ))),
+        UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(pagelink_obs.len, UnROOT.Locator(pagelink_obs.len, pagelink_obs.position, ))),
     ])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)
-    rntAnchor_update[:fNBytesFooter] = 0xA0
-    rntAnchor_update[:fLenFooter] = 0xA0
+    rntAnchor_update[:fNBytesFooter] = rnt_footer_obs.len
+    rntAnchor_update[:fLenFooter] = rnt_footer_obs.len
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, 0x0000004E, Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
+    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, typemin(Int32), Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
+    tkey32_anchor_update = Dict{Symbol, Any}()
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
     rnt_anchor_obs = rnt_write_observe(file, Stubs.rnt_anchor)
     Base.setindex!(rnt_anchor_obs, rntAnchor_update)
+    tkey32_anchor_update[:fObjlen] = rnt_anchor_obs.len + magic_6bytes_obs.len
+    Base.setindex!(tkey32_anchor_obs1, tkey32_anchor_update)
 
     tdirectory32_obs[:fSeekKeys] = UInt32(position(file))
     tkey32_TDirectory_obs = rnt_write_observe(file, Stubs.tkey32_TDirectory)
     n_keys_obs = rnt_write_observe(file, Stubs.n_keys)
     tkey32_anchor_obs2 = rnt_write_observe(file, tkey32_anchor)
+    Base.setindex!(tkey32_anchor_obs2, tkey32_anchor_update)
 
     fileheader_obs[:fSeekInfo] = UInt32(position(file))
     tkey32_TStreamerInfo_obs = rnt_write_observe(file, Stubs.tkey32_TStreamerInfo)
@@ -573,6 +565,8 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tfile_end_obs = rnt_write_observe(file, Stubs.tfile_end)
     fileheader_obs[:fEND] = UInt32(position(file))
 
+    flush!(tkey32_anchor_obs1)
+    flush!(tkey32_anchor_obs2)
     flush!(tkey32_tfile_obs)
     flush!(tdirectory32_obs)
     flush!(fileheader_obs)
