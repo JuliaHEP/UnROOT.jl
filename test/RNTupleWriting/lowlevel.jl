@@ -239,9 +239,11 @@ UnROOT.write_rntuple(myio, mytable; rntuple_name="myntuple")
 mio = take!(myio)
 write("/tmp/mine.root", mio)
 @test MINE == mio
+end
 
-for _ = 1:100
-    newtable = Dict(randstring(rand(2:10)) => rand(UInt32, rand(1:1000)))
+@testset "RNTuple Writing - Single colunm round trips" begin
+for _ = 1:50, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
+    newtable = Dict(randstring(rand(2:10)) => rand(T, rand(1:1000)))
     newio = IOBuffer()
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)

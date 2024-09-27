@@ -73,18 +73,10 @@ function read_field(io, field::RNTupleCardinality{T}, page_list) where T
     return res::_field_output_type(field)
 end
 
-_from_zigzag(n) = (n >> 1) ⊻ -(n & 1)
-_to_zigzag(n) = (n << 1) ⊻ (n >> 63)
+_from_zigzag(n) = (n >> 1) ⊻ (-(n & 1))
 function _from_zigzag!(res::AbstractVector)
     @simd for i in eachindex(res)
         res[i] = _from_zigzag(res[i])
-    end
-    return res
-end
-
-function _to_zigzag!(res::AbstractVector)
-    @simd for i in eachindex(res)
-        res[i] = _to_zigzag(res[i])
     end
     return res
 end
@@ -193,7 +185,7 @@ function _detect_encoding(typenum)
     split = 14 <= typenum <= 21 || 26 <= typenum <= 28
     zigzag = 26 <= typenum <= 28
     delta = 14 <= typenum <= 15
-    return split, zigzag, delta
+    return (;split, zigzag, delta)
 end
 
 """
@@ -208,7 +200,7 @@ column since `pagedesc` only contains `num_elements` information.
 """
 function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, cr::ColumnRecord)
     nbits = cr.nbits
-    split, zigzag, delta = _detect_encoding(cr.type)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
     list_num_elements = [-p.num_elements for p in pagedescs]
     total_num_elements = sum(list_num_elements)
     if any(<(0), total_num_elements)
@@ -221,7 +213,7 @@ function read_pagedesc(io, pagedescs::AbstractVector{PageDescription}, cr::Colum
     tmp = Vector{UInt8}(undef, 65536)
 
     tip = 1
-    for i in eachindex(pagedescs)
+    for i in eachindex(list_num_elements, pagedescs)
         pagedesc = pagedescs[i]
         # when nbits == 1 for bits, need RoundUp
         uncomp_size = div(list_num_elements[i] * nbits, 8, RoundUp)
