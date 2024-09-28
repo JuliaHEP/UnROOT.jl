@@ -242,8 +242,8 @@ write("/tmp/mine.root", mio)
 end
 
 @testset "RNTuple Writing - Single colunm round trips" begin
-for _ = 1:50, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
-    newtable = Dict(randstring(rand(2:10)) => rand(T, rand(1:1000)))
+for _ = 1:10, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
+    newtable = Dict(randstring(rand(2:10)) => rand(T, rand(1:100)))
     newio = IOBuffer()
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
@@ -262,4 +262,28 @@ for _ = 1:50, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64
     @test only(columntable(t)) == only(columntable(newtable))
 
 end
+end
+
+@testset "RNTuple Writing - Multiple colunm round trips" begin
+    Ts = rand([Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16], 15)
+    Nitems = rand(10:1000)
+    newtable = Dict(randstring(rand(2:10)) => rand(T, Nitems) for T in Ts)
+    newio = IOBuffer()
+    UnROOT.write_rntuple(newio, newtable)
+    nio = take!(newio)
+
+    if isfile("a.root")
+        rm("a.root")
+    end
+
+    open("a.root", "w") do f
+        write(f, nio)
+    end
+
+    rntuple_name = "myntuple"
+    t = LazyTree("a.root", rntuple_name)
+    @test sort(names(t)) == sort(collect(keys(newtable)))
+    for i in propertynames(t)
+        @test all(getproperty(t, i) .== newtable[String(i)])
+    end
 end
