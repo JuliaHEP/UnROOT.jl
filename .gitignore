@@ -9,3 +9,6 @@
 *__pycache__*
 /.benchmarkci
 /benchmark/*.json
+# pixi environments
+.pixi
+*.egg-info

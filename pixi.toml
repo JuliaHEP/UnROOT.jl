@@ -1,0 +1,12 @@
+[project]
+authors = ["Moelf <proton@jling.dev>"]
+channels = ["https://root.cern/download/conda-nightly/latest", "conda-forge"]
+description = "Add a short description here"
+name = "UnROOT"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+root-nightly = ">=6.31.0,<7"
