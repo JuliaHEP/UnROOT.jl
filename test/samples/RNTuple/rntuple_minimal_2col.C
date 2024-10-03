@@ -15,7 +15,7 @@ void rntuple_minimal_2col() {
   std::string rootFileName1{"test_ntuple_minimal_2col.root"};
   auto model1 = RNTupleModel::Create();
   auto field1 = model1->MakeField<uint32_t>("one_uint");
-  auto field2 = model2->MakeField<uint32_t>("two_uint");
+  auto field2 = model1->MakeField<uint32_t>("two_uint");
   auto ntuple1 =
       RNTupleWriter::Recreate(std::move(model1), "myntuple", rootFileName1, writeOptions);
   // 0xcececece
