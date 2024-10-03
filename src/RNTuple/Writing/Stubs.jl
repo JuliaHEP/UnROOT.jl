@@ -1,7 +1,7 @@
 module Stubs
 using ..UnROOT
 
-const WRITE_TIME = 0x7670F8CD
+const WRITE_TIME = 0x76864067
 
 const file_preamble = [
     0x72, 0x6F, 0x6F, 0x74, 0x00, 0x00, 0xF7, 0x45,
@@ -23,7 +23,8 @@ const dummy_padding2 = [
 ]
 
 
-const RBlob1 = UnROOT.RBlob(0x00DC, 0x0004, 0x000000BA, WRITE_TIME, 0x0022, 0x0001, 244, 100, "RBlob", "", "")
+const RBlob1 = UnROOT.RBlob(; fNbytes = 0x00DC, fVersion = 0x0004, fObjLen = 0x000000BA, fDatime = WRITE_TIME, fKeyLen = 0x0022,
+fCycle = 0x0001, fSeekKey = 244, fSeekPdir = 100, fClassName = "RBlob", fName = "", fTitle = "")
 const rnt_header = UnROOT.RNTupleHeader(zero(UInt64), "myntuple", "", "ROOT v6.33.01", [
     UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, "one_uint", "std::uint32_t", "", ""),
 ], [UnROOT.ColumnRecord(0x14, 0x20, zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])

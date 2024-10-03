@@ -134,7 +134,7 @@ function rnt_write(io::IO, x::UnROOT.ROOTDirectoryHeader32)
     rnt_write(io, x.fSeekKeys; legacy=true)
 end
 
-struct RBlob
+Base.@kwdef struct RBlob
     fNbytes::Int32
     fVersion::Int16
     fObjLen::Int32
@@ -237,7 +237,8 @@ function _checksum(x::UnROOT.RNTupleHeader)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0001
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
+    @show id_length
 
     payload_ary = take!(temp_io)
     prepend!(payload_ary, reinterpret(UInt8, [id_length]))
@@ -260,7 +261,8 @@ function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0001
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
+    @show id_length
 
     payload_ary = take!(temp_io)
 
@@ -531,8 +533,10 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tdirectory32_obs = rnt_write_observe(file, Stubs.tdirectory32)
     dummy_padding2_obs = rnt_write_observe(file, Stubs.dummy_padding2)
 
-    RBlob1_obs = rnt_write_observe(file, Stubs.RBlob1)
-    rntAnchor_update[:fSeekHeader] = UInt32(position(file))
+    RBlob1 = UnROOT.RBlob(; fNbytes = 0x00DC, fVersion = 0x0004, fObjLen = 0x000000BA, fDatime = Stubs.WRITE_TIME, fKeyLen = 34,
+    fCycle = 0x0001, fSeekKey = position(file), fSeekPdir = 100, fClassName = "RBlob", fName = "", fTitle = "")
+    RBlob1_update = Dict{Symbol, Any}()
+    RBlob1_obs = rnt_write_observe(file, RBlob1)
     field_records, col_records = schema_to_field_column_records(table)
     rnt_header = UnROOT.RNTupleHeader(
     zero(UInt64), rntuple_name, "", "ROOT v6.33.01",
@@ -540,9 +544,14 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[]
     )
 
+    rntAnchor_update[:fSeekHeader] = UInt32(position(file))
     rnt_header_obs = rnt_write_observe(file, rnt_header)
     rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
     rntAnchor_update[:fLenHeader] = rnt_header_obs.len
+    RBlob1_update[:fObjLen] = rnt_header_obs.len
+    RBlob1_update[:fNbytes] = rnt_header_obs.len + 34
+
+    Base.setindex!(RBlob1_obs, RBlob1_update)
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
     pages = [rnt_ary_to_page(col) for col in input_cols]
@@ -587,6 +596,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tfile_end_obs = rnt_write_observe(file, Stubs.tfile_end)
     fileheader_obs[:fEND] = UInt32(position(file))
 
+    flush!(RBlob1_obs)
     flush!(tkey32_anchor_obs1)
     flush!(tkey32_anchor_obs2)
     flush!(tkey32_tfile_obs)
