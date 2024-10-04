@@ -238,7 +238,6 @@ function _checksum(x::UnROOT.RNTupleHeader)
     id_type = 0x0001
 
     id_length = (UInt64(envelope_size) << 16) | id_type
-    @show id_length
 
     payload_ary = take!(temp_io)
     prepend!(payload_ary, reinterpret(UInt8, [id_length]))
