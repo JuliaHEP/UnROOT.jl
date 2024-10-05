@@ -1,10 +1,9 @@
-using UnROOT: rnt_write, RNTupleFrame, ClusterSummary, PageDescription, Write_RNTupleListFrame, RBlob
+using UnROOT: rnt_write, RNTupleFrame, ClusterSummary, PageDescription, Write_RNTupleListFrame, RBlob, Stubs
 using XXHashNative: xxh3_64
 using Tables: columntable
 using Random
 
-const WRITE_TIME = 0x7670F8CD
-const WRITE_TIME_ary = reverse(reinterpret(UInt8, [WRITE_TIME]))
+const WRITE_TIME_ary = Stubs.WRITE_TIME_ary
 
 const REFERENCE_BYTES = read(joinpath(@__DIR__, "../samples/RNTuple/test_ntuple_minimal.root"))
 
@@ -105,9 +104,7 @@ test_io(UnROOT.Stubs.rnt_header, dummy_rnt_header_payload; envelope=false)
 
 # ==================================== side tests end ====================================
 
-dummy_rnt_header = [
-    0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_rnt_header_payload..., 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D,
-]
+dummy_rnt_header = [0x01, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_rnt_header_payload..., 0x28, 0x7E, 0xC6, 0x09, 0xC0, 0x59, 0xEC, 0x3D]
 test_io(UnROOT.Stubs.rnt_header, dummy_rnt_header; envelope=true)
 
 dummy_RBlob2 = [
@@ -155,9 +152,7 @@ test_io(UnROOT.Stubs.pagelink, dummy_pagelink_noenvelope; envelope=false)
 # ================= side tests end =================
 
 
-dummy_pagelink = [
-    0x03, 0x00, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_pagelink_noenvelope..., 
-]
+dummy_pagelink = [0x03, 0x00, 0x7C, 0x00, 0x00, 0x00, 0x00, 0x00, dummy_pagelink_noenvelope...]
 dummy_pagelink = [dummy_pagelink; reinterpret(UInt8, [xxh3_64(dummy_pagelink)])]
 test_io(UnROOT.Stubs.pagelink, dummy_pagelink)
 
@@ -216,29 +211,13 @@ dummy_tkey32_TStreamerInfo = [
 test_io(UnROOT.Stubs.tkey32_TStreamerInfo, dummy_tkey32_TStreamerInfo)
 
 
-MINE = [
-    UnROOT.Stubs.file_preamble;
-    dummy_FileHeader; UnROOT.Stubs.dummy_padding1;
-    dummy_tkey32_tfile; dummy_tfile;
-    dummy_tdirectory32; UnROOT.Stubs.dummy_padding2;
-    dummy_RBlob1; dummy_rnt_header;
-    dummy_RBlob2; UnROOT.Stubs.page1; reinterpret(UInt8, [xxh3_64(UnROOT.Stubs.page1)]);
-    dummy_RBlob3; dummy_pagelink;
-    dummy_RBlob4; dummy_rnt_footer;
-    dummy_tkey32_anchor; UnROOT.Stubs.magic_6bytes; dummy_rnt_anchor;
-    dummy_tkey32_TDirectory; UnROOT.Stubs.n_keys; dummy_tkey32_anchor;
-    dummy_tkey32_TStreamerInfo; UnROOT.Stubs.tsreamerinfo_compressed;
-    UnROOT.Stubs.tfile_end
-]
-
 
 mytable = Dict("one_uint" => UInt32[0xcececece])
 myio = IOBuffer()
 UnROOT.write_rntuple(myio, mytable; rntuple_name="myntuple")
-@test MINE == REFERENCE_BYTES
 mio = take!(myio)
 write("/tmp/mine.root", mio)
-@test MINE == mio
+@test mio == REFERENCE_BYTES
 end
 
 @testset "RNTuple Writing - Single colunm round trips" begin

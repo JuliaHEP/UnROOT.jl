@@ -552,7 +552,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     Base.setindex!(RBlob1_obs, RBlob1_update)
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
-    pages = [rnt_ary_to_page(col) for col in input_cols]
+    pages = [rnt_ary_to_page(col, cr) for (col, cr) in zip(input_cols, col_records)]
     pages_obses = [rnt_write_observe(file, page) for page in pages]
 
     RBlob3_obs = rnt_write_observe(file, Stubs.RBlob3)
