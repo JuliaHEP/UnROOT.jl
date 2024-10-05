@@ -13,8 +13,8 @@ const RNTUPLE_WRITE_TYPE_IDX_DICT = Dict(
 
 const RNTUPLE_WRITE_TYPE_CPPNAME_DICT = Dict(
     Float16 => "std::float16_t",
-    Float32 => "std::float32_t",
-    Float64 => "std::float64_t",
+    Float32 => "float",
+    Float64 => "double",
     Int8 => "std::int8_t",
     Int16 => "std::int16_t",
     Int32 => "std::int32_t",
