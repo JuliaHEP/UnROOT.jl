@@ -261,7 +261,6 @@ function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
     id_type = 0x0001
 
     id_length = (UInt64(envelope_size) << 16) | id_type
-    @show id_length
 
     payload_ary = take!(temp_io)
 

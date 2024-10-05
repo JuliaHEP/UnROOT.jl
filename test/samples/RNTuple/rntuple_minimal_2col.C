@@ -12,7 +12,7 @@ void rntuple_minimal_2col() {
   auto writeOptions = RNTupleWriteOptions();
   writeOptions.SetCompression(0);
 
-  std::string rootFileName1{"test_ntuple_minimal.root"};
+  std::string rootFileName1{"test_ntuple_minimal_2col.root"};
   auto model1 = RNTupleModel::Create();
   auto field1 = model1->MakeField<uint32_t>("one_uint");
   auto field2 = model1->MakeField<uint32_t>("two_uint");
