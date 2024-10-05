@@ -21,3 +21,4 @@ void rntuple_minimal() {
   *field1 = 3469659854;
   ntuple1->Fill();
 }
+

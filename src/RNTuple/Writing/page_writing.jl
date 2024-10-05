@@ -1,48 +1,82 @@
 """
-    rnt_ary_to_page(ary::AbstractVector) end
+    rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
 Turns an AbstractVector into a page of an RNTuple. The element type must be primitive for this to work.
 
 """
-function rnt_ary_to_page(ary::AbstractVector) end
+function rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
-function rnt_ary_to_page(ary::AbstractVector{Float64})
-    Page_write(split8_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{Float64}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split8_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Float32})
-    Page_write(split4_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{Float32}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split4_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Float16})
-    Page_write(split2_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{Float16}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split2_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{UInt64})
-    Page_write(split8_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{UInt64}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split8_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{UInt32})
-    Page_write(split4_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{UInt32}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split4_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{UInt16})
-    Page_write(split2_encode(reinterpret(UInt8, ary)))
+function rnt_ary_to_page(ary::AbstractVector{UInt16}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
+    if split
+        Page_write(split2_encode(reinterpret(UInt8, ary)))
+    else
+        Page_write(reinterpret(UInt8, ary))
+    end
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Int64})
+function rnt_ary_to_page(ary::AbstractVector{Int64}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
     Page_write(reinterpret(UInt8, ary))
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Int32})
+function rnt_ary_to_page(ary::AbstractVector{Int32}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
     Page_write(reinterpret(UInt8, ary))
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Int16})
+function rnt_ary_to_page(ary::AbstractVector{Int16}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
     Page_write(reinterpret(UInt8, ary))
 end
 
-function rnt_ary_to_page(ary::AbstractVector{Int8})
+function rnt_ary_to_page(ary::AbstractVector{Int8}, cr::ColumnRecord)
+    (;split, zigzag, delta) = _detect_encoding(cr.type)
     Page_write(reinterpret(UInt8, ary))
 end
 
