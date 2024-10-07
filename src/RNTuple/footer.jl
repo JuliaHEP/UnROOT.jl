@@ -120,6 +120,8 @@ for x in (:RNTuplePageTopList, :RNTuplePageOuterList, :RNTuplePageInnerList)
         Base.size(r::$x) = size(r.payload)
         Base.getindex(r::$x, i) = r.payload[i]
         Base.setindex!(r::$x, v, i) = (r.payload[i] = v)
+        Base.push!(r::$x, v) = push!(r.payload, v)
+        Base.append!(r::$x, v) = append!(r.payload, v)
         
     end
 end
