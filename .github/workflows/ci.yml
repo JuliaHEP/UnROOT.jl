@@ -16,9 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         version:
+          - 'lts'
           - '1.7'
           - '1.8'
           - '1' # Leave this line unchanged. '1' will automatically expand to the latest stable 1.x release of Julia.
+          - 'pre'
         os: [ubuntu-latest]
         arch: [x64]
         allow_failure: [false]
