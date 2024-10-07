@@ -1,0 +1,27 @@
+name: CVMFS generate root files
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags: '*'
+jobs:
+  test:
+    name: Gen rntuple test files ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.allow_failure }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-22.04]
+        arch: [x64]
+        allow_failure: [false]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: cvmfs-contrib/github-action-cvmfs@v4
+      - name: Generate root files
+        run: |
+          source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
+          root --version
