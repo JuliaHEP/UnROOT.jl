@@ -1,4 +1,4 @@
-name: CVMFS generate root files
+name: Test C++ ROOT read back
 on:
   pull_request:
     branches:
@@ -9,7 +9,7 @@ on:
     tags: '*'
 jobs:
   test:
-    name: Gen rntuple test files ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    name: C++ ROOT read back rntuple files ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.allow_failure }}
     strategy:
@@ -20,8 +20,17 @@ jobs:
         allow_failure: [false]
     steps:
       - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1'
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/julia-buildpkg@v1
+      - name: Generate root file
+        run: |
+          julia --project ./test/RNTupleWriting/output_sample.jl test1.root
       - uses: cvmfs-contrib/github-action-cvmfs@v4
-      - name: Generate root files
+      - name: Read root file in C++
         run: |
           source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
-          root --version
+          python ./test/RNTupleWriting/test1.py test1.root
