@@ -1,4 +1,4 @@
-struct FieldRecord
+Base.@kwdef struct FieldRecord
     field_version::UInt32
     type_version::UInt32
     parent_field_id::UInt32

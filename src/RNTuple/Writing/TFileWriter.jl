@@ -134,7 +134,7 @@ function rnt_write(io::IO, x::UnROOT.ROOTDirectoryHeader32)
     rnt_write(io, x.fSeekKeys; legacy=true)
 end
 
-struct RBlob
+Base.@kwdef struct RBlob
     fNbytes::Int32
     fVersion::Int16
     fObjLen::Int32
@@ -237,7 +237,7 @@ function _checksum(x::UnROOT.RNTupleHeader)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0001
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
 
     payload_ary = take!(temp_io)
     prepend!(payload_ary, reinterpret(UInt8, [id_length]))
@@ -260,7 +260,7 @@ function rnt_write(io::IO, x::UnROOT.RNTupleHeader; envelope=true)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0001
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
 
     payload_ary = take!(temp_io)
 
@@ -473,19 +473,45 @@ function rnt_write_observe(io::IO, x::T) where T
     WriteObservable(io, pos, len, x)
 end
 
+function add_field_column_record!(field_records, column_records, input_T::Type{<:Real}, NAME; parent_field_id)
+    fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), 0, -1, -1, string(NAME), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", "")
+    cr = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., parent_field_id, 0x00, 0x00, 0)
+    push!(field_records, fr)
+    push!(column_records, cr)
+    nothing
+end
+
+function schema_to_field_column_records(table)
+    input_schema = schema(table)
+    input_Ts = input_schema.types
+    input_names = input_schema.names
+    field_records = UnROOT.FieldRecord[]
+    column_records = UnROOT.ColumnRecord[]
+
+    for (input_T, input_name) in zip(input_Ts, input_names)
+        add_field_column_record!(field_records, column_records, input_T, input_name, parent_field_id=length(field_records))
+    end
+    return field_records, column_records
+end
+
+function generate_page_links(column_records, pages_obses, Nitems)
+    outer_list = RNTuplePageOuterList{RNTuplePageInnerList{PageDescription}}([])
+    for (cr, page_obs) in zip(column_records, pages_obses)
+        inner_list = RNTuplePageInnerList([
+                PageDescription(Nitems, Locator(div(cr.nbits * Nitems, 8, RoundUp), page_obs.position))
+            ])
+            push!(outer_list, inner_list)
+    end
+    return RNTuplePageTopList([outer_list])
+end
+
 function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
     if !istable(table)
         error("RNTuple writing accepts object compatible with Tables.jl interface, got type $(typeof(table))")
     end
 
-    input_schema = schema(table)
-    input_Ncols = length(input_schema.names)
-    if input_Ncols != 1
-        error("Currently, RNTuple writing only supports a single, UInt32 column, got $input_Ncols columns")
-    end
-    input_T = only(input_schema.types)
-    input_col = only(columntable(table))
-    input_length = length(input_col)
+    input_cols = columntable(table)
+    input_length = length(input_cols[begin])
     if input_length > 65535
         error("Input too long: RNTuple writing currently only supports a single page (65535 elements)")
     end
@@ -505,30 +531,33 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tdirectory32_obs = rnt_write_observe(file, Stubs.tdirectory32)
     dummy_padding2_obs = rnt_write_observe(file, Stubs.dummy_padding2)
 
-    RBlob1_obs = rnt_write_observe(file, Stubs.RBlob1)
-    rntAnchor_update[:fSeekHeader] = UInt32(position(file))
-    rnt_header = UnROOT.RNTupleHeader(zero(UInt64), rntuple_name, "", "ROOT v6.33.01", [
-    UnROOT.FieldRecord(zero(UInt32), zero(UInt32), zero(UInt32), zero(UInt16), zero(UInt16), 0, -1, -1, string(only(input_schema.names)), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", ""),
-    ], [UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., zero(UInt32), 0x00, 0x00, 0),], UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    RBlob1 = UnROOT.RBlob(; fNbytes = 0x00DC, fVersion = 0x0004, fObjLen = 0x000000BA, fDatime = Stubs.WRITE_TIME, fKeyLen = 34,
+    fCycle = 0x0001, fSeekKey = position(file), fSeekPdir = 100, fClassName = "RBlob", fName = "", fTitle = "")
+    RBlob1_update = Dict{Symbol, Any}()
+    RBlob1_obs = rnt_write_observe(file, RBlob1)
+    field_records, col_records = schema_to_field_column_records(table)
+    rnt_header = UnROOT.RNTupleHeader(
+    zero(UInt64), rntuple_name, "", "ROOT v6.33.01",
+    field_records, col_records,
+    UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[]
+    )
 
+    rntAnchor_update[:fSeekHeader] = UInt32(position(file))
     rnt_header_obs = rnt_write_observe(file, rnt_header)
     rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
     rntAnchor_update[:fLenHeader] = rnt_header_obs.len
+    RBlob1_update[:fObjLen] = rnt_header_obs.len
+    RBlob1_update[:fNbytes] = rnt_header_obs.len + 34
+
+    Base.setindex!(RBlob1_obs, RBlob1_update)
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
-    page1 = rnt_ary_to_page(input_col)
-    page1_obs = rnt_write_observe(file, page1)
+    pages = [rnt_ary_to_page(col, cr) for (col, cr) in zip(input_cols, col_records)]
+    pages_obses = [rnt_write_observe(file, page) for page in pages]
 
     RBlob3_obs = rnt_write_observe(file, Stubs.RBlob3)
     cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
-    nested_page_locations = 
-    UnROOT.RNTuplePageTopList([
-        UnROOT.RNTuplePageOuterList([
-            UnROOT.RNTuplePageInnerList([
-                PageDescription(input_length, UnROOT.Locator(sizeof(input_T) * input_length, page1_obs.position, )),
-            ]),
-        ]),
-    ])
+    nested_page_locations = generate_page_links(col_records, pages_obses, input_length)
 
     pagelink = UnROOT.PageLink(_checksum(rnt_header_obs.object), cluster_summary.payload, nested_page_locations)
     pagelink_obs = rnt_write_observe(file, pagelink)
@@ -565,6 +594,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tfile_end_obs = rnt_write_observe(file, Stubs.tfile_end)
     fileheader_obs[:fEND] = UInt32(position(file))
 
+    flush!(RBlob1_obs)
     flush!(tkey32_anchor_obs1)
     flush!(tkey32_anchor_obs2)
     flush!(tkey32_tfile_obs)

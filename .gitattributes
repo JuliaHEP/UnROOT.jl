@@ -7,3 +7,5 @@ test/samples/RNTuple/* linguist-detectable=false
 
 # JOSS paper
 paper/** linguist-detectable=false
+# GitHub syntax highlighting
+pixi.lock linguist-language=YAML linguist-generated=true
