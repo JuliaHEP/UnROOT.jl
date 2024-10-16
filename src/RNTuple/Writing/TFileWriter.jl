@@ -342,7 +342,7 @@ function rnt_write(io::IO, x::UnROOT.PageLink; envelope=true)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0003
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
 
     payload_ary = take!(temp_io)
 
@@ -401,7 +401,7 @@ function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
     id_type = 0x0002
 
-    id_length = (UInt64(envelope_size & 0xff) << 16) | id_type
+    id_length = (UInt64(envelope_size) << 16) | id_type
 
     payload_ary = take!(temp_io)
 
@@ -484,12 +484,16 @@ end
 
 # vector case
 function add_field_column_record!(field_records, column_records, input_T::Type{<:AbstractVector}, NAME; parent_field_id, col_field_id = parent_field_id)
+    implicit_field_id = length(field_records)
     fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0001, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="", type_alias="", field_desc="", )
     push!(field_records, fr)
-    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., parent_field_id, 0x00, 0x00, 0)
+    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., col_field_id, 0x00, 0x00, 0)
     push!(column_records, cr_offset)
 
-    add_field_column_record!(field_records, column_records, eltype(input_T), "_0"; parent_field_id = parent_field_id, col_field_id = parent_field_id+1)
+    # TODO: this feels like a hack, think about it more
+    Element_T = eltype(input_T)
+    content_parent_field_id = Element_T <: Real ? implicit_field_id : parent_field_id
+    add_field_column_record!(field_records, column_records, Element_T, "_0"; parent_field_id = content_parent_field_id, col_field_id = length(field_records))
     nothing
 end
 
@@ -501,7 +505,7 @@ function schema_to_field_column_records(table)
     column_records = UnROOT.ColumnRecord[]
 
     for (input_T, input_name) in zip(input_Ts, input_names)
-        add_field_column_record!(field_records, column_records, input_T, input_name, parent_field_id=length(field_records))
+        add_field_column_record!(field_records, column_records, input_T, input_name, parent_field_id=length(field_records), col_field_id=length(column_records))
     end
     return field_records, column_records
 end

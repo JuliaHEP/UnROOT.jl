@@ -220,6 +220,22 @@ write("/tmp/mine.root", mio)
 @test mio == REFERENCE_BYTES
 end
 
+
+@testset "RNTuple Writing - triple jagged vector" begin
+    newtable = (;
+        one_vuint = [[0xcececece, 0xcdcdcdcd], [0xabababab]],
+        two_uint = [0xabababab, 0xcdcdcdcd],
+        three_v_vuint = [[[0xcececece], [0xcdcdcdcd]], [[0xabababab]]]
+    )
+    frs, crs = UnROOT.schema_to_field_column_records(newtable)
+
+    parent_field_ids = getproperty.(frs, :parent_field_id)
+    field_ids = getproperty.(crs, :field_id)
+
+    @test parent_field_ids == [0,0,2,3,3,4]
+    @test field_ids == [0,1,2,3,4,5]
+end
+
 @testset "RNTuple Writing - Single colunm round trips" begin
 for _ = 1:10, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
     newtable = Dict(randstring(rand(2:10)) => rand(T, rand(1:100)))
@@ -247,6 +263,30 @@ end
     Ts = rand([Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16], 15)
     Nitems = rand(10:1000)
     newtable = Dict(randstring(rand(2:10)) => rand(T, Nitems) for T in Ts)
+    newio = IOBuffer()
+    UnROOT.write_rntuple(newio, newtable)
+    nio = take!(newio)
+
+    if isfile("a.root")
+        rm("a.root")
+    end
+
+    open("a.root", "w") do f
+        write(f, nio)
+    end
+
+    rntuple_name = "myntuple"
+    t = LazyTree("a.root", rntuple_name)
+    @test sort(names(t)) == sort(collect(keys(newtable)))
+    for i in propertynames(t)
+        @test all(getproperty(t, i) .== newtable[String(i)])
+    end
+end
+
+@testset "RNTuple Writing - Vector colunms" begin
+    Ts = rand([Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16], 15)
+    inner_Nitems = [3,4,0,0,1,2]
+    newtable = Dict(randstring(rand(2:10)) => [rand(T, Nitems) for Nitems in inner_Nitems] for T in Ts)
     newio = IOBuffer()
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
