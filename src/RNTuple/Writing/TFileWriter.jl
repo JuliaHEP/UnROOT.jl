@@ -525,6 +525,9 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     end
 
     input_cols = columntable(table)
+    if !allequal(length, input_cols)
+        error("Top-level columns must have the same length")
+    end
     input_length = length(input_cols[begin])
     if input_length > 65535
         error("Input too long: RNTuple writing currently only supports a single page (65535 elements)")
