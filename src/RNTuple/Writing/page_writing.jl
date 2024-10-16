@@ -1,4 +1,22 @@
 """
+    rnt_col_to_ary(col) -> Vector{Vector}
+
+Normalize each user-facing "column" into a collection of Vector{<:Real} ready to be written to a page.
+After calling this on all user-facing "column", we should have as many `ary`s as our `ColumnRecord`s.
+"""
+rnt_col_to_ary(col::AbstractVector{<:Real}) = Any[col]
+
+function rnt_col_to_ary(col::AbstractVector{<:AbstractVector})
+    vov = VectorOfVectors(col)
+    content = flatview(vov)
+    # 0-based indexing
+    offset = ArraysOfArrays.element_ptr(vov) .- 1
+    offset_adjust = @view offset[begin+1:end]
+
+    Any[rnt_col_to_ary(offset_adjust); rnt_col_to_ary(content)]
+end
+
+"""
     rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
 Turns an AbstractVector into a page of an RNTuple. The element type must be primitive for this to work.

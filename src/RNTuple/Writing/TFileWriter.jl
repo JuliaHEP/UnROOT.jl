@@ -473,11 +473,23 @@ function rnt_write_observe(io::IO, x::T) where T
     WriteObservable(io, pos, len, x)
 end
 
-function add_field_column_record!(field_records, column_records, input_T::Type{<:Real}, NAME; parent_field_id)
+# primary case
+function add_field_column_record!(field_records, column_records, input_T::Type{<:Real}, NAME; parent_field_id, col_field_id = parent_field_id)
     fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), 0, -1, -1, string(NAME), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", "")
-    cr = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., parent_field_id, 0x00, 0x00, 0)
+    cr = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., col_field_id, 0x00, 0x00, 0)
     push!(field_records, fr)
     push!(column_records, cr)
+    nothing
+end
+
+# vector case
+function add_field_column_record!(field_records, column_records, input_T::Type{<:AbstractVector}, NAME; parent_field_id, col_field_id = parent_field_id)
+    fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0001, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="", type_alias="", field_desc="", )
+    push!(field_records, fr)
+    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., parent_field_id, 0x00, 0x00, 0)
+    push!(column_records, cr_offset)
+
+    add_field_column_record!(field_records, column_records, eltype(input_T), "_0"; parent_field_id = parent_field_id, col_field_id = parent_field_id+1)
     nothing
 end
 
@@ -494,11 +506,13 @@ function schema_to_field_column_records(table)
     return field_records, column_records
 end
 
-function generate_page_links(column_records, pages_obses, Nitems)
+function generate_page_links(column_records, pages_obses)
     outer_list = RNTuplePageOuterList{RNTuplePageInnerList{PageDescription}}([])
     for (cr, page_obs) in zip(column_records, pages_obses)
+        Nbytes = length(page_obs.object.data)
+        Nitems = Nbytes * 8 ÷ cr.nbits
         inner_list = RNTuplePageInnerList([
-                PageDescription(Nitems, Locator(div(cr.nbits * Nitems, 8, RoundUp), page_obs.position))
+                PageDescription(Nitems, Locator(Nbytes, page_obs.position))
             ])
             push!(outer_list, inner_list)
     end
@@ -552,12 +566,14 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     Base.setindex!(RBlob1_obs, RBlob1_update)
 
     RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
-    pages = [rnt_ary_to_page(col, cr) for (col, cr) in zip(input_cols, col_records)]
+    pages_arys = mapreduce(rnt_col_to_ary, vcat, input_cols)
+    @assert length(pages_arys) == length(col_records)
+    pages = [rnt_ary_to_page(ary, cr) for (ary, cr) in zip(pages_arys, col_records)]
     pages_obses = [rnt_write_observe(file, page) for page in pages]
 
     RBlob3_obs = rnt_write_observe(file, Stubs.RBlob3)
     cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
-    nested_page_locations = generate_page_links(col_records, pages_obses, input_length)
+    nested_page_locations = generate_page_links(col_records, pages_obses)
 
     pagelink = UnROOT.PageLink(_checksum(rnt_header_obs.object), cluster_summary.payload, nested_page_locations)
     pagelink_obs = rnt_write_observe(file, pagelink)
