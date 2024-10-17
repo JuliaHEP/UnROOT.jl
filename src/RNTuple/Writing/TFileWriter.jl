@@ -518,7 +518,7 @@ function schema_to_field_column_records(table)
     column_records = UnROOT.ColumnRecord[]
 
     for (input_T, input_name) in zip(input_Ts, input_names)
-        add_field_column_record!(field_records, column_records, input_T, input_name, parent_field_id=length(field_records), col_field_id=length(column_records))
+        add_field_column_record!(field_records, column_records, input_T, input_name, parent_field_id=length(field_records))
     end
     return field_records, column_records
 end
@@ -546,9 +546,6 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         error("Top-level columns must have the same length")
     end
     input_length = length(input_cols[begin])
-    if input_length > 65535
-        error("Input too long: RNTuple writing currently only supports a single page (65535 elements)")
-    end
 
     rntAnchor_update = Dict{Symbol, Any}()
 
