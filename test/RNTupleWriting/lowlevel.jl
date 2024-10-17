@@ -236,8 +236,10 @@ end
     @test field_ids == [0,1,2,3,4,5]
 end
 
+const RNT_primitive_Ts = [Bool, Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
+
 @testset "RNTuple Writing - Single colunm round trips" begin
-for _ = 1:10, T in [Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16]
+for _ = 1:10, T in RNT_primitive_Ts
     newtable = Dict(randstring(rand(2:10)) => rand(T, rand(1:100)))
     newio = IOBuffer()
     UnROOT.write_rntuple(newio, newtable)
@@ -260,7 +262,7 @@ end
 end
 
 @testset "RNTuple Writing - Multiple colunm round trips" begin
-    Ts = rand([Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16], 15)
+    Ts = rand(RNT_primitive_Ts, 15)
     Nitems = rand(10:1000)
     newtable = Dict(randstring(rand(2:10)) => rand(T, Nitems) for T in Ts)
     newio = IOBuffer()
@@ -284,7 +286,7 @@ end
 end
 
 @testset "RNTuple Writing - Vector colunms" begin
-    Ts = rand([Float64, Float32, Float16, Int64, Int32, Int16, Int8, UInt64, UInt32, UInt16], 15)
+    Ts = rand(RNT_primitive_Ts, 15)
     inner_Nitems = [3,4,0,0,1,2]
     newtable = Dict(randstring(rand(2:10)) => [rand(T, Nitems) for Nitems in inner_Nitems] for T in Ts)
     newio = IOBuffer()
