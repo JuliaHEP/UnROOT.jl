@@ -1,6 +1,7 @@
 const RNTUPLE_WRITE_TYPE_IDX_DICT = Dict(
     Index64 => (0x01, sizeof(Index64) * 8),
     Index32 => (0x02, sizeof(Index32) * 8),
+    Char => (0x05, 8),
     Bool => (0x06, 1),
     Float64 => (0x10, sizeof(UInt64) * 8),
     Float32 => (0x11, sizeof(UInt32) * 8),

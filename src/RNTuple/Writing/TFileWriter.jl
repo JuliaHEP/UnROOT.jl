@@ -482,6 +482,19 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     nothing
 end
 
+# string case
+function add_field_column_record!(field_records, column_records, input_T::Type{<:AbstractString}, NAME; parent_field_id, col_field_id = parent_field_id)
+    implicit_field_id = length(field_records)
+    fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0000, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="std::string", type_alias="", field_desc="", )
+    push!(field_records, fr)
+
+    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., col_field_id, 0x00, 0x00, 0)
+    push!(column_records, cr_offset)
+    cr_chars = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Char]..., col_field_id, 0x00, 0x00, 0)
+    push!(column_records, cr_chars)
+    nothing
+end
+
 # vector case
 function add_field_column_record!(field_records, column_records, input_T::Type{<:AbstractVector}, NAME; parent_field_id, col_field_id = parent_field_id)
     implicit_field_id = length(field_records)

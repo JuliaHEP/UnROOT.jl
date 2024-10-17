@@ -16,6 +16,10 @@ function rnt_col_to_ary(col::AbstractVector{<:AbstractVector})
     Any[rnt_col_to_ary(offset_adjust); rnt_col_to_ary(content)]
 end
 
+function rnt_col_to_ary(col::AbstractVector{<:AbstractString})
+    rnt_col_to_ary(codeunits.(col))
+end
+
 """
     rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
@@ -23,6 +27,7 @@ Turns an AbstractVector into a page of an RNTuple. The element type must be prim
 
 """
 function rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
+
 
 function rnt_ary_to_page(ary::AbstractVector{Bool}, cr::ColumnRecord)
     chunks = BitVector(ary).chunks
@@ -81,6 +86,10 @@ function rnt_ary_to_page(ary::AbstractVector{UInt16}, cr::ColumnRecord)
     else
         Page_write(reinterpret(UInt8, ary))
     end
+end
+
+function rnt_ary_to_page(ary::AbstractVector{UInt8}, cr::ColumnRecord)
+    Page_write(ary)
 end
 
 function rnt_ary_to_page(ary::AbstractVector{Int64}, cr::ColumnRecord)
