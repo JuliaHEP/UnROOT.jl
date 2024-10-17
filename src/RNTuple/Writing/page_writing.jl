@@ -24,6 +24,11 @@ Turns an AbstractVector into a page of an RNTuple. The element type must be prim
 """
 function rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
+function rnt_ary_to_page(ary::AbstractVector{Bool}, cr::ColumnRecord)
+    chunks = BitVector(ary).chunks
+    Page_write(reinterpret(UInt8, chunks))
+end
+
 function rnt_ary_to_page(ary::AbstractVector{Float64}, cr::ColumnRecord)
     (;split, zigzag, delta) = _detect_encoding(cr.type)
     if split

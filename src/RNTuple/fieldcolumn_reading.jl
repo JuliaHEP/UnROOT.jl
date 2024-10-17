@@ -105,7 +105,8 @@ function read_field(io, field::LeafField{Bool}, page_list)
 
     # pad to nearest 8*k bytes because each chunk needs to be UInt64
     bytes = read_pagedesc(io, pages, cr)
-    append!(bytes, zeros(eltype(bytes), (64 - rem(total_num_elements, 64))÷8))
+    N_pad = 8 - mod1(length(bytes), 8)
+    append!(bytes, zeros(eltype(bytes), N_pad))
     chunks = reinterpret(UInt64, bytes)
 
     res = BitVector(undef, total_num_elements)
