@@ -50,7 +50,7 @@ function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     return basketarray(f, branch, ithbasket)
 end
 
-function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer;)
+function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer)
     length(branch.fLeaves.elements) > 1 && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
