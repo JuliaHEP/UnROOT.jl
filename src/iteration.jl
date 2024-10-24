@@ -45,10 +45,12 @@ to obtain raw bytes and offsets of a basket, then calls [`auto_T_JaggT`](@ref) f
 by [`interped_data`](@ref) to translate raw bytes into actual data.
 """
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
-    return basketarray(f, f[path], ithbasket)
-end
-function basketarray(f::ROOTFile, branch, ithbasket)
+    branch = f[path]
     ismissing(branch) && error("No branch found at $path")
+    return basketarray(f, branch, ithbasket)
+end
+
+function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer;)
     length(branch.fLeaves.elements) > 1 && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
@@ -60,6 +62,20 @@ function basketarray(f::ROOTFile, branch, ithbasket)
         recovered_basket = branch.fBaskets.elements[end]
         rawdata, rawoffsets = recovered_basket.data, recovered_basket.offsets
     end
+    return rawdata, rawoffsets
+end
+
+function basketarray(f::ROOTFile, branch, ithbasket::AbstractVector{<:Integer})
+    tuples = [rawbasketarray(f, branch, i) for i in ithbasket]
+    rawdata = reduce(vcat, first.(tuples))
+    rawoffsets = reduce(vcat, last.(tuples))
+    T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
+    return interped_data(rawdata, rawoffsets, T, J)
+end
+
+
+function basketarray(f::ROOTFile, branch, ithbasket::Integer)
+    rawdata, rawoffsets = rawbasketarray(f, branch, ithbasket)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
     return interped_data(rawdata, rawoffsets, T, J)
 end
@@ -483,7 +499,7 @@ function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
         iths = ib1-1:ib2-1
     end
     range = (first(range)-offset):(last(range)-offset)
-    return ChainedVector(map(i->basketarray(ba, i), iths))[range]
+    return basketarray(ba, iths)[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
