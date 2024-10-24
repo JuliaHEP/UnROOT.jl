@@ -538,7 +538,7 @@ end
     readbasket(f::ROOTFile, branch, ith)
     readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nbytes)
 
-The fundamental building block of reading read data from a .root file. Read read one
+The fundamental building block of reading read data from a .root file. Read one
 basket's raw bytes and offsets at a time. These raw bytes and offsets then (potentially) get
 processed by [`interped_data`](@ref).
 
