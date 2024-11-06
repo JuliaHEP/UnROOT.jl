@@ -1,0 +1,23 @@
+title: "UnROOT.jl - Data I/O for High-Energy Physics in Julia"
+keywords:
+  - Julia
+  - HEP
+  - JuliaHEP
+  - JuliaCon
+  - RNTuple
+  - ROOT
+  - ROOT File
+authors:
+  - name: Jerry Ling
+    orcid: 0000-0002-3359-0380
+    affiliation: 1
+  - name: Tamás Gál
+    orcid: 0000-0001-7821-8673
+    affiliation: 2
+affiliations:
+  - name: Harvard University
+    index: 1
+  - name: Erlangen Centre for Astroparticle Physics
+    index: 2
+date: 5 November 2024
+bibliography: ref.bib

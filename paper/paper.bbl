@@ -1,0 +1,28 @@
+\begin{thebibliography}{1}
+
+\bibitem{juliahep_whitepaper}
+JuliaHEP authors.
+Potential of the {Julia} {Programming} {Language} for {High} {Energy} {Physics} {Computing}.
+{\em Computing and Software for Big Science}, 7(1):10, October 2023.
+\href{http://dx.doi.org/10.1007/s41781-023-00104-x}{doi:10.1007/s41781-023-00104-x}.
+
+\bibitem{unroot_2022}
+Tamás Gál, Jerry~(Jiahong) Ling, and Nick Amin.
+Unroot: an i/o library for the cern root file format written in julia.
+{\em Journal of Open Source Software}, 7(76):4452, 2022.
+\href{http://dx.doi.org/10.21105/joss.04452}{doi:10.21105/joss.04452}.
+
+\bibitem{chep_2023}
+Jerry Ling and Tamás Gál.
+High-performance end-user analysis in pure {Julia} programming language.
+{\em EPJ Web of Conferences}, 295:06012, 2024.
+\href{http://dx.doi.org/10.1051/epjconf/202429506012}{doi:10.1051/epjconf/202429506012}.
+Publisher: EDP Sciences.
+
+\bibitem{rntuple_2023}
+Javier Lopez-Gomez and Jakob Blomer.
+{RNTuple} performance: {Status} and {Outlook}, March 2023.
+\href{http://dx.doi.org/10.48550/arXiv.2204.09043}{doi:10.48550/arXiv.2204.09043}.
+arXiv:2204.09043.
+
+\end{thebibliography}
