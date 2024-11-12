@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction · UnROOT.jl</title><meta name="title" content="Introduction · UnROOT.jl"/><meta property="og:title" content="Introduction · UnROOT.jl"/><meta property="twitter:title" content="Introduction · UnROOT.jl"/><meta name="description" content="Documentation for UnROOT.jl."/><meta property="og:description" content="Documentation for UnROOT.jl."/><meta property="twitter:description" content="Documentation for UnROOT.jl."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>UnROOT.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Introduction</a><ul class="internal"><li><a class="tocitem" href="#Introduction"><span>Introduction</span></a></li><li><a class="tocitem" href="#Loops-aren&#39;t-slow"><span>Loops aren&#39;t slow</span></a></li><li><a class="tocitem" href="#Laziness-in-Indexing,-Slicing,-and-Looping"><span>Laziness in Indexing, Slicing, and Looping</span></a></li><li><a class="tocitem" href="#Lazy-tree-construction"><span>Lazy tree construction</span></a></li></ul></li><li><a class="tocitem" href="exampleusage/">Example Usage</a></li><li><a class="tocitem" href="performancetips/">Performance Tips</a></li><li><span class="tocitem">Advanced Usage</span><ul><li><a class="tocitem" href="advanced/custom_branch/">Parse Custom Branch</a></li><li><a class="tocitem" href="advanced/reduce_latency/">Reduce startup latency</a></li></ul></li><li><a class="tocitem" href="devdocs/">For Contributors</a></li><li><a class="tocitem" href="internalapis/">APIs</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaHEP/UnROOT.jl/blob/main/docs/src/index.md#L" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h2 id="Introduction"><a class="docs-heading-anchor" href="#Introduction">Introduction</a><a id="Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction" title="Permalink"></a></h2><p>Apart from the pursue of performance, we also strive to provide intuitive and compostable interface. After all, &quot;theoretically&quot; fast doesn&#39;t mean the performance is accessible for the first-time physics user.</p><h3 id="Status"><a class="docs-heading-anchor" href="#Status">Status</a><a id="Status-1"></a><a class="docs-heading-anchor-permalink" href="#Status" title="Permalink"></a></h3><p>We support reading all scalar and jagged branches of &quot;basic&quot; types, provide indexing and iteration interface with a &quot;per branch&quot; basket-cache. There is a low level API to provide interpretation functionalities for custom types and classes. As a metric, UnROOT can read all branches (~1800) of CMS NanoAOD including jagged <code>TLorentzVector</code> branch.</p><h2 id="Loops-aren&#39;t-slow"><a class="docs-heading-anchor" href="#Loops-aren&#39;t-slow">Loops aren&#39;t slow</a><a id="Loops-aren&#39;t-slow-1"></a><a class="docs-heading-anchor-permalink" href="#Loops-aren&#39;t-slow" title="Permalink"></a></h2><p>One good thing about Julia is you can always fallback to writing loops since they are not intrinsically slower (than C/C++), certainly much faster than Python. Continuing the example from README:</p><pre><code class="language-julia hljs">julia&gt; using UnROOT
+
+julia&gt; f = ROOTFile(&quot;test/samples/NanoAODv5_sample.root&quot;)
+
+julia&gt; mytree = LazyTree(f, &quot;Events&quot;, [&quot;Electron_dxy&quot;, &quot;nMuon&quot;, r&quot;Muon_(pt|eta)$&quot;])</code></pre><p>There are essentially two loops you can use:</p><pre><code class="language-julia hljs">julia&gt; for event in mytree
+           ...
+       end
+
+julia&gt; for (i, event) in enumerate(mytree)
+           # i will be index of `mytree`: 1, 2, 3...
+           ...
+       end</code></pre><p>Both of which are compostable with <code>@threads</code> for multi-threading:</p><pre><code class="language-julia hljs">julia&gt; Threads.@threads for event in mytree
+           ...
+       end
+
+julia&gt; Threads.@threads for (i, event) in enumerate(mytree)
+           ...
+       end</code></pre><p>Only one basket per branch will be cached so you don&#39;t have to worry about running out of RAM. At the same time, <code>event</code> inside the for-loop is not materialized until a field is accessed.</p><h2 id="Laziness-in-Indexing,-Slicing,-and-Looping"><a class="docs-heading-anchor" href="#Laziness-in-Indexing,-Slicing,-and-Looping">Laziness in Indexing, Slicing, and Looping</a><a id="Laziness-in-Indexing,-Slicing,-and-Looping-1"></a><a class="docs-heading-anchor-permalink" href="#Laziness-in-Indexing,-Slicing,-and-Looping" title="Permalink"></a></h2><p>Laziness (or eagerness) in UnROOT generally refers to if an &quot;event&quot; has read each branches of the tree or not. As canonical example of eager event, consider indexing:</p><pre><code class="language-julia-repl hljs">julia&gt; const r = LazyTree(ROOTFile(&quot;./Run2012BC_DoubleMuParked_Muons.root&quot;), &quot;Events&quot;, [&quot;nMuon&quot;, &quot;Muon_phi&quot;]);
+
+julia&gt; names(r)
+2-element Vector{String}:
+ &quot;Muon_phi&quot;
+ &quot;nMuon&quot;
+
+julia&gt; r[1]
+(Muon_phi = Float32[-0.034272723, 2.5426154], nMuon = 0x00000002)</code></pre><p>Where the <code>iterate()</code> over tree is lazy:</p><pre><code class="language-julia-repl hljs">julia&gt; const r = LazyTree(ROOTFile(&quot;./Run2012BC_DoubleMuParked_Muons.root&quot;), &quot;Events&quot;, [&quot;nMuon&quot;, &quot;Muon_phi&quot;]);
+
+julia&gt; for (i, evt) in enumerate(r)
+           @show i, evt
+           break
+       end
+(i, evt) = (1, &quot;LazyEvent with: (:tree, :idx)&quot;)</code></pre><p>And the reading of actual data is delayed until <code>evt.nMuon</code> or <code>evt.Muon_phi</code> happens. Which means you should be careful about: <a href="performancetips/#Don&#39;t-&quot;double-access&quot;">Don&#39;t-&quot;double-access&quot;</a>.</p><p>The laziness of the main interfaces are summarized below:</p><table><tr><th style="text-align: right"></th><th style="text-align: center"><code>mytree</code></th><th style="text-align: center"><code>enumerate(mytree)</code></th></tr><tr><td style="text-align: right"><code>for X in ...</code></td><td style="text-align: center">💤</td><td style="text-align: center">💤</td></tr><tr><td style="text-align: right"><code>@threads for X in ...</code></td><td style="text-align: center">💤</td><td style="text-align: center">💤</td></tr><tr><td style="text-align: right"><code>getindex(tree, row::Int)</code></td><td style="text-align: center">💤</td><td style="text-align: center">N/A</td></tr><tr><td style="text-align: right"><code>getindex(tree, row::Range)</code></td><td style="text-align: center">🚨</td><td style="text-align: center">N/A</td></tr></table><h2 id="Lazy-tree-construction"><a class="docs-heading-anchor" href="#Lazy-tree-construction">Lazy tree construction</a><a id="Lazy-tree-construction-1"></a><a class="docs-heading-anchor-permalink" href="#Lazy-tree-construction" title="Permalink"></a></h2><p>As seen in the previous section, <code>LazyTree</code>s are cheap and offer a convenient way to create an object that isolates the branches of interest. It&#39;s fairly common that multiple branches are present with slightly differring names, like <code>pos.x</code>, <code>pos.y</code> etc. The <code>LazyTree</code> function also takes regular expressions, as seen in the example below where <code>r&quot;Evt/trks/trks.pos.[xyz]&quot;</code> is passed, that will match the corresponding branches:</p><pre><code class="language-julia-repl hljs">julia&gt; f = UnROOT.samplefile(&quot;km3net_offline.root&quot;)
+ROOTFile with 2 entries and 25 streamers.
+/Users/tamasgal/Dev/UnROOT.jl/test/samples/km3net_offline.root
+├─ E (TTree)
+│  └─ &quot;Evt&quot;
+└─ Header (Head)
+
+julia&gt; t = LazyTree(f, &quot;E&quot;, [&quot;Evt/trks/trks.id&quot;, r&quot;Evt/trks/trks.pos.[xyz]&quot;])
+ Row │ Evt_trks_trks_i   Evt_trks_trks_p  Evt_trks_trks_p  Evt_trks_trks_p      ⋯
+     │ SubArray{Int32,   SubArray{Float6  SubArray{Float6  SubArray{Float6      ⋯
+─────┼───────────────────────────────────────────────────────────────────────────
+ 1   │ [1, 2, 3, 4, 5,   [615.0, 615.0,   [446.0, 446.0,   [125.0, 125.0, 70.7, ⋯
+ 2   │ [1, 2, 3, 4, 5,   [533.0, 533.0,   [465.0, 465.0,   [80.7, 80.7, 39.1, 3 ⋯
+ 3   │ [1, 2, 3, 4, 5,   [593.0, 593.0,   [457.0, 457.0,   [194.0, 194.0, 96.5, ⋯
+ 4   │ [1, 2, 3, 4, 5,   [590.0, 590.0,   [440.0, 440.0,   [204.0, 204.0, 124.0 ⋯
+ 5   │ [1, 2, 3, 4, 5,   [546.0, 546.0,   [440.0, 440.0,   [58.6, 58.6, 30.1, 3 ⋯
+ 6   │ [1, 2, 3, 4, 5,   [585.0, 585.0,   [424.0, 424.0,   [202.0, 202.0, 183.0 ⋯
+ 7   │ [1, 2, 3, 4, 5,   [533.0, 533.0,   [440.0, 440.0,   [47.3, 47.3, 30.1, 2 ⋯
+ 8   │ [1, 2, 3, 4, 5,   [569.0, 569.0,   [469.0, 469.0,   [200.0, 200.0, 179.0 ⋯
+ 9   │ [1, 2, 3, 4, 5,   [557.0, 557.0,   [412.0, 412.0,   [209.0, 209.0, 101.0 ⋯
+ 10  │ [1, 2, 3, 4, 5,   [532.0, 532.0,   [443.0, 443.0,   [172.0, 172.0, 126.0 ⋯
+                                                                  1 column omitted
+
+julia&gt; names(t)
+4-element Vector{String}:
+ &quot;Evt_trks_trks_id&quot;
+ &quot;Evt_trks_trks_pos_y&quot;
+ &quot;Evt_trks_trks_pos_x&quot;
+ &quot;Evt_trks_trks_pos_z&quot;
+
+julia&gt; t.Evt_trks_trks_pos_y
+10-element LazyBranch{SubArray{Float64, 1, Vector{Float64}, Tuple{UnitRange{Int64}}, true},
+UnROOT.Nooffsetjagg, ArraysOfArrays.VectorOfVectors{Float64, Vector{Float64}, Vector{Int32},
+Vector{Tuple{}}}}:
+ [615.1089636184813, 615.1089636184813, … 574.836340445788, 576.5382993955498]
+ ...
+ ...</code></pre><p>Branch names are normalised so that they contain valid characters for identifiers. The branchname <code>Evt/trks/trks.pos.y</code> for example is therefore converted to <code>Evt_trks_trks_posy</code>, which might be a bit inconvenient to use. <code>LazyTree</code> can rename branches based on regular expressions and substitution strings (in Julia these are created with <code>s&quot;&quot;</code>) which can be passed as <code>Pair</code>s. The example below shows how to use this:</p><pre><code class="language-julia-repl hljs">julia&gt; t = LazyTree(f, &quot;E&quot;, [r&quot;Evt/trks/trks.(dir|pos).([xyz])&quot; =&gt; s&quot;\1_\2&quot;])
+ Row │ pos_z                dir_z                pos_y                dir_y               ⋯
+     │ SubArray{Float6      SubArray{Float6      SubArray{Float6      SubArray{Float6     ⋯
+─────┼─────────────────────────────────────────────────────────────────────────────────────
+ 1   │ [125.0, 125.0, 70.7  [-0.873, -0.873, -0  [615.0, 615.0, 585.  [-0.487, -0.487, -0 ⋯
+ 2   │ [80.7, 80.7, 39.1,   [-0.835, -0.835, -0  [533.0, 533.0, 559.  [0.521, 0.521, 0.52 ⋯
+ 3   │ [194.0, 194.0, 96.5  [-0.989, -0.989, -0  [593.0, 593.0, 581.  [-0.122, -0.122, -0 ⋯
+ 4   │ [204.0, 204.0, 124.  [-0.968, -0.968, -0  [590.0, 590.0, 571.  [-0.23, -0.23, -0.2 ⋯
+ 5   │ [58.6, 58.6, 30.1,   [-0.821, -0.821, -0  [546.0, 546.0, 565.  [0.54, 0.54, 0.54,  ⋯
+                                                                   2 columns omitted
+
+julia&gt; names(t)
+6-element Vector{String}:
+ &quot;pos_z&quot;
+ &quot;dir_z&quot;
+ &quot;pos_y&quot;
+ &quot;dir_y&quot;
+ &quot;dir_x&quot;
+ &quot;pos_x&quot;</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="exampleusage/">Example Usage »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Tuesday 12 November 2024 15:41">Tuesday 12 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
