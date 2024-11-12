@@ -945,6 +945,9 @@ end
     fFriends
 end
 
+TH1I(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH2I(io, tkey::TKey, refs) = TH(io, tkey, refs)
+TH3I(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH1F(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH2F(io, tkey::TKey, refs) = TH(io, tkey, refs)
 TH3F(io, tkey::TKey, refs) = TH(io, tkey, refs)
@@ -980,7 +983,6 @@ function TH(io, tkey::TKey, refs)
     stream!(io, fields, TAttFill)
     stream!(io, fields, TAttMarker)
     fields[:fNcells] = readtype(io, Int32)
-
 
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
@@ -1025,7 +1027,16 @@ function TH(io, tkey::TKey, refs)
         end
     end
 
-    arraytype = endswith(tkey.fClassName, 'F') ? TArrayF : TArrayD
+    if endswith(tkey.fClassName, 'F')
+      arraytype = TArrayF
+    elseif endswith(tkey.fClassName, 'D')
+      arraytype = TArrayD
+    elseif endswith(tkey.fClassName, 'I')
+      arraytype = TArrayI
+    else
+      error("Unknown histogram of type $(tkey.fClassName)")
+    end
+
     fields[:fN] = readtype(io, arraytype)
     fields
 end
