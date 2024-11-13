@@ -394,7 +394,6 @@ function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
     rnt_write(temp_io, x.feature_flag)
     rnt_write(temp_io, x.header_checksum)
     rnt_write(temp_io, x.extension_header_links)
-    rnt_write(temp_io, Write_RNTupleListFrame(x.column_group_records))
     rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_group_records))
 
     # add id_length size and checksum size
@@ -415,7 +414,7 @@ function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
     end
 end
 
-function rnt_write(io::IO, x::UnROOT.ROOT_3a3a_Experimental_3a3a_RNTuple)
+function rnt_write(io::IO, x::UnROOT.ROOT_3a3a_RNTuple)
     temp_io = IOBuffer()
     rnt_write(temp_io, x.fVersionEpoch; legacy=true)
     rnt_write(temp_io, x.fVersionMajor; legacy=true)
@@ -597,7 +596,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
 
     RBlob4_obs = rnt_write_observe(file, Stubs.RBlob4)
     rntAnchor_update[:fSeekFooter] = UInt32(position(file))
-    rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [], [
+    rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [
         UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(pagelink_obs.len, UnROOT.Locator(pagelink_obs.len, pagelink_obs.position, ))),
     ])
     rnt_footer_obs = rnt_write_observe(file, rnt_footer)

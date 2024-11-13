@@ -174,7 +174,7 @@ julia> LazyTree(f, "ntuple")
 """
 struct RNTuple{O}
     io::O
-    anchor::ROOT_3a3a_Experimental_3a3a_RNTuple
+    anchor::ROOT_3a3a_RNTuple
     header::RNTupleHeader
     footer::RNTupleFooter
     pagelinks::Dict{Int, PageLink}

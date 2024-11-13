@@ -1,5 +1,5 @@
 # https://github.com/root-project/root/blob/a4deb370c9b9870f0391036890981f648559ef68/tree/ntuple/v7/inc/ROOT/RNTupleAnchor.hxx#L69
-Base.@kwdef struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
+Base.@kwdef struct ROOT_3a3a_RNTuple <: ROOTStreamedObject
     fVersionEpoch::UInt16
     fVersionMajor::UInt16
     fVersionMinor::UInt16
@@ -14,13 +14,13 @@ Base.@kwdef struct ROOT_3a3a_Experimental_3a3a_RNTuple <: ROOTStreamedObject
     fChecksum::UInt64
 end
 
-function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
+function ROOT_3a3a_RNTuple(io, tkey::TKey, refs)
     local_io = datastream(io, tkey)
     skip(local_io, 6)
     _before_anchor = position(local_io)
     anchor_checksum = xxh3_64(read(local_io, 2*4 + 7*8))
     seek(local_io, _before_anchor)
-    anchor = ROOT_3a3a_Experimental_3a3a_RNTuple(;
+    anchor = ROOT_3a3a_RNTuple(;
                     fVersionEpoch = readtype(local_io, UInt16),
                     fVersionMajor = readtype(local_io, UInt16),
                     fVersionMinor = readtype(local_io, UInt16),
@@ -36,6 +36,12 @@ function ROOT_3a3a_Experimental_3a3a_RNTuple(io, tkey::TKey, refs)
                                        )
 
     @assert anchor.fChecksum == anchor_checksum "RNtuple anchor checksum doesn't match"
+    # only support version 1.0.x.x for the moment.
+    if anchor.fVersionEpoch == 0 && anchor.fVersionMajor == 3
+    elseif anchor.fVersionEpoch == 1 && anchor.fVersionMajor == 0
+    else
+        error("RNTuple with specification version $(anchor.fVersionEpoch).$(anchor.fVersionMajor).x.x is not yet supported.")
+    end
 
 
     header_bytes = decompress_bytes(read_seek_nb(io, anchor.fSeekHeader, anchor.fNBytesHeader), anchor.fLenHeader)

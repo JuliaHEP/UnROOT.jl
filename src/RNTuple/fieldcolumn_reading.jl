@@ -183,9 +183,10 @@ function read_field(io, field::UnionField{S, T}, page_list) where {S, T}
 end
 
 function _detect_encoding(typenum)
-    split = 14 <= typenum <= 21 || 26 <= typenum <= 28
-    zigzag = 26 <= typenum <= 28
-    delta = 14 <= typenum <= 15
+    col_type = rntuple_col_type_table[typenum+1]
+    split = col_type.issplit
+    zigzag = col_type.iszigzag
+    delta = col_type.isdelta
     return (;split, zigzag, delta)
 end
 
