@@ -1,4 +1,4 @@
-1. Checkout an Athena build with ROOT nightly (currently has RNTuple RC2)
+1. Checkout an Athena build with ROOT nightly (currently has RNTuple RC3)
 2. Get an ATLAS RAW file
 3. Run reco:
 ```bash
