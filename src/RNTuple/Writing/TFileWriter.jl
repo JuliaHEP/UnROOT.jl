@@ -167,19 +167,19 @@ function rnt_write(io::IO, x::UnROOT.FieldRecord)
     rnt_write(io, x.parent_field_id)
     rnt_write(io, x.struct_role)
     rnt_write(io, x.flags)
-    if !iszero(0x0001 & x.flags)
-        rnt_write(io, x.repetition)
-    end
-    if !iszero(0x0002 & x.flags)
-        rnt_write(io, x.source_field_id)
-    end
-    if !iszero(0x0004 & x.flags)
-        rnt_write(io, x.root_streamer_checksum)
-    end
     rnt_write(io, x.field_name)
     rnt_write(io, x.type_name)
     rnt_write(io, x.type_alias)
     rnt_write(io, x.field_desc)
+    if !iszero(0x01 & x.flags)
+        rnt_write(io, x.repetition)
+    end
+    if !iszero(0x02 & x.flags)
+        rnt_write(io, x.source_field_id)
+    end
+    if !iszero(0x04 & x.flags)
+        rnt_write(io, x.root_streamer_checksum)
+    end
 end
 
 function rnt_write(io::IO, x::UnROOT.ColumnRecord)
@@ -474,7 +474,7 @@ end
 
 # primary case
 function add_field_column_record!(field_records, column_records, input_T::Type{<:Real}, NAME; parent_field_id, col_field_id = parent_field_id)
-    fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), 0, -1, -1, string(NAME), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", "")
+    fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), string(NAME), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", "", 0, -1, -1)
     cr = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., col_field_id, 0x00, 0x00, 0)
     push!(field_records, fr)
     push!(column_records, cr)
@@ -567,7 +567,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     RBlob1_obs = rnt_write_observe(file, RBlob1)
     field_records, col_records = schema_to_field_column_records(table)
     rnt_header = UnROOT.RNTupleHeader(
-    zero(UInt64), rntuple_name, "", "ROOT v6.33.01",
+    zero(UInt64), rntuple_name, "", "ROOT v6.35.001",
     field_records, col_records,
     UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[]
     )
@@ -604,7 +604,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     rntAnchor_update[:fLenFooter] = rnt_footer_obs.len
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, typemin(Int32), Stubs.WRITE_TIME, 64, 1, tkey32_anchor_position, 100, "ROOT::Experimental::RNTuple", rntuple_name, "")
+    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, typemin(Int32), Stubs.WRITE_TIME, 50, 1, tkey32_anchor_position, 100, "ROOT::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
     tkey32_anchor_update = Dict{Symbol, Any}()
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)

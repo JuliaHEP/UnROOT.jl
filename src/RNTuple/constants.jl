@@ -49,6 +49,40 @@ RNTuple_ColumnType(type = 0x1B, nbits = 64, name = :SplitIndex64, jltype = Index
 # (0x1D,  1-32, :Real32Quant  ), #??
 )
 
+# for each Julia type, we pick just one canonical representation for writing
+const RNTUPLE_WRITE_TYPE_IDX_DICT = Dict(
+    Index64 => (0x0E, sizeof(Index64) * 8),
+    Index32 => (0x0F, sizeof(Index32) * 8),
+    Char => (0x02, 8),
+    Bool => (0x00, 1),
+    Float64 => (0x19, sizeof(UInt64) * 8),
+    Float32 => (0x18, sizeof(UInt32) * 8),
+    Float16 => (0x17, sizeof(UInt16) * 8),
+    UInt64 => (0x0A, sizeof(UInt64) * 8),
+    UInt32 => (0x08, sizeof(UInt32) * 8),
+    UInt16 => (0x06, sizeof(UInt16) * 8),
+    UInt8 => (0x04, sizeof(UInt8) * 8),
+    Int64 => (0x15, sizeof(Int64) * 8),
+    Int32 => (0x13, sizeof(Int32) * 8),
+    Int16 => (0x11, sizeof(Int16) * 8),
+    Int8 => (0x03, sizeof(Int8) * 8),
+)
+
+const RNTUPLE_WRITE_TYPE_CPPNAME_DICT = Dict(
+    Bool => "bool",
+    Float16 => "std::float16_t",
+    Float32 => "float",
+    Float64 => "double",
+    Int8 => "std::int8_t",
+    Int16 => "std::int16_t",
+    Int32 => "std::int32_t",
+    Int64 => "std::int64_t",
+    UInt8 => "std::uint8_t",
+    UInt16 => "std::uint16_t",
+    UInt32 => "std::uint32_t",
+    UInt64 => "std::uint64_t",
+)
+
 const rntuple_role_leaf = 0x0000
 const rntuple_role_vector = 0x0001
 const rntuple_role_struct = 0x0002
