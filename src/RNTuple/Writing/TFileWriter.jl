@@ -604,7 +604,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     rntAnchor_update[:fLenFooter] = rnt_footer_obs.len
 
     tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(0x0000008E, 4, typemin(Int32), Stubs.WRITE_TIME, 50, 1, tkey32_anchor_position, 100, "ROOT::RNTuple", rntuple_name, "")
+    tkey32_anchor = UnROOT.TKey32(0x00000080, 4, typemin(Int32), Stubs.WRITE_TIME, 50, 1, tkey32_anchor_position, 100, "ROOT::RNTuple", rntuple_name, "")
     tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
     tkey32_anchor_update = Dict{Symbol, Any}()
     magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
