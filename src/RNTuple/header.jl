@@ -4,13 +4,13 @@ Base.@kwdef struct FieldRecord
     parent_field_id::UInt32
     struct_role::UInt16
     flags::UInt16
-    repetition::Int64
-    source_field_id::Int32
-    root_streamer_checksum::Int32
     field_name::String
     type_name::String
     type_alias::String
     field_desc::String
+    repetition::Int64
+    source_field_id::Int32
+    root_streamer_checksum::Int32
 end
 function _rntuple_read(io, ::Type{FieldRecord})
     field_version = read(io, UInt32)
@@ -18,24 +18,24 @@ function _rntuple_read(io, ::Type{FieldRecord})
     parent_field_id = read(io, UInt32)
     struct_role = read(io, UInt16)
     flags = read(io, UInt16)
-    repetition = if !iszero(flags & 0x0001)
+    field_name, type_name, type_alias, field_desc = (_rntuple_read(io, String) for _=1:4)
+    repetition = if !iszero(flags & 0x01)
         read(io, Int64)
     else
         0
     end
-    source_field_id = if !iszero(flags & 0x0002)
+    source_field_id = if !iszero(flags & 0x02)
         read(io, Int32)
     else
         -1
     end
-    root_streamer_checksum = if !iszero(flags & 0x0004)
+    root_streamer_checksum = if !iszero(flags & 0x04)
         read(io, Int32)
     else
         -1
     end
-    field_name, type_name, type_alias, field_desc = (_rntuple_read(io, String) for _=1:4)
-    FieldRecord(field_version, type_version, parent_field_id, 
-                struct_role, flags, repetition, source_field_id, root_streamer_checksum, field_name, type_name, type_alias, field_desc)
+    FieldRecord(;field_version, type_version, parent_field_id, 
+                struct_role, flags, field_name, type_name, type_alias, field_desc, repetition, source_field_id, root_streamer_checksum)
 end
 
 struct ColumnRecord

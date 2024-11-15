@@ -65,7 +65,6 @@ include("RNTuple/highlevel.jl")
 include("RNTuple/fieldcolumn_reading.jl")
 include("RNTuple/displays.jl")
 
-include("RNTuple/Writing/constants.jl")
 include("RNTuple/Writing/page_writing.jl")
 include("RNTuple/Writing/TFileWriter.jl")
 include("RNTuple/Writing/Stubs.jl")

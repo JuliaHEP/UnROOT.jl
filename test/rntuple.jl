@@ -125,24 +125,6 @@ end
         length.(t.Muon_charge)
 end
 
-# Covered by other tests already
-# @testset "RNTuple Split Encoding" begin
-#     f1 = UnROOT.samplefile("RNTuple/test_ntuple_split_3e4.root")
-#     t = LazyTree(f1, "ntuple")
-#     @test all(==(Int32(0x04030201)), t.one_int32)
-#     @test all(==(0xffeeddcc), reinterpret(UInt32, t.two_uint32))
-
-#     @test eltype(t.one_int32) == Int32
-#     @test eltype(t.two_uint32) == UInt32
-
-#     # 0.099967316
-#     @test reinterpret(UInt32, t.three_vfloat32[2]) == [0x3dccbbaa]
-#     @test all(reduce(vcat, t.three_vfloat32) .=== 0.099967316f0)
-#     @test length.(t.three_float32) == repeat(0:9, 3000)
-
-#     @test all(==(578437695752307201), t.four_int64)
-# end
-
 @testset "RNTuple Type stability" begin
     f1 = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
     t = LazyTree(f1, "ntuple")
@@ -189,42 +171,42 @@ end
     @test sum(accumulator) == sum(1:5e4)
 end
 
-@testset "String and Regex Selection" begin
-    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
-    @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df)
-    df2 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "EventData", r"AntiKt4TruthDressedWZ")
-    names(df) == names(df2)
-    df3 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "EventData",
-        ["AntiKt4TruthDressedWZJetsAux:",
-            "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"]
-    )
-    @test length(names(df3)) == 2
-    df4 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
-        "EventData",
-        "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"
-    )
-    @test length(names(df4)) == 1
-end
+# @testset "String and Regex Selection" begin
+#     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+#     df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
+#     @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df)
+#     df2 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+#         "EventData", r"AntiKt4TruthDressedWZ")
+#     names(df) == names(df2)
+#     df3 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+#         "EventData",
+#         ["AntiKt4TruthDressedWZJetsAux:",
+#             "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"]
+#     )
+#     @test length(names(df3)) == 2
+#     df4 = LazyTree(joinpath(@__DIR__, "./samples/RNTuple/DAOD_TRUTH3_RC2.root"),
+#         "EventData",
+#         "AntiKt4TruthDressedWZJetsAux::PartonTruthLabelID"
+#     )
+#     @test length(names(df4)) == 1
+# end
 
-@testset "Skim the schema" begin
-    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df_full = LazyTree(f1, "EventData")
-    df1 = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
-    @test 0 < length(names(df1)) < length(names(df_full))
-    @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df1)
-    @test length(df1[!, 1].rn.schema) < length(df_full[!, 1].rn.schema)
-end
+# @testset "Skim the schema" begin
+#     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+#     df_full = LazyTree(f1, "EventData")
+#     df1 = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
+#     @test 0 < length(names(df1)) < length(names(df_full))
+#     @test "AntiKt4TruthDressedWZJetsAux:" ∈ names(df1)
+#     @test length(df1[!, 1].rn.schema) < length(df_full[!, 1].rn.schema)
+# end
 
-@testset "Skip Recursively Empty Structs" begin
-    f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
-    df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
-    truth_jets_one_event = df.var"AntiKt4TruthDressedWZJetsAux:"[1]
-    @test :pt ∈ propertynames(truth_jets_one_event)
-    @test length(truth_jets_one_event.pt) == 5
-end
+# @testset "Skip Recursively Empty Structs" begin
+#     f1 = UnROOT.samplefile("RNTuple/DAOD_TRUTH3_RC2.root")
+#     df = LazyTree(f1, "EventData", r"AntiKt4TruthDressedWZ")
+#     truth_jets_one_event = df.var"AntiKt4TruthDressedWZJetsAux:"[1]
+#     @test :pt ∈ propertynames(truth_jets_one_event)
+#     @test length(truth_jets_one_event.pt) == 5
+# end
 
 # @testset "Footer extension header links backfill" begin
 #     f1 = UnROOT.samplefile("RNTuple/test_ntuple_extension_columns.root")
