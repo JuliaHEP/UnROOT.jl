@@ -474,8 +474,9 @@ end
 
 # primary case
 function add_field_column_record!(field_records, column_records, input_T::Type{<:Real}, NAME; parent_field_id, col_field_id = parent_field_id)
-    fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), string(NAME), RNTUPLE_WRITE_TYPE_CPPNAME_DICT[input_T], "", "", 0, -1, -1)
-    cr = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[input_T]..., col_field_id, 0x00, 0x00, 0)
+    fr = UnROOT.FieldRecord(zero(UInt32), zero(UInt32), parent_field_id, zero(UInt16), zero(UInt16), string(NAME), RNT_WRITE_CPP_TYPE_NAME_DICT[input_T], "", "", 0, -1, -1)
+    rnt_col_type = RNT_COL_TYPE_TABLE[RNT_WRITE_JL_TYPE_DICT[input_T] + 1]
+    cr = UnROOT.ColumnRecord(rnt_col_type.type, rnt_col_type.nbits, col_field_id, 0x00, 0x00, 0)
     push!(field_records, fr)
     push!(column_records, cr)
     nothing
@@ -487,9 +488,11 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0000, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="std::string", type_alias="", field_desc="", )
     push!(field_records, fr)
 
-    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., col_field_id, 0x00, 0x00, 0)
+    rnt_indexcol_type = RNT_COL_TYPE_TABLE[RNT_WRITE_JL_TYPE_DICT[Index64] + 1]
+    cr_offset = UnROOT.ColumnRecord(rnt_indexcol_type.type, rnt_indexcol_type.nbits, col_field_id, 0x00, 0x00, 0)
     push!(column_records, cr_offset)
-    cr_chars = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Char]..., col_field_id, 0x00, 0x00, 0)
+    rnt_charcol_type = RNT_COL_TYPE_TABLE[RNT_WRITE_JL_TYPE_DICT[Char] + 1]
+    cr_chars = UnROOT.ColumnRecord(rnt_charcol_type.type, rnt_charcol_type.nbits, col_field_id, 0x00, 0x00, 0)
     push!(column_records, cr_chars)
     nothing
 end
@@ -499,7 +502,8 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     implicit_field_id = length(field_records)
     fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0001, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="", type_alias="", field_desc="", )
     push!(field_records, fr)
-    cr_offset = UnROOT.ColumnRecord(RNTUPLE_WRITE_TYPE_IDX_DICT[Index64]..., col_field_id, 0x00, 0x00, 0)
+    rnt_col_type = RNT_COL_TYPE_TABLE[RNT_WRITE_JL_TYPE_DICT[Index64] + 1]
+    cr_offset = UnROOT.ColumnRecord(rnt_col_type.type, rnt_col_type.nbits, col_field_id, 0x00, 0x00, 0)
     push!(column_records, cr_offset)
 
     # TODO: this feels like a hack, think about it more

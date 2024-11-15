@@ -92,14 +92,14 @@ function _search_col_type(field_id, column_records, col_id::Int...)
         index_record = column_records[col_id[1]]
         char_record = column_records[col_id[2]]
         index_typenum = index_record.type
-        LeafType = rntuple_col_type_table[index_typenum+0x01].jltype
+        LeafType = RNT_COL_TYPE_TABLE[index_typenum+0x01].jltype
         return StringField(
             LeafField{LeafType}(col_id[1],index_record),
             LeafField{Char}(col_id[2], char_record)
         )
     elseif length(col_id) == 1
         record = column_records[only(col_id)]
-        LeafType = rntuple_col_type_table[record.type+0x01].jltype
+        LeafType = RNT_COL_TYPE_TABLE[record.type+0x01].jltype
         return LeafField{LeafType}(only(col_id), record)
     else
         error("un-handled RNTuple case, report issue to UnROOT.jl")
