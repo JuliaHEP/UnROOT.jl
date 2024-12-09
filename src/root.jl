@@ -327,6 +327,7 @@ function _normalize_ftype(fType)
     end
 end
 
+# TODO: there are still a few missing here (see constants.jl)
 const _leaftypeconstlookup = Dict(
                              Const.kBool   => Bool  ,
                              Const.kChar   => Int8  ,
@@ -344,6 +345,7 @@ const _leaftypeconstlookup = Dict(
                              Const.kDouble32 => Float32,
                              Const.kDouble =>   Float64,
                              Const.kFloat => Float32,
+                             Const.kTString => String,
                             )
 
 """
