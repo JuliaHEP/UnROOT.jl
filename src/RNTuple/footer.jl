@@ -8,10 +8,6 @@ end
     locator::Locator
 end
 
-@SimpleStruct struct ColumnGroupRecord
-    column_ids::Vector{UInt32}
-end
-
 @SimpleStruct struct ClusterGroupRecord
     minimum_entry_number::Int64
     entry_span::Int64
@@ -44,7 +40,6 @@ end
     feature_flag::UInt64
     header_checksum::UInt64
     extension_header_links::RNTupleSchemaExtension
-    column_group_records::Vector{ColumnGroupRecord}
     cluster_group_records::Vector{ClusterGroupRecord}
 end
 
