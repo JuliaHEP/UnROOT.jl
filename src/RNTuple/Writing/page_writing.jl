@@ -32,11 +32,11 @@ function rnt_ary_to_page(ary::AbstractVector{Bool}, cr::ColumnRecord)
     Page_write(reinterpret(UInt8, chunks))
 end
 
-function rnt_ary_to_page(ary::AbstractVector{T}, cr::ColumnRecord) where T<:Number
+function rnt_ary_to_page(ary::AbstractVector{T}, cr::ColumnRecord) where {T<:Number}
     Page_write(page_encode(ary, cr))
 end
 
-function page_encode(ary::AbstractVector{T}, cr::ColumnRecord) where T
+function page_encode(ary::AbstractVector{T}, cr::ColumnRecord) where {T}
     col_type = RNT_COL_TYPE_TABLE[cr.type+1]
     nbits = col_type.nbits
     src = reinterpret(UInt8, ary)
@@ -53,7 +53,16 @@ function page_encode(ary::AbstractVector{T}, cr::ColumnRecord) where T
     end
 end
 function split8_encode(src::AbstractVector{UInt8})
-    @views [src[1:8:end-7]; src[2:8:end-6]; src[3:8:end-5]; src[4:8:end-4]; src[5:8:end-3]; src[6:8:end-2]; src[7:8:end-1]; src[8:8:end]]
+    @views [
+        src[1:8:end-7]
+        src[2:8:end-6]
+        src[3:8:end-5]
+        src[4:8:end-4]
+        src[5:8:end-3]
+        src[6:8:end-2]
+        src[7:8:end-1]
+        src[8:8:end]
+    ]
 end
 function split4_encode(src::AbstractVector{UInt8})
     @views [src[1:4:end-3]; src[2:4:end-2]; src[3:4:end-1]; src[4:4:end]]
@@ -62,7 +71,7 @@ function split2_encode(src::AbstractVector{UInt8})
     @views [src[1:2:end-1]; src[2:2:end]]
 end
 
-_to_zigzag(n) = (n << 1) ⊻ (n >> (sizeof(n)*8-1))
+_to_zigzag(n) = (n << 1) ⊻ (n >> (sizeof(n) * 8 - 1))
 function _to_zigzag(res::AbstractVector)
     out = similar(res)
     @simd for i in eachindex(out, res)
