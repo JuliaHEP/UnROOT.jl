@@ -106,13 +106,14 @@ function readfields!(io, fields, T::Type{TAttFill_2})
 end
 
 abstract type TAttMarker <: ROOTStreamedObject end
-struct TAttMarker_2 <: TAttFill end
-function readfields!(io, fields, T::Type{TAttMarker_2})
+struct TAttMarker_1 <: TAttFill end
+const TAttMarker_2 = TAttMarker_1
+const TAttMarker_3 = TAttMarker_1
+function readfields!(io, fields, T::Type{TAttMarker_1})
     fields[:fMarkerColor] = readtype(io, Int16)
     fields[:fMarkerStyle] = readtype(io, Int16)
     fields[:fMarkerSize] = readtype(io, Float32)
 end
-const TAttMarker_1 = TAttMarker_2
 
 abstract type TAttAxis <: ROOTStreamedObject end
 struct TAttAxis_4 <: TAttAxis end
