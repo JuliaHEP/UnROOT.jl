@@ -75,6 +75,10 @@ function JaggType(f, branch, leaf)
             # TODO: there are for sure also jagged strings, need to find files with those
             return Nojagg
         end
+        if typeof(streamer) <: TStreamerSTLstring
+            # TODO: unsure if this is always the case, but it fixed issue #377
+            return Offsetjagg
+        end
         if streamer.fSTLtype == Const.kSTLvector
             (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Offset6jaggjagg
             return Offsetjagg
