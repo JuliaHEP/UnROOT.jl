@@ -30,11 +30,11 @@ end
 
 
 # running length coded string
-function runlength_string(::Type{T}, data) where T
+function runlength_string(::Type{T}, data; offset=10) where T
     out = T[]
     maxlength = length(data)
-    # offsetjagg skip 10 bytes
-    i = 11
+    # offsetjagg skip
+    i = offset + 1
     while true
         i+1 > maxlength && break
         _len = data[i]
@@ -46,10 +46,10 @@ function runlength_string(::Type{T}, data) where T
     out
 end
 
-function interped_data(data::Vector{UInt8}, rawoffsets::Vector{Int32}, ::Type{Vector{T}}, ::Type{Offsetjagg}) where {T<:AbstractString}
+function interped_data(data::Vector{UInt8}, rawoffsets::Vector{Int32}, ::Type{Vector{T}}, ::Type{J}) where {T<:AbstractString, J<:Union{Offsetjagg, Offset6jagg}}
     rawoffsets .+= 1
     v = VectorOfVectors(data, rawoffsets)
-    res = runlength_string.(T, v)
+    res = runlength_string.(T, v; offset=offsetof(J))
     dummy = VectorOfVectors(res)
     # to maintain Int32 indexing
     return VectorOfVectors(dummy.data, Vector{Int32}(dummy.elem_ptr))

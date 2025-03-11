@@ -54,9 +54,12 @@ abstract type JaggType end
 struct Nojagg      <:JaggType  end
 struct Nooffsetjagg<:JaggType  end
 struct Offsetjagg  <:JaggType  end
+struct Offset6jagg  <:JaggType  end
 struct Offsetjaggjagg  <:JaggType  end
 # this is a preliminary workaround for 6 byte offset jaggedness
 struct Offset6jaggjagg  <:JaggType  end
+offsetof(::Type{Offsetjagg}) = 10
+offsetof(::Type{Offset6jagg}) = 6
 
 function JaggType(f, branch, leaf)
     # https://github.com/scikit-hep/uproot3/blob/54f5151fb7c686c3a161fbe44b9f299e482f346b/uproot3/interp/auto.py#L144
@@ -75,10 +78,11 @@ function JaggType(f, branch, leaf)
             # TODO: there are for sure also jagged strings, need to find files with those
             return Nojagg
         end
-        if typeof(streamer) <: TStreamerSTLstring
-            # TODO: unsure if this is always the case, but it fixed issue #377
-            return Offsetjagg
-        end
+        # if typeof(streamer) <: TStreamerSTLstring
+        #     # TODO: unclear if this jagged/offset info should be passed from here
+        #     # or dealt with in root.jl. see issue #377 and PR #378
+        #     return Offsetjagg
+        # end
         if streamer.fSTLtype == Const.kSTLvector
             (match(r"\[.*\]", leaf.fTitle) !== nothing) && return Offset6jaggjagg
             return Offsetjagg
