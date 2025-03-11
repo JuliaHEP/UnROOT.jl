@@ -57,6 +57,16 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     @test 1200 == length(t)
     @test t[1].time[2] ≈ 36.396744f0
     @test t[end].xpos[end] ≈ 788.35144f0
+
+    # issue 377
+    f = UnROOT.samplefile("issue377.root")
+    arr = UnROOT.array(f, "podio_metadata/events___CollectionTypeInfo/events___CollectionTypeInfo.dataType")
+    t = LazyTree(f, "podio_metadata", ["events___CollectionTypeInfo"])
+    @test 1 == length(t.events___CollectionTypeInfo_dataType)
+    @test 26 == length(t.events___CollectionTypeInfo_dataType[1])
+    @test "edm4hep::CaloHitContributionCollection" == t.events___CollectionTypeInfo_dataType[1][1]
+    @test "podio::LinkCollection<edm4hep::Vertex,edm4hep::ReconstructedParticle>" == t.events___CollectionTypeInfo_dataType[1][end]
+    @test arr == t.events___CollectionTypeInfo_dataType
 end
 
 function _test_clean_GC(fname)

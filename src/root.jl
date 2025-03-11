@@ -418,6 +418,11 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
                 streamer.fTypeName == "vector<unsigned char>" && return Vector{Vector{UInt8}}, _jaggtype
             end
 
+            # TODO: unclear if it's always a 6 byte offset but it solve issue #377
+            # also note that utils.jl (JaggType(f, branch, leaf)) might be the better
+            # place to determine jaggedness and offset size
+            streamer.fTypeName == "string" && return Vector{String}, Offset6jagg
+
         end
 
         # some standard cases
