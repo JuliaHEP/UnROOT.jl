@@ -66,7 +66,7 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     @test 26 == length(t.events___CollectionTypeInfo_dataType[1])
     @test "edm4hep::CaloHitContributionCollection" == t.events___CollectionTypeInfo_dataType[1][1]
     @test "podio::LinkCollection<edm4hep::Vertex,edm4hep::ReconstructedParticle>" == t.events___CollectionTypeInfo_dataType[1][end]
-    @test arr == t.events___CollectionTypeInfo_datatype
+    @test arr == t.events___CollectionTypeInfo_dataType
 end
 
 function _test_clean_GC(fname)
