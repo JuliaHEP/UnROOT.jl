@@ -186,3 +186,11 @@ end
     @test (UnROOT.basketarray_iter(t.b1) .|> length) == [1228, 1228, 44]
     @test length(UnROOT.basketarray(t.b1, 1)) == 1228
 end
+
+@testset "primitives" begin
+    f = UnROOT.samplefile("TLeafG.root")
+    toa = UnROOT.array(f, "TOA/TOA_NS")
+    @test 55548 == length(toa)
+    @test 1675274976213420032 == toa[1]
+    @test 1675275224652052992 == toa[end]
+end
