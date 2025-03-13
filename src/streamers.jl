@@ -240,7 +240,8 @@ function readobjany!(io, tkey::TKey, refs)
             try
                 streamer = getfield(@__MODULE__, Symbol(cname))
             catch UndefVarError
-                @error "Could not get streamer for '$(cname)'"
+                @warn "Could not get streamer for '$(cname)' (TKey: $(tkey))"
+                return missing
             end
         end
 
