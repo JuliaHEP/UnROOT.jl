@@ -1,11 +1,9 @@
 using Documenter, UnROOT
+using DocumenterVitepress
 
 makedocs(;
     modules=[UnROOT],
-    format = Documenter.HTML(
-        prettyurls = get(ENV, "CI", nothing) == "true",
-        assets=String[],
-    ),
+    format=DocumenterVitepress.MarkdownVitepress(; repo="github.com/JuliaHEP/UnROOT.jl"),
     pages=[
         "Introduction" => "index.md",
         "Example Usage" => "exampleusage.md",
