@@ -1120,6 +1120,13 @@ function parsetobject(f, tkey::TKey, streamer)
     # simple custom streamers which instantiate the full objects data
     tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
 
+    if ismissing(streamer)
+        error("There is no streamer information for '$(tkey.fClassName)' stored in the ROOT file, " *
+            "consider providing a custom streamer by passing " *
+            "`customstreamer=Dict(\"$(tkey.fClassName)\" => TheStreamer)` to the `ROOTFile` " *
+            "and implement the struct `TheStreamer` and `UnROOT.readtype(io, ::Type{TheStreamer}; tkey, original_streamer)`.")
+    end
+
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
     s = streamer.streamer.fElements.elements[2]
     if s.fTypeName == "map<string,string>"

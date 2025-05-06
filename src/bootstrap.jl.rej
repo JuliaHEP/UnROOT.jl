@@ -1,0 +1,25 @@
+diff a/src/bootstrap.jl b/src/bootstrap.jl	(rejected hunks)
+@@ -131,8 +131,23 @@ function readfields!(io, fields, T::Type{TAttAxis_4})
+ end
+ 
+ abstract type TAxis <: ROOTStreamedObject end
++struct TAxis_6 <: TAxis end
+ struct TAxis_9 <: TAxis end
+ struct TAxis_10 <: TAxis end
++function readfields!(io, fields, T::Type{TAxis_6})
++    # overrides things like fName,... that were set from the parent TH1 :(
++    stream!(io, fields, TNamed)
++    stream!(io, fields, TAttAxis)
++    fields[:fNbins] = readtype(io, Int32)
++    fields[:fXmin] = readtype(io, Float64)
++    fields[:fXmax] = readtype(io, Float64)
++    fields[:fXbins] = readtype(io, TArrayD)
++    fields[:fFirst] = readtype(io, Int16)
++    fields[:fLast] = readtype(io, Int16)
++    fields[:fBits2] = readtype(io, UInt16)
++    fields[:fTimeDisplay] = readtype(io, Bool)
++    fields[:fTimeFormat] = readtype(io, String)
++end
+ function readfields!(io, fields, T::Type{TAxis_9})
+     # overrides things like fName,... that were set from the parent TH1 :(
+     stream!(io, fields, TNamed)

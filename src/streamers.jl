@@ -240,8 +240,11 @@ function readobjany!(io, tkey::TKey, refs)
             try
                 streamer = getfield(@__MODULE__, Symbol(cname))
             catch UndefVarError
-                @warn "Could not get streamer for '$(cname)' (TKey: $(tkey))"
-                return missing
+                streamer = getfield(@__MODULE__, :TBranchElement)
+                # @show tkey.fClassName
+
+                # @warn "Could not get streamer for '$(cname)' (TKey: $(tkey))"
+                # return missing
             end
         end
 
