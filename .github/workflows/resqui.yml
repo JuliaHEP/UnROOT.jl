@@ -1,0 +1,12 @@
+name: Run resqui
+
+jobs:
+  resqui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: resqui
+        uses: EVERSE-ResearchSoftware/QualityPipelines@initial-setup
+        with:
+          url: ${{ inputs.url }}
+          config: ${{ inputs.config }}
+
