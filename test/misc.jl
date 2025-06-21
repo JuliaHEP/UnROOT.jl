@@ -50,6 +50,7 @@ end
     rootfile = UnROOT.samplefile("NanoAODv5_sample.root")
     t = LazyTree(rootfile, "Events", "nMuon")
     @test t[2] == t[CartesianIndex(2)]
+    # need two separate functions so compiler doesn't optimize away
     testf(evt) = evt.nMuon == 4
     testf2(evt) = evt.nMuon == 4
     # precompile
@@ -57,9 +58,13 @@ end
     testf2.(t)
     findall(@. testf(t) & testf2(t))
     ##########
+    a1 = testf.(t)
     alloc1 = @allocated a1 = testf.(t)
+    a2 = testf2.(t)
     alloc1 += @allocated a2 = testf2.(t)
+    idx1 = findall(a1 .& a2)
     alloc1 += @allocated idx1 = findall(a1 .& a2)
+    idx2 = findall(@. testf(t) & testf2(t))
     alloc2 = @allocated idx2 = findall(@. testf(t) & testf2(t))
     @assert !isempty(idx1)
     @test idx1 == idx2
