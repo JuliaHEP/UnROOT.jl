@@ -65,7 +65,7 @@ implementation-specific.
 
 \begin{figure}[h]
 \centerline{\includegraphics[width=6cm]{ttree_schema.png}}
-\caption{Schematics of the schema (or there lack of) in TTree, the user-faceing branches are 1-to-1
+\caption{Schematics of the unstructured schema in TTree, the user-faceing branches are 1-to-1
 with the physical storage.}
 	\label{fig:ttree_schema}
 \end{figure}
@@ -168,9 +168,9 @@ very performant for-loop style, user can also conduct physics analysis using col
 end
 \end{lstlisting}
 
-For writing, we again accept anything that \verb|istable()| according to the \verb|Table.jl|. In
+For writing, we again accept anything that satisfies \verb|istable()| interface from \verb|Table.jl|. In
 addition, we also dispatch on types such as \verb|AbstractVector| for each column, which means that
-we don't require user to prepare their input into a pre-defined, \verb|UnROOT.jl|-specific container:
+we don't require users to prepare their input into a pre-defined, \verb|UnROOT.jl|-specific container:
 \begin{lstlisting}[
     language = Julia, 
     numbers=left, 
