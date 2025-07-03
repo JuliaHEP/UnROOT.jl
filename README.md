@@ -1,4 +1,7 @@
-<img style="height:9em;" alt="UnROOT.jl" src="docs/src/assets/unroot.svg"/>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/unroot_dark.svg">
+  <img alt="UnROOT.jl Logo" src="docs/src/assets/unroot.svg">
+</picture>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-8-orange.svg?style=flat-square)](#contributors-)
