@@ -306,7 +306,8 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Union{Type{TList},Typ
     objects = []
     for i ∈ 1:size
         push!(objects, readobjany!(io, tkey, refs))
-        skip(io, readtype(io, UInt8))
+        skip_n = readtype(io, UInt8)
+        skip(io, skip_n)
     end
 
     endcheck(io, preamble)

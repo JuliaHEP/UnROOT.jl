@@ -28,30 +28,43 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     # one-byte terminator
     skip(io, 1)
 
-    # then if you have offsets data, read them in
-    if fNevBufSize > 8
-        byteoffsets = read(io, fNevBuf * 4 + 8)
-        skip(io, -4)
+    # If this ``TBasket`` is embedded within its ``TBranch`` (i.e. must be
+    # deserialized as part of the ``TBranch``), then ``is_embedded`` is True.
+    #
+    # If this ``TBasket`` is a free-standing object, then ``is_embedded`` is
+    # False.
+    #
+    is_embedded = fNbytes <= fKeylen
+
+    border = fLast - fKeylen
+
+    if is_embedded
+        # https://github.com/root-project/root/blob/0e6282a641b65bdf5ad832882e547ca990e8f1a5/tree/tree/inc/TBasket.h#L62-L65
+        maybe_entry_size = fNevBufSize
+        num_entries = fNevBuf
+        key_length = fKeylen
+        # Embedded TBaskets are always uncompressed
+        if maybe_entry_size * num_entries + key_length != fLast
+            skip(io, 4)  # skip the first Int32, which is the fNevBuf
+            byteoffsets = [readtype(io, Int32) - fKeylen for _ in 0:num_entries]
+            byteoffsets[end] = border
+            skip(io, -4)
+        else
+            byteoffsets = Int32[]
+        end
+
+        # there's a second TKey here, but it doesn't contain any new information (in fact, less)
+        skip(io, fKeylen)
+
+        contents = read(io, border)
+
+        @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
+        return RecoveredTBasket(contents, byteoffsets)
     else
-        byteoffsets = Int32[]
+        # TODO: figure out how to handle this (see uproot5 uproot/models/TBasket.py when is_embedded is False
+        error("Handling of recovered baskets which are not embedded is not implemented yet.")
     end
 
-    # there's a second TKey here, but it doesn't contain any new information (in fact, less)
-    skip(io, fKeylen)
-
-    # the data (not including offsets)
-    size = fLast - fKeylen
-    contents = read(io, size)
-
-    # put the offsets back in, in the way that we expect it
-    if fNevBufSize > 8
-        contents = vcat(contents, byteoffsets)
-        size += length(byteoffsets)
-    end
-    fObjlen = size
-    fNbytes = fObjlen + fKeylen
-    @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
-    RecoveredTBasket(contents, byteoffsets)
 end
 
 abstract type TNamed <: ROOTStreamedObject end
