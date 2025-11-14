@@ -60,7 +60,7 @@ printnode(io::IO, f::ROOTFile) = print(io, f.filename)
 printnode(io::IO, f::ROOTDirectory) = print(io, "$(f.name) (TDirectory)")
 printnode(io::IO, k::TKeyNode) = print(io, "$(k.name) ($(k.classname))")
 
-Base.show(tree::LazyTree; kwargs...) = _show(stdout, tree; crop=:both, kwargs...)
+Base.show(tree::LazyTree; kwargs...) = _show(stdout, tree; kwargs...)
 Base.show(io::IO, tree::LazyTree; kwargs...) = _show(io, tree; kwargs...)
 Base.show(io::IO, ::MIME"text/plain", tree::LazyTree) = _show(io, tree)
 function _show(io::IO, tree::LazyTree; kwargs...)
@@ -69,16 +69,13 @@ function _show(io::IO, tree::LazyTree; kwargs...)
     PrettyTables.pretty_table(
         io,
         Tables.columns(tree);
-        header=_hs,
+        column_labels=_hs,
         alignment=:l,
-        vlines=[1],
-        hlines=[:header],
         reserved_display_lines=2,
-        row_number_alignment=:l,
-        row_number_column_title="Row",
-        show_row_number=true,
+        row_number_column_alignment = :l,
+        show_row_number_column=true,
         compact_printing=false,
-        formatters=(v, i, j) -> _treeformat(v, _ds[2] ÷ min(8, length(_hs[1]))),
+        formatters=[(v, i, j) -> _treeformat(v, _ds[2] ÷ min(8, length(_hs[1])))],
         display_size=(min(_ds[1], 40), min(_ds[2], 160)),
         kwargs...
     )
@@ -131,14 +128,13 @@ function Base.show(io::IO, ::MIME"text/html", tree::LazyTree)
     PrettyTables.pretty_table(
         io,
         t;
-        header=_hs,
+        column_labels=_hs,
         alignment=:l,
-        row_number_column_title="",
-        show_row_number=true,
+        row_number_column_alignment = :l,
+        show_row_number_column=true,
         compact_printing=false,
-        formatters=(v, i, j) -> _treeformat(v, 100),
-        tf = PrettyTables.HtmlTableFormat(css = """th { color: #000; background-color: #fff; }"""),
-        backend=Val(:html),
+        formatters=[(v, i, j) -> _treeformat(v, 100)],
+        backend=:html,
     )
     nothing
 end
@@ -147,7 +143,7 @@ function _make_header(t)
     pn = propertynames(t)
     header = _symtup2str(pn)
     subheader = _symtup2str(eltype.(values(Tables.columns(t))))
-    (header, subheader)
+    [header, subheader]
 end
 function _treeformat(val, trunc)
     s = if val isa AbstractArray{T} where T<:Integer

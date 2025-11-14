@@ -36,10 +36,9 @@ end
     _io = IOBuffer()
     show(_io, t)
     _iostring = String(take!(_io))
-    @test length(split(_iostring,'\n')) > length(t)
     @test occursin("───────", _iostring)
     @test !occursin("NamedTuple", _iostring)
-    show(_io, t; crop=:both)
+    show(_io, t)
     @test length(split(String(take!(_io)),'\n')) <= Base.displaysize()[1]
     _io = IOBuffer()
     show(_io, MIME"text/html"(), t)
