@@ -18,6 +18,7 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
     include("type_stability.jl")
     include("utils.jl")
     include("misc.jl")
+    include("recovered_baskets.jl")
 
     include("type_support.jl")
     include("custom_bootstrapping.jl")
