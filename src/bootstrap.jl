@@ -16,6 +16,15 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     fKeylen = readtype(io, Int16)
     fCycle = readtype(io, Int16)
 
+    # Check if this is an embedded basket
+    # Embedded baskets have fNbytes <= fKeylen, meaning all data is inline
+    is_embedded = fNbytes <= fKeylen
+
+    # For embedded baskets, we still need to read through all the data
+    # to satisfy the parent TObjArray's byte count, even though we won't use it
+    # The embedded basket data is stored inline and we need to consume it
+
+    # Non-embedded basket handling (original logic for recovered baskets)
     # skipping class name, name and title
     seek(io, start + fKeylen - 18 - 1)
 
