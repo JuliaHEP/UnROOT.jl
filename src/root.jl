@@ -2,7 +2,7 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::SourceStream
+    fobj::AbstractSourceStream
     refs::Dict{Int32, Any}
 end
 function Base.show(io::IO, d::ROOTDirectory)
@@ -13,7 +13,7 @@ struct ROOTFile
     filename::String
     format_version::Int32
     header::FileHeader
-    fobj::SourceStream
+    fobj::AbstractSourceStream
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
@@ -64,9 +64,9 @@ test/samples/NanoAODv5_sample.root
 """
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
-        HTTPStream(filename)
+        httpstreamer(filename)
     elseif startswith(filename, "root://")
-        XRDStream(filename)
+        xrootdstreamer(filename)
     else
         !isfile(filename) && throw(SystemError("opening file $filename", 2))
         MmapStream(filename)

@@ -1,5 +1,7 @@
 using Test
 using UnROOT
+using XRootD
+using HTTP
 
 
 @testset "SourceStream remote" begin

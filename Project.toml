@@ -12,7 +12,6 @@ CodecLz4 = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
 CodecXz = "ba30903b-d9e8-5048-a5ec-d1f5b0d4b47b"
 CodecZstd = "6b39b394-51ab-5f42-8807-6242bab2b4c2"
 FHist = "68837c9b-b678-4cd5-9925-8a54edc8f695"
-HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
 LRUCache = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
 LibDeflate = "9255714d-24a7-4b30-8ea3-d46a97f7e13b"
@@ -28,8 +27,15 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-XRootD = "164e3b87-dc46-4cbc-97a6-5b310108fce0"
 XXHashNative = "e5d8e439-e7fa-4681-9c12-1c64bda517be"
+
+[weakdeps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+XRootD = "164e3b87-dc46-4cbc-97a6-5b310108fce0"
+
+[extensions]
+UnROOTHTTPExt = "HTTP"
+UnROOTXRootDExt = "XRootD"
 
 [compat]
 AbstractTrees = "^0.4"
@@ -73,6 +79,7 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 LorentzVectors = "3f54b04b-17fc-5cd4-9758-90c048d965e3"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -80,6 +87,7 @@ SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+XRootD = "164e3b87-dc46-4cbc-97a6-5b310108fce0"
 
 [targets]
-test = ["Aqua", "Arrow", "DataFrames", "InteractiveUtils", "LorentzVectors", "Pkg", "Random", "SHA", "StaticArrays", "TOML", "Test"]
+test = ["Aqua", "Arrow", "DataFrames", "InteractiveUtils", "LorentzVectors", "Pkg", "Random", "SHA", "StaticArrays", "TOML", "Test", "HTTP", "XRootD"]
