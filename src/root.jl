@@ -64,9 +64,13 @@ test/samples/NanoAODv5_sample.root
 """
 function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector" => LorentzVector{Float64}))
     fobj = if startswith(filename, r"https?://")
-        HTTPStream(filename)
+        typesymbol = :HTTPStream
+        !isdefined(UnROOT, typesymbol) && error("Opening HTTP streamed ROOT files requires to install and load the 'HTTP' module.")
+        getproperty(UnROOT, typesymbol)(filename)
     elseif startswith(filename, "root://")
-        XRDStream(filename)
+        typesymbol = :XRDStream
+        !isdefined(UnROOT, typesymbol) && error("Opening XRootD streamed ROOT files requires to install and load the 'XRootD' module.")
+        getproperty(UnROOT, typesymbol)(filename)
     else
         !isfile(filename) && throw(SystemError("opening file $filename", 2))
         MmapStream(filename)
