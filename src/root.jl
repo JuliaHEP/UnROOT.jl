@@ -2,7 +2,7 @@ struct ROOTDirectory
     name::AbstractString
     header::ROOTDirectoryHeader
     keys::Vector{TKey}
-    fobj::SourceStream
+    fobj::AbstractSourceStream
     refs::Dict{Int32, Any}
 end
 function Base.show(io::IO, d::ROOTDirectory)
@@ -13,7 +13,7 @@ struct ROOTFile
     filename::String
     format_version::Int32
     header::FileHeader
-    fobj::SourceStream
+    fobj::AbstractSourceStream
     tkey::TKey
     streamers::Streamers
     directory::ROOTDirectory
