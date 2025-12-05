@@ -16,7 +16,9 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
-## Breaking API changes in v0.11.0
+## Important and Breaking Changes
+
+### Breaking API changes in v0.11.0
 <details><summary>XRootD and HTTP are now available via extensions</summary>
 <p>
 
@@ -51,8 +53,8 @@ See [PR396](https://github.com/JuliaHEP/UnROOT.jl/pull/396) for more details.
 </p>
 </details>
 
-## Important API changes in v0.9.0
-<details><summary>Click to expand example for RNTuple</summary>
+### Important API changes in v0.9.0
+<details><summary>`getindex` now behaves differently</summary>
 <p>
 
 We decided to alter the behaviour of `getindex(f::ROOTfile, s::AbstractString)` which is essentially
