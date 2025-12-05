@@ -109,3 +109,23 @@ end
     df = LazyTree(UnROOT.samplefile("TLeafC_pr342.root"), "G4Sim")
     @test all(df.Process[1:10] .== ["Radioactivation", "msc", "eIoni", "Transportation", "ionIoni", "Radioactivation", "msc", "eIoni", "ionIoni", "Radioactivation"])
 end
+
+# Issue: EOF when trying to open files with recovered/embedded baskets
+# Files with embedded baskets (fNbytes <= fKeylen) from premature closure
+# are not yet fully supported. This is a known limitation.
+# See: https://github.com/JuliaHEP/UnROOT.jl/issues/XXX
+@testset "Embedded baskets limitation" begin
+    # This test documents the known limitation with files containing embedded baskets
+    # Such files occur when ROOT files are closed prematurely (e.g., process crash)
+    # and ROOT's recovery mechanism stores uncompressed basket data inline
+    
+    # TODO: Add test file with embedded baskets when support is implemented
+    # For now, this serves as documentation that such files are not yet supported
+    
+    # Example of what should eventually work:
+    # f = UnROOT.samplefile("file_with_embedded_baskets.root")  
+    # tree = f["tree_name"]
+    # @test tree.fEntries > 0
+    
+    @test_skip false  # Placeholder - remove when support is added
+end
