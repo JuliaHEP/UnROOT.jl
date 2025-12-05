@@ -16,6 +16,41 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
+## Breaking API changes in v0.11.0
+<details><summary>XRootD and HTTP are now available via extensions</summary>
+<p>
+
+`UnROOT.jl` supports opening files remotely via XRootD which requires
+[`XRootD.jl`](https://github.com/JuliaHEP/XRootD.jl)
+and via HTTP using [`HTTP.jl`](https://github.com/JuliaWeb/HTTP.jl) seamlessly
+up to version 0.10.38.
+Starting with **v0.11**, this behaviour has changed to reduce default dependencies, since
+not everyone uses these features. To continue opening remote 
+files via XRootD or HTTP, the corresponding Julia package (`XRootD.jl`, respectively `HTTP.jl`)
+now needs to be installed and loaded.
+
+`UnROOT.jl` provides extensions for both
+which are loaded automatically so `ROOTFile(url)` will work just like before.
+
+Long story short, when passing a `url` to `ROOTFile(...)`, make sure to load
+appropriate package:
+
+    using UnROOT
+    using XRootD  # this is now required for XRootD URLs
+
+    ROOTFile("xroot://...")
+    
+or 
+
+    using UnROOT
+    using HTTP  # this is now required for HTTP/HTTPS URLs
+
+    ROOTFile("https://...")
+
+See [PR396](https://github.com/JuliaHEP/UnROOT.jl/pull/396) for more details.
+</p>
+</details>
+
 ## Important API changes in v0.9.0
 <details><summary>Click to expand example for RNTuple</summary>
 <p>
