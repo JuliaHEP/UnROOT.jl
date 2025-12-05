@@ -1,22 +1,23 @@
 module UnROOTXRootDExt
 
-import UnROOT: AbstractSourceStream, read_seek_nb
+import UnROOT: AbstractSourceStream, xrootdstreamer, read_seek_nb
 import XRootD
 
-export XRDStream
 
-mutable struct XRDStream
+xrootdstreamer(url::AbstractString) = XRDStream(url)
+
+mutable struct XRDStream <: AbstractSourceStream
     file::XRootD.XrdCl.File
     seekloc::Int
     size::Int
 end
 
 function XRDStream(url::AbstractString)
-    file = File()
-    st, _ = open(file, url, OpenFlags.Read)
-    isError(st) && error("XRootD file open error: $st")
+    file = XRootD.XrdCl.File()
+    st, _ = open(file, url, XRootD.XrdCl.OpenFlags.Read)
+    XRootD.XrdCl.isError(st) && error("XRootD file open error: $st")
     st, statinfo = stat(file)
-    isError(st) && error("XRootD file stat error: $st")
+    XRootD.XrdCl.isError(st) && error("XRootD file stat error: $st")
     XRDStream(file, 0, statinfo.size)
 end
 
@@ -26,7 +27,7 @@ end
 
 function read_seek_nb(fobj::XRDStream, seek, nb)
     st, buffer = read(fobj.file, nb, seek)
-    isError(st) && error("XRootD file read error: $st")
+    XRootD.XrdCl.isError(st) && error("XRootD file read error: $st")
     return buffer
 end
 
@@ -44,7 +45,7 @@ end
 
 function Base.read(fobj::XRDStream, nb::Integer)
     st, buffer = read(fobj.file, nb, fobj.seekloc)
-    isError(st) && error("XRootD file read error: $st")
+    XRootD.XrdCl.isError(st) && error("XRootD file read error: $st")
     fobj.seekloc += nb
     return buffer
 end

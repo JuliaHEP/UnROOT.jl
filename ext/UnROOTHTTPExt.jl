@@ -1,7 +1,9 @@
 module UnROOTHTTPExt
 
-import UnROOT: AbstractSourceStream, read_seek_nb
+import UnROOT: AbstractSourceStream, httpstreamer, read_seek_nb
 import HTTP
+
+httpstreamer(url::AbstractString) = HTTPStream(url)
 
 mutable struct HTTPStream <: AbstractSourceStream
     uri::HTTP.URI
@@ -46,6 +48,32 @@ function read_seek_nb(fobj::HTTPStream, seek, nb)
     hd = ("Range" => "bytes=$(seek)-$stop", "Authorization" => "Bearer $(fobj.scitoken)")
     b = HTTP.request(HTTP.stack(), "GET", fobj.uri, hd, UInt8[]).body
     return b
+end
+
+# SciToken discovery https://zenodo.org/record/3937438
+function _find_scitoken()
+    op1 = get(ENV, "BEARER_TOKEN", "")
+    op2 = get(ENV, "BEARER_TOKEN_FILE", "")
+    op3 = get(ENV, "XDG_RUNTIME_DIR", "")
+    uid = @static if Sys.iswindows()
+            "julia"
+        else
+            strip(read(`id -u`, String))
+        end
+    op3_file = joinpath(op3, "bt_u$uid")
+    op4_file = "/tmp/bt_u$uid"
+    token = if !isempty(op1)
+        op1
+    elseif !isempty(op2)
+        read(op2, String)
+    elseif !isempty(op3) && isfile(op3_file)
+        read(op3_file, String)
+    elseif isfile(op4_file)
+        read(op4_file, String)
+    else
+        ""
+    end
+    return strip(token)
 end
 
 end
