@@ -186,9 +186,11 @@ Only one basket per branch will be cached so you don't have to worry about runni
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. This means you should avoid double-access, 
 see [performance tips](https://juliahep.github.io/UnROOT.jl/dev/performancetips/#Don't-%22double-access%22)
 
-XRootD is also supported, depending on the protocol:
+XRootD is also supported via [extensions](https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions)),
+depending on the protocol, either `using XRootD` or `using HTTP`:
 -   the "url" has to start with `http://` or `https://`:
 -   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
+
 ```julia
 julia> r = ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
 ROOTFile with 1 entry and 18 streamers.
