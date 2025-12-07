@@ -175,6 +175,13 @@ function _getindex(f::ROOTFile, s)
     @debug "Retrieving $s ('$(typename)')"
     if isdefined(@__MODULE__, Symbol(typename))
         streamer = getfield(@__MODULE__, Symbol(typename))
+        # TODO: this needs to be generalised at some point ;)
+        # TNamed is essentially just a string->string,
+        # so we return her fTitle since the user made the
+        # request with its fName
+        if streamer === TNamed
+            return tkey.fTitle
+        end
         S = streamer(f.fobj, tkey, f.streamers.refs)
         return S
     end
