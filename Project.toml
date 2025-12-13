@@ -1,7 +1,7 @@
 name = "UnROOT"
 uuid = "3cd96dde-e98d-4713-81e9-a4a1b0235ce9"
-authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
 version = "0.11.1"
+authors = ["Tamas Gal", "Jerry Ling", "Johannes Schumann", "Nick Amin"]
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -42,7 +42,7 @@ AbstractTrees = "^0.4"
 Accessors = "0.1.36"
 Aqua = "^0.8"
 ArraysOfArrays = "^0.6"
-Arrow = "~2.7.1"
+Arrow = "~2.7.1, 2"
 BitIntegers = "^0.3"
 CodecLz4 = "^0.4"
 CodecXz = "^0.7"
@@ -78,8 +78,8 @@ julia = "^1.10"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 LorentzVectors = "3f54b04b-17fc-5cd4-9758-90c048d965e3"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
