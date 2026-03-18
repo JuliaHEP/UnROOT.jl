@@ -170,7 +170,9 @@ function _getindex(f::ROOTFile, s)
         paths = split(s, '/')
         return f[first(paths)][join(paths[2:end], "/")]
     end
-    tkey = f.directory.keys[findfirst(isequal(s), keys(f))]
+    idx = findfirst(isequal(s), keys(f))
+    isnothing(idx) && throw(KeyError(s))
+    tkey = f.directory.keys[idx]
     typename = safename(tkey.fClassName)
     @debug "Retrieving $s ('$(typename)')"
     if isdefined(@__MODULE__, Symbol(typename))
@@ -188,7 +190,7 @@ function _getindex(f::ROOTFile, s)
 
     @debug "Could not get streamer for $(typename), trying custom streamer."
     # last resort, try direct parsing
-    parsetobject(f, tkey, streamerfor(f, typename))
+    parsetobject(f, tkey, streamerfor(f, tkey.fClassName))
 end
 
 function getindex(d::ROOTDirectory, s)
