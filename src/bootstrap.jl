@@ -1114,11 +1114,20 @@ function parsetobject(f, tkey::TKey, streamer)
 
     @initparse
 
-    # the first entry in the streamer is a TObject
+    # Custom streamers receive io positioned immediately after the outer object
+    # preamble. The reader is responsible for parsing the full object content
+    # (including any TObject base class, which may not come first in all classes).
+    tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
+
+    # For the built-in path, assume TObject is the first element in the streamer
+    # and consume it before inspecting the remaining content.
     parsefields!(io, fields, TObject)
 
-    # simple custom streamers which instantiate the full objects data
-    tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
+    if ismissing(streamer)
+        error("No streamer found for '$(tkey.fClassName)'. " *
+              "Provide a custom parser via `customstructs=Dict(\"$(tkey.fClassName)\" => YourType)` " *
+              "to `ROOTFile` and implement `UnROOT.readtype(io, ::Type{YourType}; tkey, original_streamer)`.")
+    end
 
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
     s = streamer.streamer.fElements.elements[2]
@@ -1144,8 +1153,8 @@ function parsetobject(f, tkey::TKey, streamer)
 
     error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)', " *
           "consider providing a custom streamer by passing " *
-          "`customstreamer=Dict(\"$(tkey.fClassName)\" => TheStreamer)` to the `ROOTFile` " *
-          "and implement the struct `TheStreamer` and `UnROOT.readtype(io, ::Type{TheStreamer}; tkey, original_streamer)`.")
+          "`customstructs=Dict(\"$(tkey.fClassName)\" => YourType)` to `ROOTFile` " *
+          "and implement `UnROOT.readtype(io, ::Type{YourType}; tkey, original_streamer)`.")
 end
 
 
