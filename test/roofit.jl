@@ -33,5 +33,22 @@ using UnROOT
     @test result.finalpars["SI2_05"].value ≈ -4.2837665773207991
     @test result.finalpars["SI2_06"].value ≈ -5.1379624978482523
 
+    @test result.correlation_matrix isa Matrix{Float64}
+    @test result.covariance_matrix isa Matrix{Float64}
+    @test size(result.correlation_matrix) == (389, 389)
+    @test size(result.covariance_matrix) == (389, 389)
+    @test result.correlation_matrix[1, 1] == 0.0
+    @test result.correlation_matrix[1, 2] == 0.0
+    @test result.correlation_matrix[2, 2] == 0.0
+    @test result.covariance_matrix[1, 1] == 0.0
+    @test result.covariance_matrix[1, 2] == 0.0
+    @test result.covariance_matrix[2, 2] == 0.0
+
+    @test result.global_correlation_coefficients isa Vector{Float64}
+    @test length(result.global_correlation_coefficients) == 389
+    @test result.global_correlation_coefficients[1] ≈ 1.0099761526156472
+    @test result.global_correlation_coefficients[2] ≈ 1.007696988338753
+    @test result.global_correlation_coefficients[3] ≈ 1.0055821548962376
+
     close(f)
 end

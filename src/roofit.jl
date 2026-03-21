@@ -281,7 +281,6 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooRealVar})
 end
 
 function _read_tmatrix(io)
-    preamble = Preamble(io, var"TMatrixTBase<double>")
     parsefields!(io, Dict{Symbol, Any}(), TObject)
     nrows = Int(readtype(io, Int32))
     ncols = Int(readtype(io, Int32))
@@ -293,20 +292,19 @@ function _read_tmatrix(io)
     packed = [readtype(io, Float64) for _ in 1:(nrows * (ncols + 1) ÷ 2)]
     out = Matrix{Float64}(undef, nrows, ncols)
     idx = 1
-    for j in 1:ncols
-        for i in j:nrows
+    for i in 1:nrows
+        for j in i:ncols
             out[i, j] = packed[idx]
             out[j, i] = packed[idx]
             idx += 1
         end
     end
-    endcheck(io, preamble)
     return out
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{var"TMatrixTSym<double>"})
-    _skip_object(io, var"TMatrixTSym<double>")
-    return missing
+    Preamble(io, var"TMatrixTSym<double>")
+    return _read_tmatrix(io)
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{var"TVectorT<double>"})
@@ -335,9 +333,9 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooFitResult})
     constpars = readobjany!(io, tkey, refs)
     initpars = readobjany!(io, tkey, refs)
     finalpars = readobjany!(io, tkey, refs)
-    correlation_matrix = missing
-    covariance_matrix = missing
-    global_correlation_coefficients = missing
+    correlation_matrix = readobjany!(io, tkey, refs)
+    covariance_matrix = readobjany!(io, tkey, refs)
+    global_correlation_coefficients = readobjany!(io, tkey, refs)
     status_history = Pair{String, Int32}[]
     if !ismissing(preamble.cnt)
         seek(io, preamble.start + preamble.cnt)
