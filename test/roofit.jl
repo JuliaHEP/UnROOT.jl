@@ -52,3 +52,39 @@ using UnROOT
 
     close(f)
 end
+
+@testset "Synthetic RooFitResult fixtures" begin
+    f = UnROOT.samplefile("roofit_results.root")
+
+    full = f["fit_full"]
+    @test full isa UnROOT.RooFitResult
+    @test full.status == 3
+    @test full.covqual == 3
+    @test full.numbadnll == 2
+    @test full.minnll ≈ 12.5
+    @test full.edm ≈ 0.125
+    @test full.constpars === missing
+    @test length(full.initpars) == 2
+    @test length(full.finalpars) == 2
+    @test full.finalpars["x"].value ≈ 1.5
+    @test full.finalpars["x"].error ≈ 2.0
+    @test full.finalpars["y"].value ≈ -1.5
+    @test full.finalpars["y"].error ≈ 3.0
+    @test full.correlation_matrix isa Matrix{Float64}
+    @test full.covariance_matrix isa Matrix{Float64}
+    @test full.global_correlation_coefficients isa Vector{Float64}
+    @test full.correlation_matrix ≈ [1.0 0.5; 0.5 1.0]
+    @test full.covariance_matrix ≈ [4.0 3.0; 3.0 9.0]
+    @test full.global_correlation_coefficients ≈ [0.8, 0.9]
+
+    nocov = f["fit_nocov"]
+    @test nocov isa UnROOT.RooFitResult
+    @test nocov.status == 3
+    @test nocov.covqual == 0
+    @test nocov.constpars === missing
+    @test nocov.correlation_matrix === missing
+    @test nocov.covariance_matrix === missing
+    @test nocov.global_correlation_coefficients === missing
+
+    close(f)
+end
