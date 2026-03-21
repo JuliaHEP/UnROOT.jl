@@ -80,6 +80,11 @@ function _skip_object(io, T::Type)
     return nothing
 end
 
+function _seek_to_object_end(io, preamble::Preamble)
+    ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
+    return nothing
+end
+
 function _skip_counted_blob(io)
     preamble = Preamble(io, Missing)
     ismissing(preamble.cnt) && error("Unable to skip counted blob without a byte count")
@@ -111,40 +116,6 @@ function _read_stl_vector_uint(io; header=true)
     preamble = header ? Preamble(io, Missing) : nothing
     n = Int(readtype(io, UInt32))
     out = UInt32[readtype(io, UInt32) for _ in 1:n]
-    header && endcheck(io, preamble)
-    return out
-end
-
-function _read_stl_set_string(io; header=true)
-    preamble = header ? Preamble(io, Missing) : nothing
-    n = Int(readtype(io, UInt32))
-    out = Set{String}()
-    for _ in 1:n
-        push!(out, readtype(io, String))
-    end
-    header && endcheck(io, preamble)
-    return out
-end
-
-function _read_stl_map_string_string(io; header=true)
-    preamble = header ? Preamble(io, Missing) : nothing
-    n = Int(readtype(io, UInt32))
-    out = Dict{String, String}()
-    sizehint!(out, n)
-    for _ in 1:n
-        out[readtype(io, String)] = readtype(io, String)
-    end
-    header && endcheck(io, preamble)
-    return out
-end
-
-function _read_stl_status_history(io; header=true)
-    preamble = header ? Preamble(io, Missing) : nothing
-    n = Int(readtype(io, UInt32))
-    out = Vector{Pair{String, Int32}}(undef, n)
-    for i in 1:n
-        out[i] = readtype(io, String) => readtype(io, Int32)
-    end
     header && endcheck(io, preamble)
     return out
 end
@@ -182,6 +153,8 @@ function _read_rooabsarg(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
     _skip_object(io, RooRefArray)
+    # RooFit stores additional transient attribute containers here. We don't
+    # expose them yet, but we do need to skip them cleanly to stay aligned.
     _skip_counted_blob(io)
     _skip_counted_blob(io)
     bool_attributes = Set{String}()
@@ -259,9 +232,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooRealVar})
     asymerrlo = readtype(io, Float64)
     asymerrhi = readtype(io, Float64)
     binning = readobjany!(io, tkey, refs)
-    if !ismissing(preamble.cnt)
-        seek(io, preamble.start + preamble.cnt)
-    end
+    _seek_to_object_end(io, preamble)
     return RooRealVar(
         name,
         title,
@@ -314,9 +285,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{var"TVectorT<doub
     row_lwb = readtype(io, Int32)
     skip(io, 1)
     out = [readtype(io, Float64) for _ in row_lwb+1:nrows]
-    if !ismissing(preamble.cnt)
-        seek(io, preamble.start + preamble.cnt)
-    end
+    _seek_to_object_end(io, preamble)
     return out
 end
 
@@ -336,10 +305,10 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooFitResult})
     correlation_matrix = readobjany!(io, tkey, refs)
     covariance_matrix = readobjany!(io, tkey, refs)
     global_correlation_coefficients = readobjany!(io, tkey, refs)
+    # Status history is part of RooFitResult, but the current fixtures do not
+    # expose a stable standalone encoding for it yet, so we defer full support.
     status_history = Pair{String, Int32}[]
-    if !ismissing(preamble.cnt)
-        seek(io, preamble.start + preamble.cnt)
-    end
+    _seek_to_object_end(io, preamble)
     return RooFitResult(
         name,
         title,
