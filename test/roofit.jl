@@ -32,6 +32,12 @@ using UnROOT
     @test result.finalpars["SI2_04"].value ≈ -2.613183099470453
     @test result.finalpars["SI2_05"].value ≈ -4.2837665773207991
     @test result.finalpars["SI2_06"].value ≈ -5.1379624978482523
+    @test result.finalpars["SI2_00"] === first_final
+    @test first_final.plotbins == 100
+    @test first_final.unit == ""
+    @test first_final.label == ""
+    @test first_final.bool_attributes == Set{String}()
+    @test first_final.string_attributes == Dict{String, String}()
 
     @test result.correlation_matrix isa Matrix{Float64}
     @test result.covariance_matrix isa Matrix{Float64}
@@ -49,6 +55,11 @@ using UnROOT
     @test result.global_correlation_coefficients[1] ≈ 1.0099761526156472
     @test result.global_correlation_coefficients[2] ≈ 1.007696988338753
     @test result.global_correlation_coefficients[3] ≈ 1.0055821548962376
+    @test occursin("RooFitResult(nll, 389 floating parameters)", sprint(show, result))
+    @test occursin("RooArgList(389 entries)", sprint(show, result.finalpars))
+    shown_var = sprint(show, first_final)
+    @test occursin("RooRealVar(SI2_00=-1.8252763390685456 +/- ", shown_var)
+    @test occursin("0.799840690665551", shown_var)
 
     close(f)
 end
@@ -76,12 +87,19 @@ end
     @test full.correlation_matrix ≈ [1.0 0.5; 0.5 1.0]
     @test full.covariance_matrix ≈ [4.0 3.0; 3.0 9.0]
     @test full.global_correlation_coefficients ≈ [0.8, 0.9]
+    @test full.finalpars["x"].plotbins == 100
+    @test full.finalpars["x"].bool_attributes == Set{String}()
+    @test full.finalpars["x"].string_attributes == Dict{String, String}()
+    @test occursin("RooFitResult(fit_full, 2 floating parameters)", sprint(show, full))
+    @test collect(full.finalpars) == full.finalpars.args
 
     nocov = f["fit_nocov"]
     @test nocov isa UnROOT.RooFitResult
     @test nocov.status == 3
     @test nocov.covqual == 0
     @test nocov.constpars === missing
+    @test length(nocov.initpars) == 2
+    @test length(nocov.finalpars) == 2
     @test nocov.correlation_matrix === missing
     @test nocov.covariance_matrix === missing
     @test nocov.global_correlation_coefficients === missing

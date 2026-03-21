@@ -1,5 +1,18 @@
+"""
+    AbstractRooAbsBinning
+
+Abstract supertype for RooFit binning objects attached to a [`RooRealVar`](@ref).
+"""
 abstract type AbstractRooAbsBinning end
 
+"""
+    RooUniformBinning
+
+Representation of a persisted `RooUniformBinning`. The current RooFitResult
+reader keeps this type for API completeness, but may leave the `binning` field
+of a [`RooRealVar`](@ref) as `missing` when the serialized binning object is not
+needed by the current fixtures.
+"""
 struct RooUniformBinning <: AbstractRooAbsBinning
     name::String
     title::String
@@ -9,6 +22,14 @@ struct RooUniformBinning <: AbstractRooAbsBinning
     binw::Float64
 end
 
+"""
+    RooRealVar
+
+Julia representation of a persisted RooFit `RooRealVar`.
+
+This exposes the parameter name, current value, symmetric/asymmetric errors,
+plotting metadata, and the attached binning object when available.
+"""
 struct RooRealVar
     name::String
     title::String
@@ -26,6 +47,14 @@ struct RooRealVar
     binning::Union{Missing, AbstractRooAbsBinning}
 end
 
+"""
+    RooArgList
+
+Julia representation of a persisted RooFit `RooArgList`.
+
+The contained arguments can be indexed by position or, when the elements carry
+names, via `list["parameter_name"]`.
+"""
 struct RooArgList
     name::String
     owncont::Bool
@@ -38,6 +67,14 @@ Base.getindex(x::RooArgList, i::Int) = x.args[i]
 Base.iterate(x::RooArgList, state=1) = state > length(x) ? nothing : (x[state], state + 1)
 Base.getindex(x::RooArgList, name::AbstractString) = only(filter(arg -> !ismissing(arg) && hasproperty(arg, :name) && getproperty(arg, :name) == name, x.args))
 
+"""
+    RooFitResult
+
+Julia representation of a top-level persisted RooFit `RooFitResult`.
+
+This provides access to the core fit summary, parameter lists, covariance and
+correlation matrices when stored, and the global correlation coefficients.
+"""
 struct RooFitResult
     name::String
     title::String
