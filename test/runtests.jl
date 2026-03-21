@@ -7,6 +7,7 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
 @testset "UnROOT tests" verbose = true begin
     include("Aqua.jl")
     include("bootstrapping.jl")
+    include("roofit.jl")
     include("compressions.jl")
     include("jagged.jl")
     include("lazy.jl")
