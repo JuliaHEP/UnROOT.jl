@@ -2,7 +2,7 @@ using Test
 using UnROOT
 
 @testset "RooFitResult" begin
-    f = ROOTFile(joinpath(@__DIR__, "../data/test_RooFitResult.root"))
+    f = UnROOT.samplefile("roofit_result_realworld.root")
     result = f["nll"]
 
     @test result isa UnROOT.RooFitResult
@@ -65,7 +65,7 @@ using UnROOT
 end
 
 @testset "Synthetic RooFitResult fixtures" begin
-    f = UnROOT.samplefile("roofit_results.root")
+    f = UnROOT.samplefile("roofit_result_synthetic.root")
 
     full = f["fit_full"]
     @test full isa UnROOT.RooFitResult

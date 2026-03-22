@@ -75,12 +75,12 @@ fields are `missing`.
 ## Example
 
 The repository ships a synthetic RooFit fixture in
-`test/samples/roofit_results.root`. You can inspect it with:
+`test/samples/roofit_result_synthetic.root`. You can inspect it with:
 
 ```julia
 using UnROOT
 
-f = UnROOT.samplefile("roofit_results.root")
+f = UnROOT.samplefile("roofit_result_synthetic.root")
 fit = f["fit_full"]
 
 fit.status

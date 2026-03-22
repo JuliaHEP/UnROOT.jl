@@ -61,7 +61,7 @@ RooFitResult *make_result(const char *name, bool with_covariance)
 
 } // namespace
 
-void RooFitResult_write(const char *output = "roofit_results.root")
+void RooFitResult_write(const char *output = "roofit_result_synthetic.root")
 {
   TFile file(output, "RECREATE");
 
@@ -77,6 +77,6 @@ void RooFitResult_write(const char *output = "roofit_results.root")
 
 int main(int argc, char **argv)
 {
-  RooFitResult_write(argc > 1 ? argv[1] : "roofit_results.root");
+  RooFitResult_write(argc > 1 ? argv[1] : "roofit_result_synthetic.root");
   return 0;
 }
