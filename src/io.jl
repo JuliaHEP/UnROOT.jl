@@ -35,7 +35,7 @@ function readtype(io, ::Type{T}) where T<:AbstractString
         length = readtype(io, UInt32)
     end
 
-    T(read(io, length))
+    T(read(io, Int(length)))
 end
 
 struct CString
