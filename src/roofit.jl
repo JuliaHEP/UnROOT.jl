@@ -55,16 +55,22 @@ Julia representation of a persisted RooFit `RooArgList`.
 The contained arguments can be indexed by position or, when the elements carry
 names, via `list["parameter_name"]`.
 """
-struct RooArgList
+struct RooArgList{T}
     name::String
     owncont::Bool
     allrrv::Bool
-    args::Vector{Any}
+    args::Vector{T}
+end
+
+function _typed_rooarglist(name::String, owncont::Bool, allrrv::Bool, args::AbstractVector)
+    T = isempty(args) ? Any : foldl(typejoin, map(typeof, args))
+    return RooArgList{T}(name, owncont, allrrv, convert(Vector{T}, args))
 end
 
 Base.length(x::RooArgList) = length(x.args)
 Base.getindex(x::RooArgList, i::Int) = x.args[i]
 Base.iterate(x::RooArgList, state=1) = state > length(x) ? nothing : (x[state], state + 1)
+Base.eltype(::Type{RooArgList{T}}) where {T} = T
 Base.getindex(x::RooArgList, name::AbstractString) = only(filter(arg -> !ismissing(arg) && hasproperty(arg, :name) && getproperty(arg, :name) == name, x.args))
 
 """
@@ -168,7 +174,7 @@ function _read_rooabscollection(io, tkey, refs)
     name = readtype(io, String)
     allrrv = readtype(io, Bool)
     endcheck(io, preamble)
-    return RooArgList(name, owncont, allrrv, args)
+    return _typed_rooarglist(name, owncont, allrrv, args)
 end
 
 function _read_roostlrefcountlist(io, tkey, refs)

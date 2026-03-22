@@ -16,6 +16,9 @@ using UnROOT
     @test result.constpars isa UnROOT.RooArgList
     @test result.initpars isa UnROOT.RooArgList
     @test result.finalpars isa UnROOT.RooArgList
+    @test eltype(result.constpars) == UnROOT.RooRealVar
+    @test eltype(result.initpars) == UnROOT.RooRealVar
+    @test eltype(result.finalpars) == UnROOT.RooRealVar
     @test length(result.constpars) == 82
     @test length(result.initpars) == 389
     @test length(result.finalpars) == 389
@@ -77,6 +80,8 @@ end
     @test full.constpars === missing
     @test length(full.initpars) == 2
     @test length(full.finalpars) == 2
+    @test eltype(full.initpars) == UnROOT.RooRealVar
+    @test eltype(full.finalpars) == UnROOT.RooRealVar
     @test full.finalpars["x"].value ≈ 1.5
     @test full.finalpars["x"].error ≈ 2.0
     @test full.finalpars["y"].value ≈ -1.5
