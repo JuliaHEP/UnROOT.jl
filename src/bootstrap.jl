@@ -1145,10 +1145,7 @@ function parsetobject(f, tkey::TKey, streamer)
     # FIXME: generalise this! We also need a hook-in mechanism for this function
     # so that the user can provide custom parsing logic
     if tkey.fClassName == "TVectorT<double>"
-        n = readtype(io, UInt32)
-        row_lwb = readtype(io, Int32)  # index of the starting element of the vector itself
-        skip(io, 1)
-        return [readtype(io, Float64) for _ ∈ row_lwb+1:n]
+        return read_tvectort_double(io)
     end
 
     error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)', " *
