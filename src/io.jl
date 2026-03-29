@@ -152,3 +152,16 @@ function nametitle(io)
     endcheck(io, preamble)
     name, title
 end
+
+"""
+    read_tvectort_double(io)
+
+Read the payload of a streamed `TVectorT<double>` once the outer `TObject`
+header has already been consumed by the caller.
+"""
+function read_tvectort_double(io)
+    n = readtype(io, UInt32)
+    row_lwb = readtype(io, Int32)
+    skip(io, 1)
+    return [readtype(io, Float64) for _ in row_lwb+1:n]
+end

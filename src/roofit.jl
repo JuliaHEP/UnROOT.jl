@@ -305,10 +305,7 @@ end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{var"TVectorT<double>"})
     preamble = Preamble(io, var"TVectorT<double>")
     parsefields!(io, Dict{Symbol, Any}(), TObject)
-    nrows = readtype(io, UInt32)
-    row_lwb = readtype(io, Int32)
-    skip(io, 1)
-    out = [readtype(io, Float64) for _ in row_lwb+1:nrows]
+    out = read_tvectort_double(io)
     ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
     return out
 end
