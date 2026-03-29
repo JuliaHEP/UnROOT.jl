@@ -111,20 +111,10 @@ function Base.show(io::IO, x::RooFitResult)
     print(io, "RooFitResult($(x.name), $(nfloat) floating parameters)")
 end
 
-function _skip_versioned_object(io, T::Type)
-    preamble = Preamble(io, T)
-    endcheck(io, preamble)
-end
-
-function _skip_object(io, T::Type)
+function _skip_counted_object(io, T::Type)
     preamble = Preamble(io, T)
     ismissing(preamble.cnt) && error("Unable to skip object $(T) without a byte count")
     seek(io, preamble.start + preamble.cnt)
-    return nothing
-end
-
-function _seek_to_object_end(io, preamble::Preamble)
-    ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
     return nothing
 end
 
@@ -157,7 +147,7 @@ end
 function _read_rooabscollection(io, tkey, refs)
     preamble = Preamble(io, RooAbsCollection)
     parsefields!(io, Dict{Symbol, Any}(), TObject)
-    _skip_versioned_object(io, RooPrintable)
+    endcheck(io, Preamble(io, RooPrintable))
     args = _read_stl_vector(io) do io′
         readobjany!(io′, tkey, refs)
     end
@@ -181,12 +171,12 @@ end
 function _read_rooabsarg(io, tkey, refs)
     preamble = Preamble(io, RooAbsArg)
     name, title = nametitle(io)
-    _skip_versioned_object(io, RooPrintable)
+    endcheck(io, Preamble(io, RooPrintable))
     _read_roostlrefcountlist(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
-    _skip_object(io, RooRefArray)
+    _skip_counted_object(io, RooRefArray)
     # RooFit stores additional transient attribute containers here. We don't
     # expose them yet, but we do need to skip them cleanly to stay aligned.
     _skip_counted_blob(io)
@@ -220,7 +210,7 @@ function _read_rooreallvalue(io, tkey, refs)
     preamble = Preamble(io, RooAbsRealLValue)
     name, title, bool_attributes, string_attributes, plotmin, plotmax, plotbins, value, unit, label =
         _read_rooabsreal(io, tkey, refs)
-    _skip_versioned_object(io, RooAbsLValue)
+    endcheck(io, Preamble(io, RooAbsLValue))
     endcheck(io, preamble)
     return name, title, bool_attributes, string_attributes, plotmin, plotmax, plotbins, value, unit, label
 end
@@ -240,7 +230,7 @@ struct var"TVectorT<double>" end
 struct var"TMatrixTSym<double>" end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooUniformBinning})
-    _skip_object(io, RooUniformBinning)
+    _skip_counted_object(io, RooUniformBinning)
     return missing
 end
 
@@ -266,7 +256,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooRealVar})
     asymerrlo = readtype(io, Float64)
     asymerrhi = readtype(io, Float64)
     binning = readobjany!(io, tkey, refs)
-    _seek_to_object_end(io, preamble)
+    ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
     return RooRealVar(
         name,
         title,
@@ -319,15 +309,15 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{var"TVectorT<doub
     row_lwb = readtype(io, Int32)
     skip(io, 1)
     out = [readtype(io, Float64) for _ in row_lwb+1:nrows]
-    _seek_to_object_end(io, preamble)
+    ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
     return out
 end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooFitResult})
     preamble = Preamble(io, RooFitResult)
     name, title = nametitle(io)
-    _skip_versioned_object(io, RooPrintable)
-    _skip_versioned_object(io, RooDirItem)
+    endcheck(io, Preamble(io, RooPrintable))
+    endcheck(io, Preamble(io, RooDirItem))
     status = readtype(io, Int32)
     covqual = readtype(io, Int32)
     numbadnll = readtype(io, Int32)
@@ -342,7 +332,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooFitResult})
     # Status history is part of RooFitResult, but the current fixtures do not
     # expose a stable standalone encoding for it yet, so we defer full support.
     status_history = Pair{String, Int32}[]
-    _seek_to_object_end(io, preamble)
+    ismissing(preamble.cnt) || seek(io, preamble.start + preamble.cnt)
     return RooFitResult(
         name,
         title,
