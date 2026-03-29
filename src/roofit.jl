@@ -135,15 +135,6 @@ function _skip_counted_blob(io)
     return nothing
 end
 
-function _read_tnamed(io)
-    preamble = Preamble(io, TNamed)
-    parsefields!(io, Dict{Symbol, Any}(), TObject)
-    name = readtype(io, String)
-    title = readtype(io, String)
-    endcheck(io, preamble)
-    return name, title
-end
-
 function _read_stl_vector(read_item::Function, io; header=true)
     preamble = header ? Preamble(io, Missing) : nothing
     n = Int(readtype(io, UInt32))
@@ -189,7 +180,7 @@ end
 
 function _read_rooabsarg(io, tkey, refs)
     preamble = Preamble(io, RooAbsArg)
-    name, title = _read_tnamed(io)
+    name, title = nametitle(io)
     _skip_versioned_object(io, RooPrintable)
     _read_roostlrefcountlist(io, tkey, refs)
     _read_roostlrefcountlist(io, tkey, refs)
@@ -334,7 +325,7 @@ end
 
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{RooFitResult})
     preamble = Preamble(io, RooFitResult)
-    name, title = _read_tnamed(io)
+    name, title = nametitle(io)
     _skip_versioned_object(io, RooPrintable)
     _skip_versioned_object(io, RooDirItem)
     status = readtype(io, Int32)
