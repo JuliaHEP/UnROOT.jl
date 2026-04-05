@@ -351,6 +351,7 @@ const _leaftypeconstlookup = Dict(
                              Const.kLong64 =>  Int64,
                              Const.kULong =>  UInt64,
                              Const.kULong64 =>UInt64,
+                             Const.kFloat16  => Float16,
                              Const.kDouble32 => Float32,
                              Const.kDouble =>   Float64,
                              Const.kFloat => Float32,

@@ -516,6 +516,76 @@ end
 
 primitivetype(l::TLeafD) = Float64
 
+# Double32_t branch: metadata (min/max) stored as Float64, data stored as Float32 on disk.
+Base.@kwdef struct TLeafD32
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafD32})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Float64)
+    fields[:fMaximum] = readtype(io, Float64)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafD32})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafD32) = Float32
+
+# Float16_t branch: metadata (min/max) stored as Float32, data stored as Float16 on disk.
+Base.@kwdef struct TLeafF16
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafF16})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Float32)
+    fields[:fMaximum] = readtype(io, Float32)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafF16})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafF16) = Float16
+
 # FIXME this should be generated and inherited from TLeaf
 Base.@kwdef struct TLeafC
     # from TNamed
