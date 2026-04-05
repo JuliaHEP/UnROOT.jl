@@ -17,6 +17,9 @@ end
 Base.position(c::Cursor) = position(c.io)
 
 
+# Declare `unpack` as a generic function here so that all the specialised
+# unpack(io, tkey, refs, T) methods defined across multiple files extend
+# the same function object.
 function unpack() end
 packedsizeof(T::Type) = sum(sizeof.(fieldtypes(T)))
 
@@ -42,6 +45,9 @@ struct CString
     value::String
 end
 
+# readtype for CString reads a null-terminated byte sequence and returns a
+# plain String (not a CString wrapper). The CString type is used purely for
+# dispatch selection; callers receive a String.
 function readtype(io, ::Type{T}) where {T<:CString}
     out = Char[]
     char = read(io, Char)

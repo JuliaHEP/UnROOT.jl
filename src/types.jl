@@ -265,8 +265,11 @@ end
 end
 
 
-# Built-in types
-# function THashList end
+# Placeholder stubs for ROOT built-in types that are recognised by name in
+# readobjany! (via getfield(@__MODULE__, Symbol(cname))) but not yet fully
+# implemented. Their presence prevents an UndefVarError on lookup; they will
+# cause a MethodError on unpack() which surfaces a clear "not implemented"
+# message rather than a confusing name-lookup failure.
 function TRef end
 function TArray end
 function TArrayC end
