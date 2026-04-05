@@ -3,7 +3,7 @@
 
 struct RecoveredTBasket
     data::Vector{UInt8}
-    offsets::Vector{UInt32}
+    offsets::Vector{Int32}
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
     start = position(io)
@@ -27,30 +27,31 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     # one-byte terminator
     skip(io, 1)
 
-    # then if you have offsets data, read them in
-    if fNevBufSize > 8
-        byteoffsets = read(io, fNevBuf * 4 + 8)
+    # Parse offsets if present, using the same format as readbasketseek returns:
+    # big-endian Int32 values relative to data start, with contentsize appended.
+    # The on-disk layout is: [4-byte sentinel][fNevBuf × Int32 offsets][4-byte sentinel].
+    # We read fNevBuf*4+8 bytes then back up 4 so the stream position is correct for
+    # the subsequent read.
+    offsets = if fNevBufSize > 8
+        raw = read(io, fNevBuf * 4 + 8)
         skip(io, -4)
+        # bytes 1–4: leading sentinel; bytes 5–(4+fNevBuf*4): actual offsets
+        parsed = ntoh.(reinterpret(Int32, raw[5:4 + fNevBuf * 4]))
+        parsed .-= Int32(fKeylen)
+        push!(parsed, Int32(fLast - fKeylen))
+        parsed
     else
-        byteoffsets = Int32[]
+        Int32[]
     end
 
     # there's a second TKey here, but it doesn't contain any new information (in fact, less)
     skip(io, fKeylen)
 
-    # the data (not including offsets)
-    size = fLast - fKeylen
-    contents = read(io, size)
+    # the data (content bytes only, without offset area)
+    contents = read(io, fLast - fKeylen)
 
-    # put the offsets back in, in the way that we expect it
-    if fNevBufSize > 8
-        contents = vcat(contents, byteoffsets)
-        size += length(byteoffsets)
-    end
-    fObjlen = size
-    fNbytes = fObjlen + fKeylen
-    @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
-    RecoveredTBasket(contents, byteoffsets)
+    @debug "Found $(length(contents)) bytes of basket data in a TTree."
+    RecoveredTBasket(contents, offsets)
 end
 
 # Generic fallback: allows readfields! methods defined for IO to be called with a Cursor.
