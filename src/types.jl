@@ -39,7 +39,7 @@ function unpack(io, ::Type{TKey})
     unpack(io, TKey64)
 end
 
-@with_kw struct TBasketKey
+Base.@kwdef struct TBasketKey
     fNbytes::Int32
     fVersion::Int16
     fObjlen::Int32

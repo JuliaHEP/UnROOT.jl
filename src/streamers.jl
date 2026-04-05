@@ -340,29 +340,31 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TObjArray})
 end
 
 
+macro initparse()
+    esc(:(fields = Dict{Symbol, Any}()))
+end
+
+# Defines a mutable struct with the standard TStreamerElement fields prepended,
+# wrapped in Base.@kwdef for keyword construction. Replaces the Mixers.jl @premix pattern.
+macro tstreamer_element_struct(ex)
+    @assert ex.head == :struct "Expected a struct definition"
+    ismutable = ex.args[1]
+    typename  = ex.args[2]
+    body      = ex.args[3]
+    template_fields = [
+        :version, :fOffset, :fName, :fTitle, :fType, :fSize,
+        :fArrayLength, :fArrayDim, :fMaxIndex, :fTypeName,
+        :fXmin, :fXmax, :fFactor,
+    ]
+    own_fields = filter(x -> !(x isa LineNumberNode), body.args)
+    new_body   = Expr(:block, template_fields..., own_fields...)
+    new_struct = Expr(:struct, ismutable, typename, new_body)
+    return esc(:(Base.@kwdef $new_struct))
+end
+
 abstract type AbstractTStreamerElement end
 
-@premix @with_kw mutable struct TStreamerElementTemplate
-    version
-    fOffset
-    fName
-    fTitle
-    fType
-    fSize
-    fArrayLength
-    fArrayDim
-    fMaxIndex
-    fTypeName
-    fXmin
-    fXmax
-    fFactor
-end
-
-@TStreamerElementTemplate mutable struct TStreamerElement end
-
-@pour initparse begin
-    fields = Dict{Symbol, Any}()
-end
+@tstreamer_element_struct mutable struct TStreamerElement end
 
 function parsefields!(io, fields, T::Type{TStreamerElement})
     preamble = Preamble(io, T)
@@ -404,7 +406,7 @@ end
 # end
 
 
-@TStreamerElementTemplate mutable struct TStreamerBase
+@tstreamer_element_struct mutable struct TStreamerBase
     fBaseVersion
 end
 
@@ -422,7 +424,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBase})
 end
 
 
-@TStreamerElementTemplate mutable struct TStreamerBasicType end
+@tstreamer_element_struct mutable struct TStreamerBasicType end
 
 function parsefields!(io, fields, ::Type{TStreamerBasicType})
     parsefields!(io, fields, TStreamerElement)
@@ -464,7 +466,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicTy
 end
 
 
-@TStreamerElementTemplate mutable struct TStreamerBasicPointer
+@tstreamer_element_struct mutable struct TStreamerBasicPointer
     fCountVersion
     fCountName
     fCountClass
@@ -481,7 +483,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TStreamerBasicPo
     T(;fields...)
 end
 
-@TStreamerElementTemplate mutable struct TStreamerLoop
+@tstreamer_element_struct mutable struct TStreamerLoop
     fCountVersion
     fCountName
     fCountClass
@@ -508,12 +510,12 @@ end
 
 abstract type AbstractTStreamSTL end
 
-@TStreamerElementTemplate mutable struct TStreamerSTL <: AbstractTStreamSTL
+@tstreamer_element_struct mutable struct TStreamerSTL <: AbstractTStreamSTL
     fSTLtype
     fCtype
 end
 
-@TStreamerElementTemplate mutable struct TStreamerSTLstring <: AbstractTStreamSTL
+@tstreamer_element_struct mutable struct TStreamerSTLstring <: AbstractTStreamSTL
     fSTLtype
     fCtype
 end
@@ -566,11 +568,11 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where T<:Abst
     T(;fields...)
 end
 
-@TStreamerElementTemplate mutable struct TStreamerObject <: AbstractTStreamerObject end
-@TStreamerElementTemplate mutable struct TStreamerObjectAny <: AbstractTStreamerObject end
-@TStreamerElementTemplate mutable struct TStreamerObjectAnyPointer <: AbstractTStreamerObject end
-@TStreamerElementTemplate mutable struct TStreamerObjectPointer <: AbstractTStreamerObject end
-@TStreamerElementTemplate mutable struct TStreamerString <: AbstractTStreamerObject end
+@tstreamer_element_struct mutable struct TStreamerObject <: AbstractTStreamerObject end
+@tstreamer_element_struct mutable struct TStreamerObjectAny <: AbstractTStreamerObject end
+@tstreamer_element_struct mutable struct TStreamerObjectAnyPointer <: AbstractTStreamerObject end
+@tstreamer_element_struct mutable struct TStreamerObjectPointer <: AbstractTStreamerObject end
+@tstreamer_element_struct mutable struct TStreamerString <: AbstractTStreamerObject end
 
 
 

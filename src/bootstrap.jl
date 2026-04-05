@@ -162,7 +162,7 @@ abstract type TH3 <: ROOTStreamedObject end
 struct TH3_6 <: TH3 end
 function readfields!(io, fields, T::Type{TH3_6}) end
 
-@with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
+Base.@kwdef struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
 end
 
@@ -182,7 +182,7 @@ end
 
 
 # FIXME this should be generated
-@with_kw struct TLeaf
+Base.@kwdef struct TLeaf
     # FIXME these two come from TNamed
     fName
     fTitle
@@ -214,7 +214,7 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TLeaf}
 end
 
 # FIXME this should be generated
-@with_kw struct TLeafElement
+Base.@kwdef struct TLeafElement
     # FIXME these two come from TNamed
     fName
     fTitle
@@ -245,7 +245,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafElement})
 end
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafI
+Base.@kwdef struct TLeafI
     # from TNamed
     fName
     fTitle
@@ -280,7 +280,7 @@ end
 primitivetype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafS
+Base.@kwdef struct TLeafS
     # from TNamed
     fName
     fTitle
@@ -315,7 +315,7 @@ end
 primitivetype(l::TLeafS) = l.fIsUnsigned ? UInt16 : Int16
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafL
+Base.@kwdef struct TLeafL
     # from TNamed
     fName
     fTitle
@@ -350,7 +350,7 @@ end
 primitivetype(l::TLeafL) = l.fIsUnsigned ? UInt64 : Int64
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafG
+Base.@kwdef struct TLeafG
     # from TNamed
     fName
     fTitle
@@ -385,7 +385,7 @@ end
 primitivetype(l::TLeafG) = Int64
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafO
+Base.@kwdef struct TLeafO
     # from TNamed
     fName
     fTitle
@@ -419,7 +419,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafO})
 end
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafF
+Base.@kwdef struct TLeafF
     # from TNamed
     fName
     fTitle
@@ -455,7 +455,7 @@ primitivetype(l::TLeafF) = Float32
 
 # FIXME this should be generated and inherited from TLeaf
 # https://root.cern/doc/master/TLeafB_8h_source.html#l00026
-@with_kw struct TLeafB
+Base.@kwdef struct TLeafB
     # from TNamed
     fName
     fTitle
@@ -489,7 +489,7 @@ end
 
 primitivetype(l::TLeafB) = UInt8
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafD
+Base.@kwdef struct TLeafD
     # from TNamed
     fName
     fTitle
@@ -524,7 +524,7 @@ end
 primitivetype(l::TLeafD) = Float64
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafC
+Base.@kwdef struct TLeafC
     # from TNamed
     fName
     fTitle
@@ -569,7 +569,7 @@ Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
 numbaskets(b::Union{TBranch, TBranchElement}) = findfirst(x->x>(b.fEntries-1),b.fBasketEntry)-1
 
-@with_kw struct TBranch_8 <: TBranch
+Base.@kwdef struct TBranch_8 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -641,7 +641,7 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_8}
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
-@with_kw struct TBranch_12 <: TBranch
+Base.@kwdef struct TBranch_12 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -715,7 +715,7 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_12}
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
-@with_kw struct TBranch_13 <: TBranch
+Base.@kwdef struct TBranch_13 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -794,7 +794,7 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
     fields[:fFileName] = readtype(io, String)
 end
 
-@with_kw struct TBranchElement_9 <: TBranchElement
+Base.@kwdef struct TBranchElement_9 <: TBranchElement
     cursor::Cursor
     # from TNamed
     fName
@@ -840,7 +840,7 @@ end
     fBranchCount2
 end
 
-@with_kw struct TBranchElement_10 <: TBranchElement
+Base.@kwdef struct TBranchElement_10 <: TBranchElement
     cursor::Cursor
     # from TNamed
     fName
@@ -929,7 +929,7 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement
 end
 
 # FIXME preliminary TTree structure
-@with_kw struct TTree
+Base.@kwdef struct TTree
     # TNamed
     fName
     fTitle
