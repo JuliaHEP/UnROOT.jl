@@ -6,7 +6,6 @@ struct RecoveredTBasket
     offsets::Vector{UInt32}
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
-    @initparse
     start = position(io)
     #_format1 = struct.Struct(">ihiIhh")
     fNbytes = readtype(io, Int32)
@@ -54,6 +53,11 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     RecoveredTBasket(contents, byteoffsets)
 end
 
+# Generic fallback: allows readfields! methods defined for IO to be called with a Cursor.
+# More specific readfields!(cursor::Cursor, ...) methods (e.g. for TBranch variants that need
+# cursor.tkey/cursor.refs) take precedence over this fallback via Julia's dispatch rules.
+readfields!(c::Cursor, fields, ::Type{T}) where {T} = readfields!(c.io, fields, T)
+
 abstract type TNamed <: ROOTStreamedObject end
 # TODO: we probably should switch over to @kwdef at some point, but that's another big refactoring
 # Cursor is not needed here but it's mandatory due to the historical design of UnROOT and the
@@ -67,16 +71,6 @@ function readfields!(io, fields, ::Type{TNamed_1})
     parsefields!(io, fields, TObject)
     fields[:fName] = readtype(io, String)
     fields[:fTitle] = readtype(io, String)
-end
-# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
-# A big cleanup is needed!
-# We need to define something like the following (that's not working, too tired already...)
-# parsefields!(c::Cursor, fields, TObject) = parsefields!(c.io, fields, TObject)
-# readtype(c::Cursor, ::Type{T}) where T = readtype(c.io, T)
-function readfields!(c::Cursor, fields, ::Type{TNamed_1})
-    parsefields!(c.io, fields, TObject)
-    fields[:fName] = readtype(c.io, String)
-    fields[:fTitle] = readtype(c.io, String)
 end
 
 abstract type TAttLine <: ROOTStreamedObject end
@@ -106,7 +100,7 @@ function readfields!(io, fields, T::Type{TAttFill_2})
 end
 
 abstract type TAttMarker <: ROOTStreamedObject end
-struct TAttMarker_1 <: TAttFill end
+struct TAttMarker_1 <: TAttMarker end
 const TAttMarker_2 = TAttMarker_1
 const TAttMarker_3 = TAttMarker_1
 function readfields!(io, fields, T::Type{TAttMarker_1})
@@ -173,7 +167,6 @@ function parsefields!(io, fields, T::Type{ROOT_3a3a_TIOFeatures})
     endcheck(io, preamble)
 end
 
-# FIXME maybe this is unpack, rather than readtype?
 function readtype(io, T::Type{ROOT_3a3a_TIOFeatures})
     @initparse
     parsefields!(io, fields, T)
@@ -544,7 +537,7 @@ end
 
 primitivetype(l::TLeafC) = UInt8
 
-function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
+function parsefields!(io, fields, T::Type{TLeafC})
     preamble = Preamble(io, T)
     parsefields!(io, fields, TLeaf)
     fields[:fMinimum] = readtype(io, Int32)
@@ -552,7 +545,7 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
     endcheck(io, preamble)
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TLeafC}
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafC})
     @initparse
     parsefields!(io, fields, T)
     T(;fields...)
@@ -624,20 +617,12 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_8}
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
     fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
+    skip(io, 1)
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
+    skip(io, 1)
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
@@ -698,20 +683,12 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_12}
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
     fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
+    skip(io, 1)
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
+    skip(io, 1)
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
@@ -776,20 +753,12 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
     fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
+    skip(io, 1)
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
+    skip(io, 1)
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
@@ -1184,9 +1153,6 @@ function TTree(io, tkey::TKey, refs; top=true)
         fields[:fAutoSave] = readtype(io, Int32)
         fields[:fEstimate] = readtype(io, Int32)
 
-        # FIXME what about speedbumps??
-        speedbump = true
-
         # TODO is this really needed? probably to prevent some downstream logic from breaking
         fields[:fIOFeatures] = missing
 
@@ -1225,14 +1191,12 @@ function TTree(io, tkey::TKey, refs; top=true)
     fields[:fAutoFlush] = readtype(io, Int64)
     fields[:fEstimate] = readtype(io, Int64)
 
-    # FIXME what about speedbumps??
-    speedbump = true
-
     # See https://github.com/cbourjau/alice-rs/blob/6af19a78fe5521f5b27466d7d20f7dfacd38a38f/root-io/src/tree_reader/tree.rs#L148
     if haskey(fields, :fNClusterRange)
-        speedbump && skip(io, 1)
+        # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+        skip(io, 1)
         fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
-        speedbump && skip(io, 1)
+        skip(io, 1)
         fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
     end
 
@@ -1284,13 +1248,6 @@ function readfields!(io, fields, ::Type{TFriendElement_2})
     stream!(io, fields, TNamed)
     fields[:fTreeName] = readtype(io, String)
     fields[:fOwnFile] = readtype(io, Bool)
-end
-# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
-# A big cleanup is needed!
-function readfields!(c::Cursor, fields, ::Type{TFriendElement_2})
-    stream!(c.io, fields, TNamed)
-    fields[:fTreeName] = readtype(c.io, String)
-    fields[:fOwnFile] = readtype(c.io, Bool)
 end
 
 abstract type TAttBox2D <: ROOTStreamedObject end
