@@ -15,7 +15,7 @@ makedocs(;
             "Parse Custom Branch" => "advanced/custom_branch.md",
             "Reduce startup latency" => "advanced/reduce_latency.md",
         ],
-        "For Contributors" => "devdocs.md",
+        "For Contributors" => ["devdocs.md", "bootstrapping.md"],
         "APIs" => "internalapis.md",
     ],
     repo="https://github.com/JuliaHEP/UnROOT.jl/blob/{commit}{path}#L{line}",
