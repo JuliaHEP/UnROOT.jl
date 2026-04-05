@@ -58,6 +58,18 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     @test t[1].time[2] ≈ 36.396744f0
     @test t[end].xpos[end] ≈ 788.35144f0
 
+    # issue 265 — RecoveredTBasket offsets were stored as Vector{UInt32} instead of
+    # Vector{Int32}, causing a MethodError when indexing jagged LazyBranch entries
+    # in files that contain embedded (recovered) TBaskets.
+    f = UnROOT.samplefile("nanoAOD_2015_CMS_Open_Data_ttbar.root")
+    t = LazyTree(f, "Events")
+    @test length(t) == 200
+    @test t.Jet_pt[1] == Float32[17.921875, 15.734375]
+    @test t.Electron_pt[2] == Float32[32.679607]
+    @test t.MET_pt[1:3] == Float32[33.261875, 33.803047, 70.08252]
+    @test count(x -> length(x) > 0, t.Electron_pt[:]) == 63
+    close(f)
+
     # issue 377
     f = UnROOT.samplefile("issue377.root")
     arr = UnROOT.array(f, "podio_metadata/events___CollectionTypeInfo/events___CollectionTypeInfo.dataType")
