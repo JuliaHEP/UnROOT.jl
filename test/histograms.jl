@@ -155,8 +155,8 @@ using FHist
     @test 0 == h[:fZaxis_fLast]
     close(f)
 
-    # TH1 v3 / TAxis v6 — old ROOT file format (before automatic schema evolution
-    # for these classes was bumped to the current versions).
+    # issue #168 — TH1 v3 / TAxis v6: old ROOT file format (before automatic schema
+    # evolution for these classes was bumped to the current versions).
     f = UnROOT.samplefile("dedx2COMET.root")
     h = f["h1"]
     @test 999999.0 == h[:fEntries]
