@@ -127,35 +127,72 @@ function readfields!(io, fields, T::Type{TAttAxis_4})
 end
 
 abstract type TAxis <: ROOTStreamedObject end
-struct TAxis_10 <: TAxis end
-function readfields!(io, fields, T::Type{TAxis_10})
-    # overrides things like fName,... that were set from the parent TH1 :(
+
+# Common base fields for all TAxis versions ≥ 6 (which use ROOT's ReadClassBuffer).
+# fFirst and fLast are Int32 in the file (despite the C++ member being Int_t =
+# Int32 too — an earlier UnROOT bug read them as Int16).
+function _readfields_taxis_base!(io, fields)
+    # Overrides things like fName,... that were set from the parent TH1.
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttAxis)
     fields[:fNbins] = readtype(io, Int32)
     fields[:fXmin] = readtype(io, Float64)
     fields[:fXmax] = readtype(io, Float64)
     fields[:fXbins] = readtype(io, TArrayD)
-    fields[:fFirst] = readtype(io, Int16)
-    fields[:fLast] = readtype(io, Int16)
+    fields[:fFirst] = readtype(io, Int32)
+    fields[:fLast] = readtype(io, Int32)
+end
+
+# v6–v8: no fBits2 field; fLabels/fModLabs not present
+struct TAxis_6 <: TAxis end
+struct TAxis_7 <: TAxis end
+struct TAxis_8 <: TAxis end
+function _readfields_taxis_v6v8!(io, fields)
+    _readfields_taxis_base!(io, fields)
+    fields[:fTimeDisplay] = readtype(io, Bool)
+    fields[:fTimeFormat] = readtype(io, String)
+end
+readfields!(io, fields, ::Type{TAxis_6}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io, fields, ::Type{TAxis_7}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io, fields, ::Type{TAxis_8}) = _readfields_taxis_v6v8!(io, fields)
+
+# v9–v10: fBits2 (UShort_t) added in v9.
+# fLabels (THashList*, v9+) and fModLabs (TList*, v10+) are pointer fields
+# serialised after the other fields and are handled in TH() via readobjany!.
+struct TAxis_9 <: TAxis end
+struct TAxis_10 <: TAxis end
+function _readfields_taxis_v9v10!(io, fields)
+    _readfields_taxis_base!(io, fields)
     fields[:fBits2] = readtype(io, UInt16)
     fields[:fTimeDisplay] = readtype(io, Bool)
     fields[:fTimeFormat] = readtype(io, String)
 end
+readfields!(io, fields, ::Type{TAxis_9}) = _readfields_taxis_v9v10!(io, fields)
+readfields!(io, fields, ::Type{TAxis_10}) = _readfields_taxis_v9v10!(io, fields)
 
 abstract type TH1 <: ROOTStreamedObject end
+# Versions 3–8 all use ROOT's automatic schema evolution (ReadClassBuffer);
+# the actual fields are read explicitly in TH(), so readfields! is empty for all.
+struct TH1_3 <: TH1 end
+struct TH1_4 <: TH1 end
+struct TH1_5 <: TH1 end
+struct TH1_6 <: TH1 end
+struct TH1_7 <: TH1 end
 struct TH1_8 <: TH1 end
-function readfields!(io, fields, T::Type{TH1_8}) end
+function readfields!(io, fields, T::Type{<:TH1}) end
 
 abstract type TH2 <: ROOTStreamedObject end
+struct TH2_3 <: TH2 end
 struct TH2_4 <: TH2 end
 struct TH2_5 <: TH2 end
-function readfields!(io, fields, T::Type{TH2_4}) end
-function readfields!(io, fields, T::Type{TH2_5}) end
+function readfields!(io, fields, T::Type{<:TH2}) end
 
 abstract type TH3 <: ROOTStreamedObject end
+struct TH3_3 <: TH3 end
+struct TH3_4 <: TH3 end
+struct TH3_5 <: TH3 end
 struct TH3_6 <: TH3 end
-function readfields!(io, fields, T::Type{TH3_6}) end
+function readfields!(io, fields, T::Type{<:TH3}) end
 
 Base.@kwdef struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
@@ -1053,7 +1090,9 @@ function TH(io, tkey::TKey, refs)
         stream!(io, fields, TH3, check=false)
     end
 
-    stream!(io, fields, TH1, check=false)
+    # Read TH1 preamble manually so we can use its byte count to conditionally
+    # skip fields absent in older versions (e.g. v3 has no fBufferSize/fBuffer).
+    th1_preamble, _ = _versioned_streamer(io, TH1)
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttLine)
     stream!(io, fields, TAttFill)
@@ -1062,14 +1101,27 @@ function TH(io, tkey::TKey, refs)
 
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
-        stream!(io, subfields, TAxis, check=false)
-        fields[Symbol(axis, :fLabels)] = readobjany!(io, tkey, refs)
-        fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
-        for (k,v) in subfields
+        # Read preamble manually to get the TAxis version for conditional field handling.
+        axis_preamble, axis_type = _versioned_streamer(io, TAxis)
+        readfields!(io, subfields, axis_type)
+        # fLabels (THashList*) was added in v9; fModLabs (TList*) in v10.
+        # Both are serialised as object-any pointers inside the TAxis byte block.
+        if axis_preamble.version >= 9
+            subfields[:fLabels] = readobjany!(io, tkey, refs)
+        end
+        if axis_preamble.version >= 10
+            subfields[:fModLabs] = readobjany!(io, tkey, refs)
+        end
+        # Seek to the exact end of the TAxis byte block using the preamble byte count.
+        # This is a safety net that handles any remaining bytes (e.g. future fields)
+        # and also fixes the previous reliance on a "FIXME" Int32 read that was
+        # compensating for the wrong Int16 reads for fFirst/fLast.
+        if !ismissing(axis_preamble.cnt)
+            seek(io, axis_preamble.start + axis_preamble.cnt)
+        end
+        for (k, v) in subfields
             fields[Symbol(axis, k)] = v
         end
-        # FIXME this line makes non-uniform binned histograms work, but not sure why
-        readtype(io, Int32)
     end
 
     fields[:fBarOffset] = readtype(io, Int16)
@@ -1083,11 +1135,19 @@ function TH(io, tkey::TKey, refs)
     fields[:fOption] = readtype(io, String)
     # if user saved after calling h.Fit() with a TF1, then this will error
     fields[:fFunctions] = unpack(io, tkey, refs, TList)
-    fields[:fBufferSize] = readtype(io, Int32)
-    skip(io, 1) # speedbump
-    fields[:fBuffer] = readtype(io, TArrayD)
-    fields[:fBinStatErrOpt] = readtype(io, Int16)
-    fields[:fStatOverflows] = readtype(io, Int16)
+    # fBufferSize/fBuffer/fBinStatErrOpt/fStatOverflows were added after TH1 v3.
+    # Use the TH1 preamble byte count to decide whether they are present, and
+    # seek to the exact TH1 block end afterwards for correct positioning.
+    if !ismissing(th1_preamble.cnt) && position(io) < th1_preamble.start + th1_preamble.cnt
+        fields[:fBufferSize] = readtype(io, Int32)
+        skip(io, 1) # speedbump
+        fields[:fBuffer] = readtype(io, TArrayD)
+        fields[:fBinStatErrOpt] = readtype(io, Int16)
+        fields[:fStatOverflows] = readtype(io, Int16)
+    end
+    if !ismissing(th1_preamble.cnt)
+        seek(io, th1_preamble.start + th1_preamble.cnt)
+    end
 
     if is2d
         for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
