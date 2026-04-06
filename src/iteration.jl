@@ -58,8 +58,8 @@ function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer)
     if ithbasket != -1
         rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     else
-        # recovering a basket
-        recovered_basket = branch.fBaskets.elements[end]
+        # embedded (recovered) basket: stored at fBaskets[fWriteBasket] (0-indexed)
+        recovered_basket = branch.fBaskets.elements[branch.fWriteBasket + 1]
         rawdata, rawoffsets = recovered_basket.data, recovered_basket.offsets
     end
     return rawdata, rawoffsets
