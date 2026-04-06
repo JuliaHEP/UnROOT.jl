@@ -413,7 +413,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafG})
     T(;fields...)
 end
 
-primitivetype(l::TLeafG) = Int64
+primitivetype(l::TLeafG) = l.fIsUnsigned ? UInt64 : Int64
 
 # FIXME this should be generated and inherited from TLeaf
 Base.@kwdef struct TLeafO
@@ -518,7 +518,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafB})
     T(;fields...)
 end
 
-primitivetype(l::TLeafB) = UInt8
+primitivetype(l::TLeafB) = l.fIsUnsigned ? UInt8 : Int8
 # FIXME this should be generated and inherited from TLeaf
 Base.@kwdef struct TLeafD
     # from TNamed
