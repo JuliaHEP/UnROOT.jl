@@ -147,6 +147,9 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
         if raw
             return counts, edges, sumw2, nentries
         else
+            if pkgversion(FHist) < v"0.11"
+                return Hist3D(FHist.Histogram(edges, counts), sumw2, nentries)
+            end
             return Hist3D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
         end
     elseif ynbins > 1
