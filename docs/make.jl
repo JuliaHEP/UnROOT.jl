@@ -9,6 +9,7 @@ makedocs(;
     pages=[
         "Introduction" => "index.md",
         "Example Usage" => "exampleusage.md",
+        "Histograms" => "histograms.md",
         "RooFit Results" => "roofit.md",
         "Performance Tips" => "performancetips.md",
         "Advanced Usage" => [
