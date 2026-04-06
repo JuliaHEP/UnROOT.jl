@@ -76,7 +76,7 @@ using FHist
 
     f = UnROOT.samplefile("cms_ntuple_wjet.root")
     binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
-    @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
+    @test f["AK4CategPresel_cutflow"][:fXaxis_fLabels].objects == binlabels
     close(f)
 
     f = UnROOT.samplefile("TH3F.root")
@@ -153,5 +153,17 @@ using FHist
     @test 30000000.0 == h[:fZaxis_fXmax]
     @test 0 == h[:fZaxis_fFirst]
     @test 0 == h[:fZaxis_fLast]
+    close(f)
+
+    # issue #168 — TH1 v3 / TAxis v6: old ROOT file format (before automatic schema
+    # evolution for these classes was bumped to the current versions).
+    f = UnROOT.samplefile("dedx2COMET.root")
+    h = f["h1"]
+    @test 999999.0 == h[:fEntries]
+    @test 100 == h[:fXaxis_fNbins]
+    @test 0.0 == h[:fXaxis_fXmin]
+    @test 2.0 == h[:fXaxis_fXmax]
+    @test 102 == length(h[:fSumw2])
+    @test 102 == length(h[:fN])
     close(f)
 end

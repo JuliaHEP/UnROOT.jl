@@ -22,7 +22,7 @@ function array(f::ROOTFile, path::AbstractString; raw=false)
 end
 
 function array(f::ROOTFile, branch; raw=false)
-    ismissing(branch) && error("No branch found at $path")
+    ismissing(branch) && error("No branch found (branch is missing)")
     (!raw && length(branch.fLeaves.elements) > 1) && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
@@ -58,8 +58,8 @@ function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer)
     if ithbasket != -1
         rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     else
-        # recovering a basket
-        recovered_basket = branch.fBaskets.elements[end]
+        # embedded (recovered) basket: stored at fBaskets[fWriteBasket] (0-indexed)
+        recovered_basket = branch.fBaskets.elements[branch.fWriteBasket + 1]
         rawdata, rawoffsets = recovered_basket.data, recovered_basket.offsets
     end
     return rawdata, rawoffsets

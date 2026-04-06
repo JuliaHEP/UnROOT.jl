@@ -18,7 +18,7 @@ function splitup(data::Vector{UInt8}, offsets, T::Type; skipbytes=0, jagged=true
     for l in diff(offsets)
         skip(io, skipbytes)
         if jagged
-            n = (l - skipbytes) / packedsize
+            n = (l - skipbytes) ÷ packedsize
             push!(out, [readtype(io, T) for _ in 1:n])
         else
             # n != 1 && warning("The packed size of the entry does not match the data size.")
