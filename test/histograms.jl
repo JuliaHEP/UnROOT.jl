@@ -259,8 +259,12 @@ end
     @test 4.0 == counts[1, 2, 2]
     @test 21.0 == sum(counts)
     @test 6.0 == nentries
-    # raw=false not supported for TH3 (FHist has no Hist3D)
-    @test_throws ErrorException UnROOT.parseTH(h; raw=false)
+    th3f = UnROOT.parseTH(h; raw=false)
+    @test th3f isa FHist.Hist3D
+    @test size(bincounts(th3f)) == (4, 3, 2)
+    @test binedges(th3f) == (collect(0.0:1.0:4.0), collect(0.0:1.0:3.0), collect(0.0:1.0:2.0))
+    @test 2.0 == bincounts(th3f)[1, 1, 1]
+    @test 21.0 ≈ sum(bincounts(th3f))
     close(f)
 
     # TH3D: 3x4x5 bins, x=[-1.5,1.5], y=[0,4], z=[10,15]
@@ -284,27 +288,41 @@ end
     @test 6.0 == counts[3, 4, 1]
     @test 21.0 == sum(counts)
     @test 6.0 == nentries
-    # raw=false not supported for TH3 (FHist has no Hist3D)
-    @test_throws ErrorException UnROOT.parseTH(h; raw=false)
+    th3d = UnROOT.parseTH(h; raw=false)
+    @test th3d isa FHist.Hist3D
+    @test size(bincounts(th3d)) == (3, 4, 5)
+    @test binedges(th3d) == (collect(-1.5:1.0:1.5), collect(0.0:1.0:4.0), collect(10.0:1.0:15.0))
+    @test 1.0 == bincounts(th3d)[1, 1, 1]
+    @test 3.0 == bincounts(th3d)[3, 3, 3]
+    @test 21.0 ≈ sum(bincounts(th3d))
     close(f)
 
-    # TH3I: 2x2x2 bins, x=[0,2], y=[0,2], z=[0,2] — integer-valued histogram
-    # Bins filled with 10,20,30,40,50,60,70,80 (crosschecked with ROOT)
+    # TH3I: 3x4x2 bins, x=[0,3], y=[0,4], z=[0,2] — integer-valued histogram
+    # 6 fills at known bin centers (crosschecked with ROOT)
     f = UnROOT.samplefile("th3i_parseTH_test.root")
     h = f["th3i"]
-    @test 2 == h[:fXaxis_fNbins]
-    @test 2 == h[:fYaxis_fNbins]
+    @test 3 == h[:fXaxis_fNbins]
+    @test 4 == h[:fYaxis_fNbins]
     @test 2 == h[:fZaxis_fNbins]
-    @test 8.0 == h[:fEntries]
+    @test 6.0 == h[:fEntries]
+    @test 120 == length(h[:fN])   # (3+2)*(4+2)*(2+2) = 120
 
     counts, edges, sumw2, nentries = UnROOT.parseTH(h)
-    @test size(counts) == (2, 2, 2)
-    @test edges == (0.0:1.0:2.0, 0.0:1.0:2.0, 0.0:1.0:2.0)
+    @test size(counts) == (3, 4, 2)
+    @test edges == (0.0:1.0:3.0, 0.0:1.0:4.0, 0.0:1.0:2.0)
     @test 10 == counts[1, 1, 1]
-    @test 80 == counts[2, 2, 2]
-    @test 360 == sum(counts)
-    @test 8.0 == nentries
-    # raw=false not supported for TH3 (FHist has no Hist3D)
-    @test_throws ErrorException UnROOT.parseTH(h; raw=false)
+    @test 20 == counts[2, 1, 1]
+    @test 30 == counts[3, 1, 1]
+    @test 40 == counts[1, 2, 1]
+    @test 50 == counts[2, 4, 2]
+    @test 60 == counts[3, 4, 2]
+    @test 210 == sum(counts)
+    @test 6.0 == nentries
+    th3i = UnROOT.parseTH(h; raw=false)
+    @test th3i isa FHist.Hist3D
+    @test size(bincounts(th3i)) == (3, 4, 2)
+    @test 10.0 == bincounts(th3i)[1, 1, 1]
+    @test 60.0 == bincounts(th3i)[3, 4, 2]
+    @test 210.0 ≈ sum(bincounts(th3i))
     close(f)
 end

@@ -99,7 +99,7 @@ end
 
 """
     parseTH(th::Dict{Symbol, Any}; raw=true) -> (counts, edges, sumw2, nentries)
-    parseTH(th::Dict{Symbol, Any}; raw=false) -> Union{FHist.Hist1D, FHist.Hist2D}
+    parseTH(th::Dict{Symbol, Any}; raw=false) -> Union{FHist.Hist1D, FHist.Hist2D, FHist.Hist3D}
 
 When `raw=true`, parse the output of [`TH`](@ref) into a tuple of `counts`, `edges`, `sumw2`, and `nentries`.
 When `raw=false`, parse the output of [`TH`](@ref) into FHist.jl histograms.
@@ -116,7 +116,7 @@ total count: 42.0
 ```
 
     !!! note
-    TH1, TH2, and TH3 inputs are supported.
+    TH1, TH2, and TH3 histograms are supported.
 """
 function parseTH(th::Dict{Symbol, Any}; raw=true)
     xmin = th[:fXaxis_fXmin]
@@ -147,7 +147,7 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
         if raw
             return counts, edges, sumw2, nentries
         else
-            error("FHist does not support 3D histograms; use raw=true to get (counts, edges, sumw2, nentries)")
+            return Hist3D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
         end
     elseif ynbins > 1
         # TH2
