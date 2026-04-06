@@ -713,25 +713,33 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_8}
     fields[:fBasketSize] = readtype(io, Int32)
     fields[:fEntryOffsetLen] = readtype(io, Int32)
     fields[:fWriteBasket] = readtype(io, Int32)
-    fields[:fEntryNumber] = readtype(io, Int64)
+    # ROOT v6-9: fEntryNumber stored as Int32 (Int_t ijunk), not Int64
+    fields[:fEntryNumber] = readtype(io, Int32)
 
     fields[:fOffset] = readtype(io, Int32)
     fields[:fMaxBaskets] = readtype(io, UInt32)
     fields[:fSplitLevel] = readtype(io, Int32)
-    fields[:fEntries] = readtype(io, Int64)
-    fields[:fTotBytes] = readtype(io, Int64)
-    fields[:fZipBytes] = readtype(io, Int64)
+    # ROOT v6-9: fEntries/fTotBytes/fZipBytes stored as Float64 (Stat_t = Double_t djunk)
+    fields[:fEntries] = Int64(readtype(io, Float64))
+    fields[:fTotBytes] = Int64(readtype(io, Float64))
+    fields[:fZipBytes] = Int64(readtype(io, Float64))
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
     # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
     skip(io, 1)
-    fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    fields[:fBasketBytes] = Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
     skip(io, 1)
-    fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-    skip(io, 1)
-    fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    # ROOT v6-9: fBasketEntry stored as Int32 per entry (Int_t ijunk)
+    fields[:fBasketEntry] = Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    isArray = readtype(io, Int8)
+    # ROOT v6-9: fBasketSeek is Int64 if isArray==2, else Int32 per entry
+    fields[:fBasketSeek] = if isArray == Int8(2)
+        Int64[readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    else
+        Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    end
     fields[:fFileName] = readtype(io, String)
 end
 Base.@kwdef struct TBranch_12 <: TBranch
@@ -1284,18 +1292,31 @@ function TTree(io, tkey::TKey, refs; top=true)
         fields[:fAutoSave] = readtype(io, Int32)
         fields[:fEstimate] = readtype(io, Int32)
 
-        # TODO is this really needed? probably to prevent some downstream logic from breaking
+        # Fields not present in TTree v5:
+        fields[:fFlushedBytes] = missing
+        fields[:fWeight] = missing
+        fields[:fDefaultEntryOffsetLen] = missing
+        fields[:fNClusterRange] = missing
+        fields[:fMaxEntries] = missing
+        fields[:fAutoFlush] = missing
+        fields[:fClusterRangeEnd] = missing
+        fields[:fClusterSize] = missing
         fields[:fIOFeatures] = missing
+        fields[:fAliases] = missing
+        fields[:fTreeIndex] = missing
+        fields[:fFriends] = missing
 
         fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
         fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
 
-        fields[:fAliases] = readobjany!(io, tkey, refs)
+        # TTree v5 (ReadClassBuffer path) only has fIndexValues and fIndex after fLeaves;
+        # fAliases, fTreeIndex, fFriends were added in later versions.
         fields[:fIndexValues] = readtype(io, TArrayD)
         fields[:fIndex] = readtype(io, TArrayI)
-        fields[:fTreeIndex] = readobjany!(io, tkey, refs)
-        fields[:fFriends] = readobjany!(io, tkey, refs)
 
+        if !ismissing(preamble.cnt)
+            seek(io, preamble.start + preamble.cnt)
+        end
         return TTree(;fields...)
     end
 
