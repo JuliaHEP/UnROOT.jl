@@ -4,7 +4,7 @@
 Reads all branches from a tree.
 """
 function arrays(f::ROOTFile, treename)
-    names = keys(f[treename])
+    names = getbranchnamesrecursive(f[treename])
     res = Vector{Vector}(undef, length(names))
     Threads.@threads for i in eachindex(names)
         res[i] = array(f, "$treename/$(names[i])")
@@ -463,8 +463,16 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
         elseif b isa Pair{Regex, SubstitutionString{String}}
             [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
         elseif b isa String
-            expand = any(n->startswith(n, "$b/$b"), all_bnames)
-            expand ? [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)] : [b => normalize_branchname(b)]
+            if any(n->startswith(n, "$b/$b"), all_bnames)
+                # Double-prefix split class (e.g. "Electron/Electron.pt")
+                [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)]
+            elseif b ∉ all_bnames && any(n->startswith(n, "$b/"), all_bnames)
+                # Container branch (split class without repeated prefix, e.g. "ODEvent/member")
+                # Strip the container prefix so column names are just "memberName"
+                [_b => normalize_branchname(chop(_b, head=length(b)+1, tail=0)) for _b ∈ filter(n->startswith(n, "$b/"), all_bnames)]
+            else
+                [b => normalize_branchname(b)]
+            end
         else
             error("branch selection must be string or regex")
         end
