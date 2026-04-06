@@ -148,6 +148,10 @@ function streamerfor(f::ROOTFile, branch::TBranchElement)
     # TODO: For now, we force it to be 0 in this case, until someone complains.
     if fID == -1
         fID = 0
+    elseif fID < 0
+        # fID == -2 (and other negative values) indicates the branch stores the
+        # whole object (e.g. a nested STL collection); fall back to classname-based detection.
+        return missing
     end
     next_streamer = streamerfor(f, branch.fClassName)
     if ismissing(next_streamer)
