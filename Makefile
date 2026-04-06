@@ -5,7 +5,7 @@ doc:
 	make -C docs/
 
 test:
-	julia --project=. -e 'using Pkg; Pkg.test()'
+	julia -t 2 --project=. -e 'using Pkg; Pkg.test()'
 
 clean:
 	rm -rf docs/build/
