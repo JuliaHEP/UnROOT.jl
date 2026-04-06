@@ -632,6 +632,9 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:ROO
     @initparse
     preamble, streamer = _versioned_streamer(io, T)
     readfields!(cursor, fields, streamer)
+    if !ismissing(preamble.cnt)
+        seek(io, preamble.start + preamble.cnt)
+    end
     streamer(;cursor=cursor, fields...)
 end
 
