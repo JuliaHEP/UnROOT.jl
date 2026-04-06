@@ -236,6 +236,27 @@ using FHist
     @test sum(bincounts(th)) ≈ 33451.23003458977
     @test bincounts(th)[1, 199] ≈ 1.0
     close(f)
+
+    # issue #364 — TH2I: integer-valued TH2 (TH1I in filename, but contains a TH2I)
+    # No sumw2 stored (TH*I does not fill sumw2 by default).
+    f = UnROOT.samplefile("issue364_TH1I.root")
+    h = f["myHisto"]
+    @test 59520.0 == h[:fEntries]
+    @test 1920 == h[:fXaxis_fNbins]
+    @test -0.5 == h[:fXaxis_fXmin]
+    @test 1919.5 == h[:fXaxis_fXmax]
+    @test 31 == h[:fYaxis_fNbins]
+    @test 199.5 == h[:fYaxis_fXmin]
+    @test 230.5 == h[:fYaxis_fXmax]
+    @test 0 == length(h[:fSumw2])
+    th = UnROOT.parseTH(h; raw=false)
+    @test size(bincounts(th)) == (1920, 31)
+    @test binedges(th) == (collect(-0.5:1.0:1919.5), collect(199.5:1.0:230.5))
+    @test bincounts(th)[2, 1] ≈ 254.0   # bin(2,1) per ROOT crosscheck
+    @test bincounts(th)[3, 1] ≈ 254.0   # bin(3,1) per ROOT crosscheck
+    @test bincounts(th)[1, 1] == 0.0
+    @test sum(bincounts(th)) ≈ 5017330.0
+    close(f)
 end
 
 @testset "parseTH 3D histograms (TH3F, TH3D, TH3I)" begin
