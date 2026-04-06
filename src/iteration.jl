@@ -21,6 +21,14 @@ function array(f::ROOTFile, path::AbstractString; raw=false)
     return array(f::ROOTFile, f[path]; raw=raw)
 end
 
+function array(f::ROOTFile, tree::TTree; raw=false)
+    error(
+        "$(tree.fName) is a TTree (not a branch). " *
+        "To read all branches use `LazyTree(f, \"$(tree.fName)\")` or `arrays(f, \"$(tree.fName)\")`. " *
+        "To read a single branch use `array(f, \"$(tree.fName)/branchname\")`."
+    )
+end
+
 function array(f::ROOTFile, branch; raw=false)
     ismissing(branch) && error("No branch found (branch is missing)")
     (!raw && length(branch.fLeaves.elements) > 1) && error(
