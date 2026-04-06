@@ -70,6 +70,17 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     @test count(x -> length(x) > 0, t.Electron_pt[:]) == 63
     close(f)
 
+    # issue 241 — TTree v5 / TBranch v8 old format: all data stored as embedded baskets
+    # (fWriteBasket=0, fEntryNumber as Int32, fBasketEntry as Int32, fEntries/fTotBytes/fZipBytes as Float64)
+    f = UnROOT.samplefile("issue241.root")
+    t = LazyTree(f, "proton")
+    @test 462 == length(t)
+    @test 76.55430958116864 ≈ t.ekin[1]
+    @test 0.012379961254578768 ≈ t.edep[1]
+    @test 6.220370248201434 ≈ t.trackx[1]
+    @test propertynames(t) ⊇ (:ekin, :edep, :trackx, :tracky, :trackz, :id, :process)
+    close(f)
+
     # issue 377
     f = UnROOT.samplefile("issue377.root")
     arr = UnROOT.array(f, "podio_metadata/events___CollectionTypeInfo/events___CollectionTypeInfo.dataType")
