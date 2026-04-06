@@ -166,4 +166,74 @@ using FHist
     @test 102 == length(h[:fSumw2])
     @test 102 == length(h[:fN])
     close(f)
+
+    # issue #368 — parseTH for various histogram shapes and types
+    # detector_01: TH2D with 1 x-bin and 18 y-bins (weighted entries)
+    f = UnROOT.samplefile("issue368_detector_01.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (1, 18)
+    @test binedges(th) == ([-0.5, 0.5], collect(0.5:1.0:18.5))
+    @test 18.0 == f["detector"][:fEntries]
+    @test bincounts(th)[1, 1] ≈ 3.8658676965592687
+    @test bincounts(th)[1, 2] ≈ 4.1477256011194195
+    @test sum(bincounts(th)) ≈ 72.74561242725682
+    @test size(th.sumw2) == (1, 18)
+    close(f)
+
+    # detector_03 and detector_06: same shape, different data
+    for (fname, expected_entries, expected_sum) in [
+            ("issue368_detector_03.root", 17.0, 70.65136726472892),
+            ("issue368_detector_06.root", 18.0, 63.34617303726971),
+        ]
+        f = UnROOT.samplefile(fname)
+        th = UnROOT.parseTH(f["detector"]; raw=false)
+        @test size(bincounts(th)) == (1, 18)
+        @test expected_entries == f["detector"][:fEntries]
+        @test sum(bincounts(th)) ≈ expected_sum
+        close(f)
+    end
+
+    # detector_merged: TH2D with 4 x-bins and 18 y-bins (merge of multiple detectors)
+    f = UnROOT.samplefile("issue368_detector_merged.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (4, 18)
+    @test 53.0 == f["detector"][:fEntries]
+    @test bincounts(th)[1, 1] ≈ 3.8658676965592687
+    @test bincounts(th)[2, 3] ≈ 3.8161558387265013
+    @test sum(bincounts(th)) ≈ 206.74315272925546
+    @test size(th.sumw2) == (4, 18)
+    close(f)
+
+    # test: TH2D with 32 x-bins and 18 y-bins
+    f = UnROOT.samplefile("issue368_test.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (32, 18)
+    @test 469.0 == f["detector"][:fEntries]
+    @test sum(bincounts(th)) ≈ 1673.7181862148902
+    close(f)
+
+    # pyhf_test_histograms: two TH1D histograms with 43 bins each
+    f = UnROOT.samplefile("issue368_pyhf_test_histograms.root")
+    th_bkg = UnROOT.parseTH(f["h_bkg"]; raw=false)
+    th_sig = UnROOT.parseTH(f["h_sig"]; raw=false)
+    @test length(bincounts(th_bkg)) == 43
+    @test binedges(th_bkg) == collect(130.0:20.0:990.0)
+    @test 870.0 == f["h_bkg"][:fEntries]
+    @test bincounts(th_bkg)[1] ≈ 2.1360466600930423e8
+    @test bincounts(th_bkg)[2] ≈ 1.4139781437516856e8
+    @test sum(bincounts(th_bkg)) ≈ 7.613936311815422e8
+    @test length(bincounts(th_sig)) == 43
+    @test 1740.0 == f["h_sig"][:fEntries]
+    @test bincounts(th_sig)[1] ≈ 2016.471097311273
+    @test sum(bincounts(th_sig)) ≈ 83192.95516266659
+    close(f)
+
+    # th2f: large TH2F with 1920 x-bins and 255 y-bins
+    f = UnROOT.samplefile("issue368_th2f.root")
+    th = UnROOT.parseTH(f["myHisto"]; raw=false)
+    @test size(bincounts(th)) == (1920, 255)
+    @test 74880.0 == f["myHisto"][:fEntries]
+    @test sum(bincounts(th)) ≈ 33451.23003458977
+    @test bincounts(th)[1, 199] ≈ 1.0
+    close(f)
 end
