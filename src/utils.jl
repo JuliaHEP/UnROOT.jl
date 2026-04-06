@@ -116,7 +116,7 @@ total count: 42.0
 ```
 
     !!! note
-    TH1 and TH2 inputs are supported.
+    TH1, TH2, and TH3 inputs are supported.
 """
 function parseTH(th::Dict{Symbol, Any}; raw=true)
     xmin = th[:fXaxis_fXmin]
@@ -129,36 +129,59 @@ function parseTH(th::Dict{Symbol, Any}; raw=true)
     if isempty(sumw2)
         sumw2 = counts
     end
-    dimension = th[:fYaxis_fNbins]
-    if dimension > 1
+    ynbins = th[:fYaxis_fNbins]
+    znbins = th[:fZaxis_fNbins]
+    if ynbins > 1 && znbins > 1
+        # TH3
         ymin = th[:fYaxis_fXmin]
         ymax = th[:fYaxis_fXmax]
-        ynbins = th[:fYaxis_fNbins]
+        ybins = isempty(th[:fYaxis_fXbins]) ? range(ymin, ymax, length=ynbins+1) : th[:fYaxis_fXbins]
+        zmin = th[:fZaxis_fXmin]
+        zmax = th[:fZaxis_fXmax]
+        zbins = isempty(th[:fZaxis_fXbins]) ? range(zmin, zmax, length=znbins+1) : th[:fZaxis_fXbins]
+        counts = reshape(counts, (xnbins+2, ynbins+2, znbins+2))[2:end-1, 2:end-1, 2:end-1]
+        if !isempty(sumw2)
+            sumw2 = reshape(sumw2, (xnbins+2, ynbins+2, znbins+2))[2:end-1, 2:end-1, 2:end-1]
+        end
+        edges = (xbins, ybins, zbins)
+        if raw
+            return counts, edges, sumw2, nentries
+        else
+            error("FHist does not support 3D histograms; use raw=true to get (counts, edges, sumw2, nentries)")
+        end
+    elseif ynbins > 1
+        # TH2
+        ymin = th[:fYaxis_fXmin]
+        ymax = th[:fYaxis_fXmax]
         ybins = isempty(th[:fYaxis_fXbins]) ? range(ymin, ymax, length=ynbins+1) : th[:fYaxis_fXbins];
         counts = reshape(counts, (xnbins+2, ynbins+2))[2:end-1, 2:end-1]
         if !isempty(sumw2)
             sumw2 = reshape(sumw2, (xnbins+2, ynbins+2))[2:end-1, 2:end-1]
         end
         edges = (xbins, ybins)
+        if raw
+            return counts, edges, sumw2, nentries
+        else
+            if pkgversion(FHist) < v"0.11"
+                return Hist2D(FHist.Histogram(edges, counts), sumw2, nentries)
+            end
+            return Hist2D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
+        end
     else
+        # TH1
         counts = counts[2:end-1]
         if !isempty(sumw2)
             sumw2 = sumw2[2:end-1]
         end
         edges = (xbins,)
-    end
-    if raw
-        return counts, edges, sumw2, nentries
-    elseif dimension > 1
-        if pkgversion(FHist) < v"0.11"
-            return Hist2D(FHist.Histogram(edges, counts), sumw2, nentries)
+        if raw
+            return counts, edges, sumw2, nentries
+        else
+            if pkgversion(FHist) < v"0.11"
+                return Hist1D(FHist.Histogram(edges, counts), sumw2, nentries)
+            end
+            return Hist1D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
         end
-        return Hist2D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
-    else
-        if pkgversion(FHist) < v"0.11"
-            return Hist1D(FHist.Histogram(edges, counts), sumw2, nentries)
-        end
-        return Hist1D(;binedges=edges, bincounts=counts, sumw2=sumw2, nentries=nentries)
     end
 end
 
