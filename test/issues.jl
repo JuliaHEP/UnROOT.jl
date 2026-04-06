@@ -5,6 +5,24 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
 
 @testset "Issues" begin
+    # issue 9 — fixed-size array branches ([N]/D, [M][N]/D, name[N]/D)
+    rootfile = UnROOT.samplefile("issue9.root")
+    @test_throws "is a TTree" UnROOT.array(rootfile, "arrays")
+    @test_throws "is a TTree" UnROOT.array(rootfile, "structs")
+    # individual branch reading
+    @test UnROOT.array(rootfile, "arrays/nInt") == Int32[1]
+    @test UnROOT.array(rootfile, "arrays/6dVec") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    @test UnROOT.array(rootfile, "arrays/2x3Mat") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    @test UnROOT.array(rootfile, "structs/2x3mat") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    # LazyTree and arrays() (plural) work
+    t = LazyTree(rootfile, "arrays")
+    @test t[1].nInt == 1
+    @test t[1].var"6dVec" == UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))
+    res = UnROOT.arrays(rootfile, "structs")
+    @test res[1] == Int32[1]
+    @test res[2] == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    close(rootfile)
+
     rootfile = UnROOT.samplefile("issue7.root")
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
