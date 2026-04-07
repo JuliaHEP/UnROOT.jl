@@ -150,3 +150,17 @@ end
     df = LazyTree(UnROOT.samplefile("TLeafC_pr342.root"), "G4Sim")
     @test all(df.Process[1:10] .== ["Radioactivation", "msc", "eIoni", "Transportation", "ionIoni", "Radioactivation", "msc", "eIoni", "ionIoni", "Radioactivation"])
 end
+
+@testset "Unsigned integer branches (TLeafB/S/I/L with fIsUnsigned)" begin
+    f = UnROOT.samplefile("unsigned_integers.root")
+    t = LazyTree(f, "tree")
+    @test eltype(t.b_uint8)  === UInt8
+    @test eltype(t.b_uint16) === UInt16
+    @test eltype(t.b_uint32) === UInt32
+    @test eltype(t.b_uint64) === UInt64
+    @test t.b_uint8  == UInt8[ 200,  255, 1]
+    @test t.b_uint16 == UInt16[60000, 65535, 1]
+    @test t.b_uint32 == UInt32[4000000000, 4294967295, 1]
+    @test t.b_uint64 == UInt64[18000000000000000000, 18446744073709551615, 1]
+    close(f)
+end
