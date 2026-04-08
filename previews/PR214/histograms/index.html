@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Histograms · UnROOT.jl</title><meta name="title" content="Histograms · UnROOT.jl"/><meta property="og:title" content="Histograms · UnROOT.jl"/><meta property="twitter:title" content="Histograms · UnROOT.jl"/><meta name="description" content="Documentation for UnROOT.jl."/><meta property="og:description" content="Documentation for UnROOT.jl."/><meta property="twitter:description" content="Documentation for UnROOT.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">UnROOT.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Introduction</a></li><li><a class="tocitem" href="../exampleusage/">Example Usage</a></li><li class="is-active"><a class="tocitem" href>Histograms</a><ul class="internal"><li><a class="tocitem" href="#Opening-and-inspecting-the-raw-dictionary"><span>Opening and inspecting the raw dictionary</span></a></li><li><a class="tocitem" href="#parseTH-—-raw-tuple-mode"><span><code>parseTH</code> — raw tuple mode</span></a></li><li><a class="tocitem" href="#parseTH-—-FHist-mode"><span><code>parseTH</code> — FHist mode</span></a></li><li><a class="tocitem" href="#Unweighted-histograms"><span>Unweighted histograms</span></a></li><li><a class="tocitem" href="#Closing-the-file"><span>Closing the file</span></a></li></ul></li><li><a class="tocitem" href="../roofit/">RooFit Results</a></li><li><a class="tocitem" href="../performancetips/">Performance Tips</a></li><li><span class="tocitem">Advanced Usage</span><ul><li><a class="tocitem" href="../advanced/custom_branch/">Parse Custom Branch</a></li><li><a class="tocitem" href="../advanced/reduce_latency/">Reduce startup latency</a></li></ul></li><li><span class="tocitem">For Contributors</span><ul><li><a class="tocitem" href="../devdocs/">Related Projects</a></li><li><a class="tocitem" href="../bootstrapping/">Bootstrapping</a></li></ul></li><li><a class="tocitem" href="../internalapis/">APIs</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Histograms</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Histograms</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaHEP/UnROOT.jl/blob/main/docs/src/histograms.md#L" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Histograms"><a class="docs-heading-anchor" href="#Histograms">Histograms</a><a id="Histograms-1"></a><a class="docs-heading-anchor-permalink" href="#Histograms" title="Permalink"></a></h1><p>UnROOT can read ROOT histogram objects (<code>TH1</code>, <code>TH2</code>, <code>TH3</code> and their typed variants such as <code>TH1F</code>, <code>TH2D</code>, <code>TH3I</code>, etc.) directly from a ROOT file. Reading a histogram returns a plain <code>Dict{Symbol, Any}</code> containing all stored fields.  The helper function <code>UnROOT.parseTH</code> converts that raw dictionary into convenient Julia objects — either a lightweight tuple or an <a href="https://moelf.github.io/FHist.jl/stable/">FHist.jl</a> histogram (<code>Hist1D</code>, <code>Hist2D</code>, or <code>Hist3D</code>).</p><h2 id="Opening-and-inspecting-the-raw-dictionary"><a class="docs-heading-anchor" href="#Opening-and-inspecting-the-raw-dictionary">Opening and inspecting the raw dictionary</a><a id="Opening-and-inspecting-the-raw-dictionary-1"></a><a class="docs-heading-anchor-permalink" href="#Opening-and-inspecting-the-raw-dictionary" title="Permalink"></a></h2><pre><code class="language-julia-repl hljs">julia&gt; using UnROOT
+
+julia&gt; f = ROOTFile(&quot;path/to/file.root&quot;)
+ROOTFile with 5 entries and 18 streamers.
+
+julia&gt; keys(f)
+5-element Vector{String}:
+ &quot;myTH1F&quot;
+ &quot;myTH1D&quot;
+ &quot;myTH2F&quot;
+ &quot;myTH2D&quot;
+ &quot;myTH1D_nonuniform&quot;
+
+julia&gt; h = f[&quot;myTH1F&quot;]
+Dict{Symbol, Any} with 106 entries:
+  :fName            =&gt; &quot;myTH1F&quot;
+  :fTitle           =&gt; &quot;&quot;
+  :fEntries         =&gt; 4.0
+  :fXaxis_fNbins    =&gt; 2
+  :fXaxis_fXmin     =&gt; -2.0
+  :fXaxis_fXmax     =&gt; 2.0
+  :fN               =&gt; Float32[0.0, 40.0, 2.0, 0.0]
+  :fSumw2           =&gt; [0.0, 800.0, 2.0, 0.0]
+  ⋮                 =&gt; ⋮</code></pre><p>The <code>:fN</code> array stores bin contents <strong>including overflow bins</strong> — the first and last entries correspond to the underflow and overflow bins respectively. <code>:fSumw2</code> stores the sum of squared weights per bin (also including overflows), and has length zero when the histogram was filled without explicit weights.</p><p>Common fields for all histogram dimensions:</p><table><tr><th style="text-align: right">Field</th><th style="text-align: right">Description</th></tr><tr><td style="text-align: right"><code>:fName</code>, <code>:fTitle</code></td><td style="text-align: right">histogram name and title</td></tr><tr><td style="text-align: right"><code>:fEntries</code></td><td style="text-align: right">number of fills</td></tr><tr><td style="text-align: right"><code>:fN</code></td><td style="text-align: right">flat bin-content array (includes overflow bins)</td></tr><tr><td style="text-align: right"><code>:fSumw2</code></td><td style="text-align: right">sum of squared weights (empty when unweighted)</td></tr><tr><td style="text-align: right"><code>:fXaxis_fNbins</code>, <code>:fXaxis_fXmin</code>, <code>:fXaxis_fXmax</code></td><td style="text-align: right">X axis binning</td></tr><tr><td style="text-align: right"><code>:fYaxis_fNbins</code>, <code>:fYaxis_fXmin</code>, <code>:fYaxis_fXmax</code></td><td style="text-align: right">Y axis binning (TH2/TH3)</td></tr><tr><td style="text-align: right"><code>:fZaxis_fNbins</code>, <code>:fZaxis_fXmin</code>, <code>:fZaxis_fXmax</code></td><td style="text-align: right">Z axis binning (TH3)</td></tr><tr><td style="text-align: right"><code>:fXaxis_fXbins</code></td><td style="text-align: right">variable-width bin edges (empty for uniform axes)</td></tr></table><h2 id="parseTH-—-raw-tuple-mode"><a class="docs-heading-anchor" href="#parseTH-—-raw-tuple-mode"><code>parseTH</code> — raw tuple mode</a><a id="parseTH-—-raw-tuple-mode-1"></a><a class="docs-heading-anchor-permalink" href="#parseTH-—-raw-tuple-mode" title="Permalink"></a></h2><p><code>UnROOT.parseTH(h)</code> (or equivalently <code>parseTH(h; raw=true)</code>) strips the overflow bins, reshapes the counts array to the correct dimensionality, and returns a four-element tuple <code>(counts, edges, sumw2, nentries)</code>.</p><h3 id="1D-histogram"><a class="docs-heading-anchor" href="#1D-histogram">1D histogram</a><a id="1D-histogram-1"></a><a class="docs-heading-anchor-permalink" href="#1D-histogram" title="Permalink"></a></h3><pre><code class="language-julia-repl hljs">julia&gt; h = f[&quot;myTH1F&quot;]
+
+julia&gt; counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+
+julia&gt; counts
+2-element Vector{Float32}:
+ 40.0
+  2.0
+
+julia&gt; edges
+(-2.0:2.0:2.0,)
+
+julia&gt; sumw2
+2-element Vector{Float64}:
+ 800.0
+   2.0
+
+julia&gt; nentries
+4.0</code></pre><p>Non-uniform bin widths are handled transparently — <code>edges</code> will contain a plain <code>Vector</code> instead of a <code>StepRange</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; counts, edges, sumw2, nentries = UnROOT.parseTH(f[&quot;myTH1D_nonuniform&quot;])
+
+julia&gt; edges
+([-2.0, 1.0, 2.0],)</code></pre><h3 id="2D-histogram"><a class="docs-heading-anchor" href="#2D-histogram">2D histogram</a><a id="2D-histogram-1"></a><a class="docs-heading-anchor-permalink" href="#2D-histogram" title="Permalink"></a></h3><p>For a 2D histogram <code>counts</code> is a matrix of shape <code>(Nx, Ny)</code> and <code>edges</code> is a two-element tuple:</p><pre><code class="language-julia-repl hljs">julia&gt; h = f[&quot;myTH2D&quot;]
+
+julia&gt; counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+
+julia&gt; size(counts)
+(2, 4)
+
+julia&gt; edges
+(-2.0:2.0:2.0, -2.0:1.0:2.0)</code></pre><h3 id="3D-histogram"><a class="docs-heading-anchor" href="#3D-histogram">3D histogram</a><a id="3D-histogram-1"></a><a class="docs-heading-anchor-permalink" href="#3D-histogram" title="Permalink"></a></h3><p>For a 3D histogram <code>counts</code> is an array of shape <code>(Nx, Ny, Nz)</code> and <code>edges</code> is a three-element tuple:</p><pre><code class="language-julia-repl hljs">julia&gt; f3 = ROOTFile(&quot;path/to/th3_file.root&quot;)
+
+julia&gt; h = f3[&quot;th3f&quot;]
+
+julia&gt; counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+
+julia&gt; size(counts)
+(4, 3, 2)
+
+julia&gt; edges
+(0.0:1.0:4.0, 0.0:1.0:3.0, 0.0:1.0:2.0)
+
+julia&gt; counts[1, 1, 1]
+2.0
+
+julia&gt; sum(counts)
+21.0</code></pre><h2 id="parseTH-—-FHist-mode"><a class="docs-heading-anchor" href="#parseTH-—-FHist-mode"><code>parseTH</code> — FHist mode</a><a id="parseTH-—-FHist-mode-1"></a><a class="docs-heading-anchor-permalink" href="#parseTH-—-FHist-mode" title="Permalink"></a></h2><p>Passing <code>raw=false</code> converts the histogram directly into an FHist.jl type. This gives access to the full FHist API: <code>bincounts</code>, <code>binedges</code>, <code>sumw2</code>, <code>nentries</code>, <code>integral</code>, <code>project</code>, <code>rebin</code>, plotting, etc.</p><h3 id="1D-Hist1D"><a class="docs-heading-anchor" href="#1D-Hist1D">1D → <code>Hist1D</code></a><a id="1D-Hist1D-1"></a><a class="docs-heading-anchor-permalink" href="#1D-Hist1D" title="Permalink"></a></h3><pre><code class="language-julia-repl hljs">julia&gt; using FHist
+
+julia&gt; h1 = UnROOT.parseTH(f[&quot;myTH1F&quot;]; raw=false)
+edges: [-2.0, 0.0, 2.0]
+bin counts: [40.0, 2.0]
+total count: 42.0
+
+julia&gt; bincounts(h1)
+2-element Vector{Float32}:
+ 40.0
+  2.0
+
+julia&gt; binedges(h1)
+([-2.0, 0.0, 2.0],)</code></pre><h3 id="2D-Hist2D"><a class="docs-heading-anchor" href="#2D-Hist2D">2D → <code>Hist2D</code></a><a id="2D-Hist2D-1"></a><a class="docs-heading-anchor-permalink" href="#2D-Hist2D" title="Permalink"></a></h3><pre><code class="language-julia-repl hljs">julia&gt; h2 = UnROOT.parseTH(f[&quot;myTH2D&quot;]; raw=false)
+edges: ([-2.0, 0.0, 2.0], [-2.0, -1.0, 0.0, 1.0, 2.0])
+bin counts: [20.0 0.0 0.0 20.0; 1.0 0.0 0.0 1.0]
+total count: 42.0
+
+julia&gt; size(bincounts(h2))
+(2, 4)</code></pre><h3 id="3D-Hist3D"><a class="docs-heading-anchor" href="#3D-Hist3D">3D → <code>Hist3D</code></a><a id="3D-Hist3D-1"></a><a class="docs-heading-anchor-permalink" href="#3D-Hist3D" title="Permalink"></a></h3><pre><code class="language-julia-repl hljs">julia&gt; h3 = UnROOT.parseTH(f3[&quot;th3f&quot;]; raw=false)
+Hist3D{Float64}, edges=([0.0, 1.0, 2.0, 3.0, 4.0], [0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0]), integral=21.0
+
+julia&gt; size(bincounts(h3))
+(4, 3, 2)
+
+julia&gt; bincounts(h3)[1, 1, 1]
+2.0</code></pre><h2 id="Unweighted-histograms"><a class="docs-heading-anchor" href="#Unweighted-histograms">Unweighted histograms</a><a id="Unweighted-histograms-1"></a><a class="docs-heading-anchor-permalink" href="#Unweighted-histograms" title="Permalink"></a></h2><p>ROOT does not fill <code>:fSumw2</code> by default when a histogram is filled without explicit weights.  In that case <code>length(h[:fSumw2]) == 0</code>.  <code>parseTH</code> detects this and falls back to using the bin counts themselves as the squared-weight array, which is the conventional treatment for unweighted histograms (Poisson statistics: <code>sumw2[i] = counts[i]</code>).</p><pre><code class="language-julia-repl hljs">julia&gt; length(f[&quot;myTH1F&quot;][:fSumw2])   # weighted — fSumw2 is populated
+4
+
+julia&gt; # for an unweighted TH2I the field would be empty:
+julia&gt; length(h_unweighted[:fSumw2])
+0</code></pre><h2 id="Closing-the-file"><a class="docs-heading-anchor" href="#Closing-the-file">Closing the file</a><a id="Closing-the-file-1"></a><a class="docs-heading-anchor-permalink" href="#Closing-the-file" title="Permalink"></a></h2><p>Always close the file when you are done to release the file handle:</p><pre><code class="language-julia-repl hljs">julia&gt; close(f)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../exampleusage/">« Example Usage</a><a class="docs-footer-nextpage" href="../roofit/">RooFit Results »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 8 April 2026 16:58">Wednesday 8 April 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
