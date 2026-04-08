@@ -4,7 +4,7 @@
 Reads all branches from a tree.
 """
 function arrays(f::ROOTFile, treename)
-    names = keys(f[treename])
+    names = getbranchnamesrecursive(f[treename])
     res = Vector{Vector}(undef, length(names))
     Threads.@threads for i in eachindex(names)
         res[i] = array(f, "$treename/$(names[i])")
@@ -21,8 +21,16 @@ function array(f::ROOTFile, path::AbstractString; raw=false)
     return array(f::ROOTFile, f[path]; raw=raw)
 end
 
+function array(f::ROOTFile, tree::TTree; raw=false)
+    error(
+        "$(tree.fName) is a TTree (not a branch). " *
+        "To read all branches use `LazyTree(f, \"$(tree.fName)\")` or `arrays(f, \"$(tree.fName)\")`. " *
+        "To read a single branch use `array(f, \"$(tree.fName)/branchname\")`."
+    )
+end
+
 function array(f::ROOTFile, branch; raw=false)
-    ismissing(branch) && error("No branch found at $path")
+    ismissing(branch) && error("No branch found (branch is missing)")
     (!raw && length(branch.fLeaves.elements) > 1) && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
@@ -58,8 +66,8 @@ function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer)
     if ithbasket != -1
         rawdata, rawoffsets = readbasket(f, branch, ithbasket)
     else
-        # recovering a basket
-        recovered_basket = branch.fBaskets.elements[end]
+        # embedded (recovered) basket: stored at fBaskets[fWriteBasket] (0-indexed)
+        recovered_basket = branch.fBaskets.elements[branch.fWriteBasket + 1]
         rawdata, rawoffsets = recovered_basket.data, recovered_basket.offsets
     end
     return rawdata, rawoffsets
@@ -455,8 +463,16 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
         elseif b isa Pair{Regex, SubstitutionString{String}}
             [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
         elseif b isa String
-            expand = any(n->startswith(n, "$b/$b"), all_bnames)
-            expand ? [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)] : [b => normalize_branchname(b)]
+            if any(n->startswith(n, "$b/$b"), all_bnames)
+                # Double-prefix split class (e.g. "Electron/Electron.pt")
+                [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)]
+            elseif b ∉ all_bnames && any(n->startswith(n, "$b/"), all_bnames)
+                # Container branch (split class without repeated prefix, e.g. "ODEvent/member")
+                # Strip the container prefix so column names are just "memberName"
+                [_b => normalize_branchname(chop(_b, head=length(b)+1, tail=0)) for _b ∈ filter(n->startswith(n, "$b/"), all_bnames)]
+            else
+                [b => normalize_branchname(b)]
+            end
         else
             error("branch selection must be string or regex")
         end

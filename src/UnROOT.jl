@@ -12,7 +12,7 @@ reinterpret(a,b) = Base.reinterpret(a,b)
 import AbstractTrees: children, printnode, print_tree
 
 using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays, FHist
-using Mixers, Parameters, Memoization, LRUCache
+using LRUCache
 import IterTools: groupby
 
 using LibDeflate: zlib_decompress!, Decompressor, crc32
@@ -47,6 +47,7 @@ include("types.jl")
 include("utils.jl")
 include("streamers.jl")
 include("bootstrap.jl")
+include("roofit.jl")
 include("root.jl")
 include("iteration.jl")
 include("custom.jl")

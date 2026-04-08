@@ -3,10 +3,9 @@
 
 struct RecoveredTBasket
     data::Vector{UInt8}
-    offsets::Vector{UInt32}
+    offsets::Vector{Int32}
 end
 function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket})
-    @initparse
     start = position(io)
     #_format1 = struct.Struct(">ihiIhh")
     fNbytes = readtype(io, Int32)
@@ -28,31 +27,37 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{RecoveredTBasket
     # one-byte terminator
     skip(io, 1)
 
-    # then if you have offsets data, read them in
-    if fNevBufSize > 8
-        byteoffsets = read(io, fNevBuf * 4 + 8)
+    # Parse offsets if present, using the same format as readbasketseek returns:
+    # big-endian Int32 values relative to data start, with contentsize appended.
+    # The on-disk layout is: [4-byte sentinel][fNevBuf × Int32 offsets][4-byte sentinel].
+    # We read fNevBuf*4+8 bytes then back up 4 so the stream position is correct for
+    # the subsequent read.
+    offsets = if fNevBufSize > 8
+        raw = read(io, fNevBuf * 4 + 8)
         skip(io, -4)
+        # bytes 1–4: leading sentinel; bytes 5–(4+fNevBuf*4): actual offsets
+        parsed = ntoh.(reinterpret(Int32, raw[5:4 + fNevBuf * 4]))
+        parsed .-= Int32(fKeylen)
+        push!(parsed, Int32(fLast - fKeylen))
+        parsed
     else
-        byteoffsets = Int32[]
+        Int32[]
     end
 
     # there's a second TKey here, but it doesn't contain any new information (in fact, less)
     skip(io, fKeylen)
 
-    # the data (not including offsets)
-    size = fLast - fKeylen
-    contents = read(io, size)
+    # the data (content bytes only, without offset area)
+    contents = read(io, fLast - fKeylen)
 
-    # put the offsets back in, in the way that we expect it
-    if fNevBufSize > 8
-        contents = vcat(contents, byteoffsets)
-        size += length(byteoffsets)
-    end
-    fObjlen = size
-    fNbytes = fObjlen + fKeylen
-    @debug "Found $(length(contents)) bytes of basket data (not yet supported) in a TTree."
-    RecoveredTBasket(contents, byteoffsets)
+    @debug "Found $(length(contents)) bytes of basket data in a TTree."
+    RecoveredTBasket(contents, offsets)
 end
+
+# Generic fallback: allows readfields! methods defined for IO to be called with a Cursor.
+# More specific readfields!(cursor::Cursor, ...) methods (e.g. for TBranch variants that need
+# cursor.tkey/cursor.refs) take precedence over this fallback via Julia's dispatch rules.
+readfields!(c::Cursor, fields, ::Type{T}) where {T} = readfields!(c.io, fields, T)
 
 abstract type TNamed <: ROOTStreamedObject end
 # TODO: we probably should switch over to @kwdef at some point, but that's another big refactoring
@@ -67,16 +72,6 @@ function readfields!(io, fields, ::Type{TNamed_1})
     parsefields!(io, fields, TObject)
     fields[:fName] = readtype(io, String)
     fields[:fTitle] = readtype(io, String)
-end
-# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
-# A big cleanup is needed!
-# We need to define something like the following (that's not working, too tired already...)
-# parsefields!(c::Cursor, fields, TObject) = parsefields!(c.io, fields, TObject)
-# readtype(c::Cursor, ::Type{T}) where T = readtype(c.io, T)
-function readfields!(c::Cursor, fields, ::Type{TNamed_1})
-    parsefields!(c.io, fields, TObject)
-    fields[:fName] = readtype(c.io, String)
-    fields[:fTitle] = readtype(c.io, String)
 end
 
 abstract type TAttLine <: ROOTStreamedObject end
@@ -106,7 +101,7 @@ function readfields!(io, fields, T::Type{TAttFill_2})
 end
 
 abstract type TAttMarker <: ROOTStreamedObject end
-struct TAttMarker_1 <: TAttFill end
+struct TAttMarker_1 <: TAttMarker end
 const TAttMarker_2 = TAttMarker_1
 const TAttMarker_3 = TAttMarker_1
 function readfields!(io, fields, T::Type{TAttMarker_1})
@@ -132,37 +127,74 @@ function readfields!(io, fields, T::Type{TAttAxis_4})
 end
 
 abstract type TAxis <: ROOTStreamedObject end
-struct TAxis_10 <: TAxis end
-function readfields!(io, fields, T::Type{TAxis_10})
-    # overrides things like fName,... that were set from the parent TH1 :(
+
+# Common base fields for all TAxis versions ≥ 6 (which use ROOT's ReadClassBuffer).
+# fFirst and fLast are Int32 in the file (despite the C++ member being Int_t =
+# Int32 too — an earlier UnROOT bug read them as Int16).
+function _readfields_taxis_base!(io, fields)
+    # Overrides things like fName,... that were set from the parent TH1.
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttAxis)
     fields[:fNbins] = readtype(io, Int32)
     fields[:fXmin] = readtype(io, Float64)
     fields[:fXmax] = readtype(io, Float64)
     fields[:fXbins] = readtype(io, TArrayD)
-    fields[:fFirst] = readtype(io, Int16)
-    fields[:fLast] = readtype(io, Int16)
+    fields[:fFirst] = readtype(io, Int32)
+    fields[:fLast] = readtype(io, Int32)
+end
+
+# v6–v8: no fBits2 field; fLabels/fModLabs not present
+struct TAxis_6 <: TAxis end
+struct TAxis_7 <: TAxis end
+struct TAxis_8 <: TAxis end
+function _readfields_taxis_v6v8!(io, fields)
+    _readfields_taxis_base!(io, fields)
+    fields[:fTimeDisplay] = readtype(io, Bool)
+    fields[:fTimeFormat] = readtype(io, String)
+end
+readfields!(io, fields, ::Type{TAxis_6}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io, fields, ::Type{TAxis_7}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io, fields, ::Type{TAxis_8}) = _readfields_taxis_v6v8!(io, fields)
+
+# v9–v10: fBits2 (UShort_t) added in v9.
+# fLabels (THashList*, v9+) and fModLabs (TList*, v10+) are pointer fields
+# serialised after the other fields and are handled in TH() via readobjany!.
+struct TAxis_9 <: TAxis end
+struct TAxis_10 <: TAxis end
+function _readfields_taxis_v9v10!(io, fields)
+    _readfields_taxis_base!(io, fields)
     fields[:fBits2] = readtype(io, UInt16)
     fields[:fTimeDisplay] = readtype(io, Bool)
     fields[:fTimeFormat] = readtype(io, String)
 end
+readfields!(io, fields, ::Type{TAxis_9}) = _readfields_taxis_v9v10!(io, fields)
+readfields!(io, fields, ::Type{TAxis_10}) = _readfields_taxis_v9v10!(io, fields)
 
 abstract type TH1 <: ROOTStreamedObject end
+# Versions 3–8 all use ROOT's automatic schema evolution (ReadClassBuffer);
+# the actual fields are read explicitly in TH(), so readfields! is empty for all.
+struct TH1_3 <: TH1 end
+struct TH1_4 <: TH1 end
+struct TH1_5 <: TH1 end
+struct TH1_6 <: TH1 end
+struct TH1_7 <: TH1 end
 struct TH1_8 <: TH1 end
-function readfields!(io, fields, T::Type{TH1_8}) end
+function readfields!(io, fields, T::Type{<:TH1}) end
 
 abstract type TH2 <: ROOTStreamedObject end
+struct TH2_3 <: TH2 end
 struct TH2_4 <: TH2 end
 struct TH2_5 <: TH2 end
-function readfields!(io, fields, T::Type{TH2_4}) end
-function readfields!(io, fields, T::Type{TH2_5}) end
+function readfields!(io, fields, T::Type{<:TH2}) end
 
 abstract type TH3 <: ROOTStreamedObject end
+struct TH3_3 <: TH3 end
+struct TH3_4 <: TH3 end
+struct TH3_5 <: TH3 end
 struct TH3_6 <: TH3 end
-function readfields!(io, fields, T::Type{TH3_6}) end
+function readfields!(io, fields, T::Type{<:TH3}) end
 
-@with_kw struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
+Base.@kwdef struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
 end
 
@@ -173,7 +205,6 @@ function parsefields!(io, fields, T::Type{ROOT_3a3a_TIOFeatures})
     endcheck(io, preamble)
 end
 
-# FIXME maybe this is unpack, rather than readtype?
 function readtype(io, T::Type{ROOT_3a3a_TIOFeatures})
     @initparse
     parsefields!(io, fields, T)
@@ -182,7 +213,7 @@ end
 
 
 # FIXME this should be generated
-@with_kw struct TLeaf
+Base.@kwdef struct TLeaf
     # FIXME these two come from TNamed
     fName
     fTitle
@@ -214,7 +245,7 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TLeaf}
 end
 
 # FIXME this should be generated
-@with_kw struct TLeafElement
+Base.@kwdef struct TLeafElement
     # FIXME these two come from TNamed
     fName
     fTitle
@@ -245,7 +276,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafElement})
 end
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafI
+Base.@kwdef struct TLeafI
     # from TNamed
     fName
     fTitle
@@ -280,7 +311,7 @@ end
 primitivetype(l::TLeafI) = l.fIsUnsigned ? UInt32 : Int32
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafS
+Base.@kwdef struct TLeafS
     # from TNamed
     fName
     fTitle
@@ -315,7 +346,7 @@ end
 primitivetype(l::TLeafS) = l.fIsUnsigned ? UInt16 : Int16
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafL
+Base.@kwdef struct TLeafL
     # from TNamed
     fName
     fTitle
@@ -350,7 +381,7 @@ end
 primitivetype(l::TLeafL) = l.fIsUnsigned ? UInt64 : Int64
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafG
+Base.@kwdef struct TLeafG
     # from TNamed
     fName
     fTitle
@@ -382,10 +413,10 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafG})
     T(;fields...)
 end
 
-primitivetype(l::TLeafG) = Int64
+primitivetype(l::TLeafG) = l.fIsUnsigned ? UInt64 : Int64
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafO
+Base.@kwdef struct TLeafO
     # from TNamed
     fName
     fTitle
@@ -419,7 +450,7 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafO})
 end
 
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafF
+Base.@kwdef struct TLeafF
     # from TNamed
     fName
     fTitle
@@ -455,7 +486,7 @@ primitivetype(l::TLeafF) = Float32
 
 # FIXME this should be generated and inherited from TLeaf
 # https://root.cern/doc/master/TLeafB_8h_source.html#l00026
-@with_kw struct TLeafB
+Base.@kwdef struct TLeafB
     # from TNamed
     fName
     fTitle
@@ -487,9 +518,9 @@ function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafB})
     T(;fields...)
 end
 
-primitivetype(l::TLeafB) = UInt8
+primitivetype(l::TLeafB) = l.fIsUnsigned ? UInt8 : Int8
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafD
+Base.@kwdef struct TLeafD
     # from TNamed
     fName
     fTitle
@@ -523,8 +554,78 @@ end
 
 primitivetype(l::TLeafD) = Float64
 
+# Double32_t branch: metadata (min/max) stored as Float64, data stored as Float32 on disk.
+Base.@kwdef struct TLeafD32
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafD32})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Float64)
+    fields[:fMaximum] = readtype(io, Float64)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafD32})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafD32) = Float32
+
+# Float16_t branch: metadata (min/max) stored as Float32, data stored as Float16 on disk.
+Base.@kwdef struct TLeafF16
+    # from TNamed
+    fName
+    fTitle
+
+    # from TLeaf
+    fLen
+    fLenType
+    fOffset
+    fIsRange
+    fIsUnsigned
+    fLeafCount
+
+    # own fields
+    fMinimum
+    fMaximum
+end
+
+function parsefields!(io, fields, T::Type{TLeafF16})
+    preamble = Preamble(io, T)
+    parsefields!(io, fields, TLeaf)
+    fields[:fMinimum] = readtype(io, Float32)
+    fields[:fMaximum] = readtype(io, Float32)
+    endcheck(io, preamble)
+end
+
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafF16})
+    @initparse
+    parsefields!(io, fields, T)
+    T(;fields...)
+end
+
+primitivetype(l::TLeafF16) = Float16
+
 # FIXME this should be generated and inherited from TLeaf
-@with_kw struct TLeafC
+Base.@kwdef struct TLeafC
     # from TNamed
     fName
     fTitle
@@ -544,7 +645,7 @@ end
 
 primitivetype(l::TLeafC) = UInt8
 
-function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
+function parsefields!(io, fields, T::Type{TLeafC})
     preamble = Preamble(io, T)
     parsefields!(io, fields, TLeaf)
     fields[:fMinimum] = readtype(io, Int32)
@@ -552,7 +653,7 @@ function parsefields!(io, fields, ::Type{T}) where {T<:TLeafC}
     endcheck(io, preamble)
 end
 
-function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, ::Type{T}) where {T<:TLeafC}
+function unpack(io, tkey::TKey, refs::Dict{Int32, Any}, T::Type{TLeafC})
     @initparse
     parsefields!(io, fields, T)
     T(;fields...)
@@ -569,7 +670,7 @@ Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
 numbaskets(b::Union{TBranch, TBranchElement}) = findfirst(x->x>(b.fEntries-1),b.fBasketEntry)-1
 
-@with_kw struct TBranch_8 <: TBranch
+Base.@kwdef struct TBranch_8 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -612,36 +713,36 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_8}
     fields[:fBasketSize] = readtype(io, Int32)
     fields[:fEntryOffsetLen] = readtype(io, Int32)
     fields[:fWriteBasket] = readtype(io, Int32)
-    fields[:fEntryNumber] = readtype(io, Int64)
+    # ROOT v6-9: fEntryNumber stored as Int32 (Int_t ijunk), not Int64
+    fields[:fEntryNumber] = readtype(io, Int32)
 
     fields[:fOffset] = readtype(io, Int32)
     fields[:fMaxBaskets] = readtype(io, UInt32)
     fields[:fSplitLevel] = readtype(io, Int32)
-    fields[:fEntries] = readtype(io, Int64)
-    fields[:fTotBytes] = readtype(io, Int64)
-    fields[:fZipBytes] = readtype(io, Int64)
+    # ROOT v6-9: fEntries/fTotBytes/fZipBytes stored as Float64 (Stat_t = Double_t djunk)
+    fields[:fEntries] = Int64(readtype(io, Float64))
+    fields[:fTotBytes] = Int64(readtype(io, Float64))
+    fields[:fZipBytes] = Int64(readtype(io, Float64))
 
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
-    fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
-    fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
+    fields[:fBasketBytes] = Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    skip(io, 1)
+    # ROOT v6-9: fBasketEntry stored as Int32 per entry (Int_t ijunk)
+    fields[:fBasketEntry] = Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    isArray = readtype(io, Int8)
+    # ROOT v6-9: fBasketSeek is Int64 if isArray==2, else Int32 per entry
+    fields[:fBasketSeek] = if isArray == Int8(2)
+        Int64[readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
+    else
+        Int64[readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
+    end
     fields[:fFileName] = readtype(io, String)
 end
-@with_kw struct TBranch_12 <: TBranch
+Base.@kwdef struct TBranch_12 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -698,24 +799,16 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_12}
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
     fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
+    skip(io, 1)
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
+    skip(io, 1)
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
-@with_kw struct TBranch_13 <: TBranch
+Base.@kwdef struct TBranch_13 <: TBranch
     cursor::Cursor
     # from TNamed
     fName
@@ -776,25 +869,17 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranch_13}
     fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
     fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
     fields[:fBaskets] = unpack(io, tkey, refs, TObjArray)
-    # fields[:fBaskets] = unpack(io, tkey, refs, Undefined)
-    speedbump = true  # FIXME speedbump?
-
-    speedbump && skip(io, 1)
-
+    # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+    skip(io, 1)
     fields[:fBasketBytes] = [readtype(io, Int32) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
-    # this is also called fBsketEvent, as far as I understood
+    skip(io, 1)
     fields[:fBasketEntry] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
-
-    speedbump && skip(io, 1)
-
+    skip(io, 1)
     fields[:fBasketSeek] = [readtype(io, Int64) for _ in 1:fields[:fMaxBaskets]]
     fields[:fFileName] = readtype(io, String)
 end
 
-@with_kw struct TBranchElement_9 <: TBranchElement
+Base.@kwdef struct TBranchElement_9 <: TBranchElement
     cursor::Cursor
     # from TNamed
     fName
@@ -840,7 +925,7 @@ end
     fBranchCount2
 end
 
-@with_kw struct TBranchElement_10 <: TBranchElement
+Base.@kwdef struct TBranchElement_10 <: TBranchElement
     cursor::Cursor
     # from TNamed
     fName
@@ -929,7 +1014,7 @@ function readfields!(cursor::Cursor, fields, ::Type{T}) where {T<:TBranchElement
 end
 
 # FIXME preliminary TTree structure
-@with_kw struct TTree
+Base.@kwdef struct TTree
     # TNamed
     fName
     fTitle
@@ -1013,7 +1098,9 @@ function TH(io, tkey::TKey, refs)
         stream!(io, fields, TH3, check=false)
     end
 
-    stream!(io, fields, TH1, check=false)
+    # Read TH1 preamble manually so we can use its byte count to conditionally
+    # skip fields absent in older versions (e.g. v3 has no fBufferSize/fBuffer).
+    th1_preamble, _ = _versioned_streamer(io, TH1)
     stream!(io, fields, TNamed)
     stream!(io, fields, TAttLine)
     stream!(io, fields, TAttFill)
@@ -1022,14 +1109,27 @@ function TH(io, tkey::TKey, refs)
 
     for axis in ["fXaxis_", "fYaxis_", "fZaxis_"]
         subfields = Dict{Symbol, Any}()
-        stream!(io, subfields, TAxis, check=false)
-        fields[Symbol(axis, :fLabels)] = readobjany!(io, tkey, refs)
-        fields[Symbol(axis, :fModLabs)] = readobjany!(io, tkey, refs)
-        for (k,v) in subfields
+        # Read preamble manually to get the TAxis version for conditional field handling.
+        axis_preamble, axis_type = _versioned_streamer(io, TAxis)
+        readfields!(io, subfields, axis_type)
+        # fLabels (THashList*) was added in v9; fModLabs (TList*) in v10.
+        # Both are serialised as object-any pointers inside the TAxis byte block.
+        if axis_preamble.version >= 9
+            subfields[:fLabels] = readobjany!(io, tkey, refs)
+        end
+        if axis_preamble.version >= 10
+            subfields[:fModLabs] = readobjany!(io, tkey, refs)
+        end
+        # Seek to the exact end of the TAxis byte block using the preamble byte count.
+        # This is a safety net that handles any remaining bytes (e.g. future fields)
+        # and also fixes the previous reliance on a "FIXME" Int32 read that was
+        # compensating for the wrong Int16 reads for fFirst/fLast.
+        if !ismissing(axis_preamble.cnt)
+            seek(io, axis_preamble.start + axis_preamble.cnt)
+        end
+        for (k, v) in subfields
             fields[Symbol(axis, k)] = v
         end
-        # FIXME this line makes non-uniform binned histograms work, but not sure why
-        readtype(io, Int32)
     end
 
     fields[:fBarOffset] = readtype(io, Int16)
@@ -1043,11 +1143,19 @@ function TH(io, tkey::TKey, refs)
     fields[:fOption] = readtype(io, String)
     # if user saved after calling h.Fit() with a TF1, then this will error
     fields[:fFunctions] = unpack(io, tkey, refs, TList)
-    fields[:fBufferSize] = readtype(io, Int32)
-    skip(io, 1) # speedbump
-    fields[:fBuffer] = readtype(io, TArrayD)
-    fields[:fBinStatErrOpt] = readtype(io, Int16)
-    fields[:fStatOverflows] = readtype(io, Int16)
+    # fBufferSize/fBuffer/fBinStatErrOpt/fStatOverflows were added after TH1 v3.
+    # Use the TH1 preamble byte count to decide whether they are present, and
+    # seek to the exact TH1 block end afterwards for correct positioning.
+    if !ismissing(th1_preamble.cnt) && position(io) < th1_preamble.start + th1_preamble.cnt
+        fields[:fBufferSize] = readtype(io, Int32)
+        skip(io, 1) # speedbump
+        fields[:fBuffer] = readtype(io, TArrayD)
+        fields[:fBinStatErrOpt] = readtype(io, Int16)
+        fields[:fStatOverflows] = readtype(io, Int16)
+    end
+    if !ismissing(th1_preamble.cnt)
+        seek(io, th1_preamble.start + th1_preamble.cnt)
+    end
 
     if is2d
         for symb in [:fScalefactor, :fTsumwy, :fTsumwy2, :fTsumwxy]
@@ -1114,11 +1222,20 @@ function parsetobject(f, tkey::TKey, streamer)
 
     @initparse
 
-    # the first entry in the streamer is a TObject
+    # Custom streamers receive io positioned immediately after the outer object
+    # preamble. The reader is responsible for parsing the full object content
+    # (including any TObject base class, which may not come first in all classes).
+    tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
+
+    # For the built-in path, assume TObject is the first element in the streamer
+    # and consume it before inspecting the remaining content.
     parsefields!(io, fields, TObject)
 
-    # simple custom streamers which instantiate the full objects data
-    tkey.fClassName ∈ Base.keys(f.customstructs) && return readtype(io, f.customstructs[tkey.fClassName]; tkey=tkey, original_streamer=streamer)
+    if ismissing(streamer)
+        error("No streamer found for '$(tkey.fClassName)'. " *
+              "Provide a custom parser via `customstructs=Dict(\"$(tkey.fClassName)\" => YourType)` " *
+              "to `ROOTFile` and implement `UnROOT.readtype(io, ::Type{YourType}; tkey, original_streamer)`.")
+    end
 
     # FIXME: this is just a hack, for TObject-derivatives which are subclassing map<string,string>
     s = streamer.streamer.fElements.elements[2]
@@ -1136,16 +1253,13 @@ function parsetobject(f, tkey::TKey, streamer)
     # FIXME: generalise this! We also need a hook-in mechanism for this function
     # so that the user can provide custom parsing logic
     if tkey.fClassName == "TVectorT<double>"
-        n = readtype(io, UInt32)
-        row_lwb = readtype(io, Int32)  # index of the starting element of the vector itself
-        skip(io, 1)
-        return [readtype(io, Float64) for _ ∈ row_lwb+1:n]
+        return read_tvectort_double(io)
     end
 
     error("Unable to parse '$(s.fTypeName)' of '$(tkey.fClassName)', " *
           "consider providing a custom streamer by passing " *
-          "`customstreamer=Dict(\"$(tkey.fClassName)\" => TheStreamer)` to the `ROOTFile` " *
-          "and implement the struct `TheStreamer` and `UnROOT.readtype(io, ::Type{TheStreamer}; tkey, original_streamer)`.")
+          "`customstructs=Dict(\"$(tkey.fClassName)\" => YourType)` to `ROOTFile` " *
+          "and implement `UnROOT.readtype(io, ::Type{YourType}; tkey, original_streamer)`.")
 end
 
 
@@ -1178,21 +1292,31 @@ function TTree(io, tkey::TKey, refs; top=true)
         fields[:fAutoSave] = readtype(io, Int32)
         fields[:fEstimate] = readtype(io, Int32)
 
-        # FIXME what about speedbumps??
-        speedbump = true
-
-        # TODO is this really needed? probably to prevent some downstream logic from breaking
+        # Fields not present in TTree v5:
+        fields[:fFlushedBytes] = missing
+        fields[:fWeight] = missing
+        fields[:fDefaultEntryOffsetLen] = missing
+        fields[:fNClusterRange] = missing
+        fields[:fMaxEntries] = missing
+        fields[:fAutoFlush] = missing
+        fields[:fClusterRangeEnd] = missing
+        fields[:fClusterSize] = missing
         fields[:fIOFeatures] = missing
+        fields[:fAliases] = missing
+        fields[:fTreeIndex] = missing
+        fields[:fFriends] = missing
 
         fields[:fBranches] = unpack(io, tkey, refs, TObjArray)
         fields[:fLeaves] = unpack(io, tkey, refs, TObjArray)
 
-        fields[:fAliases] = readobjany!(io, tkey, refs)
+        # TTree v5 (ReadClassBuffer path) only has fIndexValues and fIndex after fLeaves;
+        # fAliases, fTreeIndex, fFriends were added in later versions.
         fields[:fIndexValues] = readtype(io, TArrayD)
         fields[:fIndex] = readtype(io, TArrayI)
-        fields[:fTreeIndex] = readobjany!(io, tkey, refs)
-        fields[:fFriends] = readobjany!(io, tkey, refs)
 
+        if !ismissing(preamble.cnt)
+            seek(io, preamble.start + preamble.cnt)
+        end
         return TTree(;fields...)
     end
 
@@ -1219,14 +1343,12 @@ function TTree(io, tkey::TKey, refs; top=true)
     fields[:fAutoFlush] = readtype(io, Int64)
     fields[:fEstimate] = readtype(io, Int64)
 
-    # FIXME what about speedbumps??
-    speedbump = true
-
     # See https://github.com/cbourjau/alice-rs/blob/6af19a78fe5521f5b27466d7d20f7dfacd38a38f/root-io/src/tree_reader/tree.rs#L148
     if haskey(fields, :fNClusterRange)
-        speedbump && skip(io, 1)
+        # "speedbump" bytes before each fixed-size array — ROOT file format quirk, identified by uproot (Jim Pivarski)
+        skip(io, 1)
         fields[:fClusterRangeEnd] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
-        speedbump && skip(io, 1)
+        skip(io, 1)
         fields[:fClusterSize] = [readtype(io, Int64) for _ in 1:fields[:fNClusterRange]]
     end
 
@@ -1278,13 +1400,6 @@ function readfields!(io, fields, ::Type{TFriendElement_2})
     stream!(io, fields, TNamed)
     fields[:fTreeName] = readtype(io, String)
     fields[:fOwnFile] = readtype(io, Bool)
-end
-# TODO: this is an ugly hack due to some ambiguities of readfields!-definitions.
-# A big cleanup is needed!
-function readfields!(c::Cursor, fields, ::Type{TFriendElement_2})
-    stream!(c.io, fields, TNamed)
-    fields[:fTreeName] = readtype(c.io, String)
-    fields[:fOwnFile] = readtype(c.io, Bool)
 end
 
 abstract type TAttBox2D <: ROOTStreamedObject end

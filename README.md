@@ -1,4 +1,7 @@
-![](https://github.com/JuliaHEP/UnROOT.jl/raw/master/docs/src/assets/unroot.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/unroot_dark.svg">
+  <img alt="UnROOT.jl Logo" src="docs/src/assets/unroot.svg">
+</picture>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-8-orange.svg?style=flat-square)](#contributors-)
@@ -14,8 +17,45 @@
 UnROOT.jl is a reader for the [CERN ROOT](https://root.cern) file format
 written entirely in Julia, without any dependence on ROOT or Python.
 
-## Important API changes in v0.9.0
-<details><summary>Click to expand example for RNTuple</summary>
+## Important and Breaking Changes
+
+### Breaking API changes in v0.11.0
+<details><summary>XRootD and HTTP are now available via extensions</summary>
+<p>
+
+`UnROOT.jl` supports opening files remotely via XRootD which requires
+[`XRootD.jl`](https://github.com/JuliaHEP/XRootD.jl)
+and via HTTP using [`HTTP.jl`](https://github.com/JuliaWeb/HTTP.jl) seamlessly
+up to version 0.10.38.
+Starting with **v0.11**, this behaviour has changed to reduce default dependencies, since
+not everyone uses these features. To continue opening remote 
+files via XRootD or HTTP, the corresponding Julia package (`XRootD.jl`, respectively `HTTP.jl`)
+now needs to be installed and loaded.
+
+`UnROOT.jl` provides extensions for both
+which are loaded automatically so `ROOTFile(url)` will work just like before.
+
+Long story short, when passing a `url` to `ROOTFile(...)`, make sure to load
+appropriate package:
+
+    using UnROOT
+    using XRootD  # this is now required for XRootD URLs
+
+    ROOTFile("xroot://...")
+    
+or 
+
+    using UnROOT
+    using HTTP  # this is now required for HTTP/HTTPS URLs
+
+    ROOTFile("https://...")
+
+See [PR396](https://github.com/JuliaHEP/UnROOT.jl/pull/396) for more details.
+</p>
+</details>
+
+### Important API changes in v0.9.0
+<details><summary>`getindex` now behaves differently</summary>
 <p>
 
 We decided to alter the behaviour of `getindex(f::ROOTfile, s::AbstractString)` which is essentially
@@ -147,9 +187,11 @@ Only one basket per branch will be cached so you don't have to worry about runni
 At the same time, `event` inside the for-loop is not materialized until a field is accessed. This means you should avoid double-access, 
 see [performance tips](https://juliahep.github.io/UnROOT.jl/dev/performancetips/#Don't-%22double-access%22)
 
-XRootD is also supported, depending on the protocol:
+XRootD is also supported via [extensions](https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions)),
+depending on the protocol, either `using XRootD` or `using HTTP`:
 -   the "url" has to start with `http://` or `https://`:
 -   (1.6+ only) or the "url" has to start with `root://` and have another `//` to separate server and file path
+
 ```julia
 julia> r = ROOTFile("https://scikit-hep.org/uproot3/examples/Zmumu.root")
 ROOTFile with 1 entry and 18 streamers.

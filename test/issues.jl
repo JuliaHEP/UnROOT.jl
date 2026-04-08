@@ -5,6 +5,24 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
 
 
 @testset "Issues" begin
+    # issue 9 — fixed-size array branches ([N]/D, [M][N]/D, name[N]/D)
+    rootfile = UnROOT.samplefile("issue9.root")
+    @test_throws "is a TTree" UnROOT.array(rootfile, "arrays")
+    @test_throws "is a TTree" UnROOT.array(rootfile, "structs")
+    # individual branch reading
+    @test UnROOT.array(rootfile, "arrays/nInt") == Int32[1]
+    @test UnROOT.array(rootfile, "arrays/6dVec") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    @test UnROOT.array(rootfile, "arrays/2x3Mat") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    @test UnROOT.array(rootfile, "structs/2x3mat") == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    # LazyTree and arrays() (plural) work
+    t = LazyTree(rootfile, "arrays")
+    @test t[1].nInt == 1
+    @test t[1].var"6dVec" == UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))
+    res = UnROOT.arrays(rootfile, "structs")
+    @test res[1] == Int32[1]
+    @test res[2] == [UnROOT.FixLenVector(SVector{6,Float64}(1,2,3,4,5,6))]
+    close(rootfile)
+
     rootfile = UnROOT.samplefile("issue7.root")
     @test 2 == length(keys(rootfile))
     @test [1.0, 2.0, 3.0] == UnROOT.array(rootfile, "TreeD/nums")
@@ -58,6 +76,29 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     @test t[1].time[2] ≈ 36.396744f0
     @test t[end].xpos[end] ≈ 788.35144f0
 
+    # issue 265 — RecoveredTBasket offsets were stored as Vector{UInt32} instead of
+    # Vector{Int32}, causing a MethodError when indexing jagged LazyBranch entries
+    # in files that contain embedded (recovered) TBaskets.
+    f = UnROOT.samplefile("nanoAOD_2015_CMS_Open_Data_ttbar.root")
+    t = LazyTree(f, "Events")
+    @test length(t) == 200
+    @test t.Jet_pt[1] == Float32[17.921875, 15.734375]
+    @test t.Electron_pt[2] == Float32[32.679607]
+    @test t.MET_pt[1:3] == Float32[33.261875, 33.803047, 70.08252]
+    @test count(x -> length(x) > 0, t.Electron_pt[:]) == 63
+    close(f)
+
+    # issue 241 — TTree v5 / TBranch v8 old format: all data stored as embedded baskets
+    # (fWriteBasket=0, fEntryNumber as Int32, fBasketEntry as Int32, fEntries/fTotBytes/fZipBytes as Float64)
+    f = UnROOT.samplefile("issue241.root")
+    t = LazyTree(f, "proton")
+    @test 462 == length(t)
+    @test 76.55430958116864 ≈ t.ekin[1]
+    @test 0.012379961254578768 ≈ t.edep[1]
+    @test 6.220370248201434 ≈ t.trackx[1]
+    @test propertynames(t) ⊇ (:ekin, :edep, :trackx, :tracky, :trackz, :id, :process)
+    close(f)
+
     # issue 377
     f = UnROOT.samplefile("issue377.root")
     arr = UnROOT.array(f, "podio_metadata/events___CollectionTypeInfo/events___CollectionTypeInfo.dataType")
@@ -108,4 +149,18 @@ end
 @testset "PR 342 TLeafC" begin
     df = LazyTree(UnROOT.samplefile("TLeafC_pr342.root"), "G4Sim")
     @test all(df.Process[1:10] .== ["Radioactivation", "msc", "eIoni", "Transportation", "ionIoni", "Radioactivation", "msc", "eIoni", "ionIoni", "Radioactivation"])
+end
+
+@testset "Unsigned integer branches (TLeafB/S/I/L with fIsUnsigned)" begin
+    f = UnROOT.samplefile("unsigned_integers.root")
+    t = LazyTree(f, "tree")
+    @test eltype(t.b_uint8)  === UInt8
+    @test eltype(t.b_uint16) === UInt16
+    @test eltype(t.b_uint32) === UInt32
+    @test eltype(t.b_uint64) === UInt64
+    @test t.b_uint8  == UInt8[ 200,  255, 1]
+    @test t.b_uint16 == UInt16[60000, 65535, 1]
+    @test t.b_uint32 == UInt32[4000000000, 4294967295, 1]
+    @test t.b_uint64 == UInt64[18000000000000000000, 18446744073709551615, 1]
+    close(f)
 end

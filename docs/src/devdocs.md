@@ -1,4 +1,5 @@
-## Related Projects
+# Related Projects
+
 While the ROOT documentation does not contain a detailed description of the
 binary structure, the format can be triangulated by other packages like
 

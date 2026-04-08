@@ -76,7 +76,7 @@ using FHist
 
     f = UnROOT.samplefile("cms_ntuple_wjet.root")
     binlabels = ["Root", "Weight", "Preselection", "SelectGenPart", "GoodRunsList", "EventFilters", "SelectLeptons", "SelectJets", "Trigger", "ObjectsSelection", "SSPreselection", "NjetGeq4", "AK4CategTagHiggsJets", "AK4CategTagVBSJets", "AK4CategChannels", "AK4CategPresel"]
-    @test f["AK4CategPresel_cutflow"][:fXaxis_fModLabs].objects == binlabels
+    @test f["AK4CategPresel_cutflow"][:fXaxis_fLabels].objects == binlabels
     close(f)
 
     f = UnROOT.samplefile("TH3F.root")
@@ -153,5 +153,197 @@ using FHist
     @test 30000000.0 == h[:fZaxis_fXmax]
     @test 0 == h[:fZaxis_fFirst]
     @test 0 == h[:fZaxis_fLast]
+    close(f)
+
+    # issue #168 — TH1 v3 / TAxis v6: old ROOT file format (before automatic schema
+    # evolution for these classes was bumped to the current versions).
+    f = UnROOT.samplefile("dedx2COMET.root")
+    h = f["h1"]
+    @test 999999.0 == h[:fEntries]
+    @test 100 == h[:fXaxis_fNbins]
+    @test 0.0 == h[:fXaxis_fXmin]
+    @test 2.0 == h[:fXaxis_fXmax]
+    @test 102 == length(h[:fSumw2])
+    @test 102 == length(h[:fN])
+    close(f)
+
+    # issue #368 — parseTH for various histogram shapes and types
+    # detector_01: TH2D with 1 x-bin and 18 y-bins (weighted entries)
+    f = UnROOT.samplefile("issue368_detector_01.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (1, 18)
+    @test binedges(th) == ([-0.5, 0.5], collect(0.5:1.0:18.5))
+    @test 18.0 == f["detector"][:fEntries]
+    @test bincounts(th)[1, 1] ≈ 3.8658676965592687
+    @test bincounts(th)[1, 2] ≈ 4.1477256011194195
+    @test sum(bincounts(th)) ≈ 72.74561242725682
+    @test size(th.sumw2) == (1, 18)
+    close(f)
+
+    # detector_03 and detector_06: same shape, different data
+    for (fname, expected_entries, expected_sum) in [
+            ("issue368_detector_03.root", 17.0, 70.65136726472892),
+            ("issue368_detector_06.root", 18.0, 63.34617303726971),
+        ]
+        f = UnROOT.samplefile(fname)
+        th = UnROOT.parseTH(f["detector"]; raw=false)
+        @test size(bincounts(th)) == (1, 18)
+        @test expected_entries == f["detector"][:fEntries]
+        @test sum(bincounts(th)) ≈ expected_sum
+        close(f)
+    end
+
+    # detector_merged: TH2D with 4 x-bins and 18 y-bins (merge of multiple detectors)
+    f = UnROOT.samplefile("issue368_detector_merged.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (4, 18)
+    @test 53.0 == f["detector"][:fEntries]
+    @test bincounts(th)[1, 1] ≈ 3.8658676965592687
+    @test bincounts(th)[2, 3] ≈ 3.8161558387265013
+    @test sum(bincounts(th)) ≈ 206.74315272925546
+    @test size(th.sumw2) == (4, 18)
+    close(f)
+
+    # test: TH2D with 32 x-bins and 18 y-bins
+    f = UnROOT.samplefile("issue368_test.root")
+    th = UnROOT.parseTH(f["detector"]; raw=false)
+    @test size(bincounts(th)) == (32, 18)
+    @test 469.0 == f["detector"][:fEntries]
+    @test sum(bincounts(th)) ≈ 1673.7181862148902
+    close(f)
+
+    # pyhf_test_histograms: two TH1D histograms with 43 bins each
+    f = UnROOT.samplefile("issue368_pyhf_test_histograms.root")
+    th_bkg = UnROOT.parseTH(f["h_bkg"]; raw=false)
+    th_sig = UnROOT.parseTH(f["h_sig"]; raw=false)
+    @test length(bincounts(th_bkg)) == 43
+    @test binedges(th_bkg) == collect(130.0:20.0:990.0)
+    @test 870.0 == f["h_bkg"][:fEntries]
+    @test bincounts(th_bkg)[1] ≈ 2.1360466600930423e8
+    @test bincounts(th_bkg)[2] ≈ 1.4139781437516856e8
+    @test sum(bincounts(th_bkg)) ≈ 7.613936311815422e8
+    @test length(bincounts(th_sig)) == 43
+    @test 1740.0 == f["h_sig"][:fEntries]
+    @test bincounts(th_sig)[1] ≈ 2016.471097311273
+    @test sum(bincounts(th_sig)) ≈ 83192.95516266659
+    close(f)
+
+    # th2f: large TH2F with 1920 x-bins and 255 y-bins
+    f = UnROOT.samplefile("issue368_th2f.root")
+    th = UnROOT.parseTH(f["myHisto"]; raw=false)
+    @test size(bincounts(th)) == (1920, 255)
+    @test 74880.0 == f["myHisto"][:fEntries]
+    @test sum(bincounts(th)) ≈ 33451.23003458977
+    @test bincounts(th)[1, 199] ≈ 1.0
+    close(f)
+
+    # issue #364 — TH2I: integer-valued TH2 (TH1I in filename, but contains a TH2I)
+    # No sumw2 stored (TH*I does not fill sumw2 by default).
+    f = UnROOT.samplefile("issue364_TH1I.root")
+    h = f["myHisto"]
+    @test 59520.0 == h[:fEntries]
+    @test 1920 == h[:fXaxis_fNbins]
+    @test -0.5 == h[:fXaxis_fXmin]
+    @test 1919.5 == h[:fXaxis_fXmax]
+    @test 31 == h[:fYaxis_fNbins]
+    @test 199.5 == h[:fYaxis_fXmin]
+    @test 230.5 == h[:fYaxis_fXmax]
+    @test 0 == length(h[:fSumw2])
+    th = UnROOT.parseTH(h; raw=false)
+    @test size(bincounts(th)) == (1920, 31)
+    @test binedges(th) == (collect(-0.5:1.0:1919.5), collect(199.5:1.0:230.5))
+    @test bincounts(th)[2, 1] ≈ 254.0   # bin(2,1) per ROOT crosscheck
+    @test bincounts(th)[3, 1] ≈ 254.0   # bin(3,1) per ROOT crosscheck
+    @test bincounts(th)[1, 1] == 0.0
+    @test sum(bincounts(th)) ≈ 5017330.0
+    close(f)
+end
+
+@testset "parseTH 3D histograms (TH3F, TH3D, TH3I)" begin
+    # TH3F: 4x3x2 bins, x=[0,4], y=[0,3], z=[0,2]
+    # Filled at specific (x,y,z) centers with known weights (crosschecked with ROOT)
+    f = UnROOT.samplefile("th3f_parseTH_test.root")
+    h = f["th3f"]
+    @test 4 == h[:fXaxis_fNbins]
+    @test 3 == h[:fYaxis_fNbins]
+    @test 2 == h[:fZaxis_fNbins]
+    @test 6.0 == h[:fEntries]
+    @test 120 == length(h[:fN])   # (4+2)*(3+2)*(2+2) = 120 including overflow
+
+    counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+    @test size(counts) == (4, 3, 2)
+    @test edges == (0.0:1.0:4.0, 0.0:1.0:3.0, 0.0:1.0:2.0)
+    @test 2.0 == counts[1, 1, 1]
+    @test 3.0 == counts[2, 1, 1]
+    @test 5.0 == counts[3, 2, 1]
+    @test 7.0 == counts[4, 3, 2]
+    @test 4.0 == counts[1, 2, 2]
+    @test 21.0 == sum(counts)
+    @test 6.0 == nentries
+    th3f = UnROOT.parseTH(h; raw=false)
+    @test th3f isa FHist.Hist3D
+    @test size(bincounts(th3f)) == (4, 3, 2)
+    @test binedges(th3f) == (collect(0.0:1.0:4.0), collect(0.0:1.0:3.0), collect(0.0:1.0:2.0))
+    @test 2.0 == bincounts(th3f)[1, 1, 1]
+    @test 21.0 ≈ sum(bincounts(th3f))
+    close(f)
+
+    # TH3D: 3x4x5 bins, x=[-1.5,1.5], y=[0,4], z=[10,15]
+    # Filled at 6 specific (x,y,z) centers with weights 1..6 (crosschecked with ROOT)
+    f = UnROOT.samplefile("th3d_parseTH_test.root")
+    h = f["th3d"]
+    @test 3 == h[:fXaxis_fNbins]
+    @test 4 == h[:fYaxis_fNbins]
+    @test 5 == h[:fZaxis_fNbins]
+    @test 6.0 == h[:fEntries]
+    @test 210 == length(h[:fN])   # (3+2)*(4+2)*(5+2) = 210
+
+    counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+    @test size(counts) == (3, 4, 5)
+    @test edges == (-1.5:1.0:1.5, 0.0:1.0:4.0, 10.0:1.0:15.0)
+    @test 1.0 == counts[1, 1, 1]
+    @test 2.0 == counts[2, 2, 2]
+    @test 3.0 == counts[3, 3, 3]
+    @test 4.0 == counts[1, 4, 4]
+    @test 5.0 == counts[2, 1, 5]
+    @test 6.0 == counts[3, 4, 1]
+    @test 21.0 == sum(counts)
+    @test 6.0 == nentries
+    th3d = UnROOT.parseTH(h; raw=false)
+    @test th3d isa FHist.Hist3D
+    @test size(bincounts(th3d)) == (3, 4, 5)
+    @test binedges(th3d) == (collect(-1.5:1.0:1.5), collect(0.0:1.0:4.0), collect(10.0:1.0:15.0))
+    @test 1.0 == bincounts(th3d)[1, 1, 1]
+    @test 3.0 == bincounts(th3d)[3, 3, 3]
+    @test 21.0 ≈ sum(bincounts(th3d))
+    close(f)
+
+    # TH3I: 3x4x2 bins, x=[0,3], y=[0,4], z=[0,2] — integer-valued histogram
+    # 6 fills at known bin centers (crosschecked with ROOT)
+    f = UnROOT.samplefile("th3i_parseTH_test.root")
+    h = f["th3i"]
+    @test 3 == h[:fXaxis_fNbins]
+    @test 4 == h[:fYaxis_fNbins]
+    @test 2 == h[:fZaxis_fNbins]
+    @test 6.0 == h[:fEntries]
+    @test 120 == length(h[:fN])   # (3+2)*(4+2)*(2+2) = 120
+
+    counts, edges, sumw2, nentries = UnROOT.parseTH(h)
+    @test size(counts) == (3, 4, 2)
+    @test edges == (0.0:1.0:3.0, 0.0:1.0:4.0, 0.0:1.0:2.0)
+    @test 10 == counts[1, 1, 1]
+    @test 20 == counts[2, 1, 1]
+    @test 30 == counts[3, 1, 1]
+    @test 40 == counts[1, 2, 1]
+    @test 50 == counts[2, 4, 2]
+    @test 60 == counts[3, 4, 2]
+    @test 210 == sum(counts)
+    @test 6.0 == nentries
+    th3i = UnROOT.parseTH(h; raw=false)
+    @test th3i isa FHist.Hist3D
+    @test size(bincounts(th3i)) == (3, 4, 2)
+    @test 10.0 == bincounts(th3i)[1, 1, 1]
+    @test 60.0 == bincounts(th3i)[3, 4, 2]
+    @test 210.0 ≈ sum(bincounts(th3i))
     close(f)
 end
