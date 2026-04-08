@@ -12,7 +12,7 @@ reinterpret(a,b) = Base.reinterpret(a,b)
 import AbstractTrees: children, printnode, print_tree
 
 using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays, FHist
-using Memoization, LRUCache
+using LRUCache
 import IterTools: groupby
 
 using LibDeflate: zlib_decompress!, Decompressor, crc32

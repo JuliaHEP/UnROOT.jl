@@ -51,8 +51,11 @@ function _read_locator!(dst::Vector{UInt8}, io, locator, uncomp_size::Integer)
     decompress_bytes!(dst, read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
 end
 
-@memoize LRU(maxsize = 200) function _read_envlink(io, link::EnvLink)
-    _read_locator(io, link.locator, link.uncomp_size)
+const _envlink_cache = LRU{Tuple{Any,EnvLink},Vector{UInt8}}(maxsize = 200)
+function _read_envlink(io, link::EnvLink)
+    get!(_envlink_cache, (io, link)) do
+        _read_locator(io, link.locator, link.uncomp_size)
+    end
 end
 
 @SimpleStruct struct PageDescription
