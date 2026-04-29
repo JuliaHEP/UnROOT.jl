@@ -164,3 +164,18 @@ end
     @test t.b_uint64 == UInt64[18000000000000000000, 18446744073709551615, 1]
     close(f)
 end
+
+@testset "TStreamerObjectPointer in JaggType" begin
+    # KM3NeT DST file: T tree contains a member of type Trk* (the
+    # `tmuon` field of MC_trks_summary). Its streamer is a
+    # TStreamerObjectPointer, which previously crashed JaggType because
+    # of an unconditional access to streamer.fSTLtype.
+    f = UnROOT.samplefile("km3net_dst_v5.1_10events.root")
+    t = LazyTree(f, "T")
+    @test length(t) == 10
+    @test :ntrks ∈ propertynames(t)
+    @test :tmuon_E ∈ propertynames(t)
+    @test t.ntrks[1] isa Integer
+    @test t.tmuon_E[1] isa Real
+    close(f)
+end

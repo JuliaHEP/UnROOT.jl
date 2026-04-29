@@ -78,6 +78,16 @@ function JaggType(f, branch, leaf)
             # TODO: there are for sure also jagged strings, need to find files with those
             return Nojagg
         end
+        # Object members (kObject/kAny) and object pointers (kObjectP/kAnyP).
+        # These are not STL containers, so do not fall through to the `streamer.fSTLtype`
+        # check below - that field doesn't exist on
+        # TStreamerObject*. Mirror the TStreamerBase behaviour: a TLeafElement
+        # with fLenType==0 carries a per-entry object header, so it's offset-jagged.
+        if typeof(streamer) <: Union{TStreamerObject, TStreamerObjectAny,
+                                     TStreamerObjectPointer, TStreamerObjectAnyPointer}
+            leaf isa TLeafElement && leaf.fLenType == 0 && return Offsetjagg
+            return Nojagg
+        end
         # if typeof(streamer) <: TStreamerSTLstring
         #     # TODO: unclear if this jagged/offset info should be passed from here
         #     # or dealt with in root.jl. see issue #377 and PR #378
