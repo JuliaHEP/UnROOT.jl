@@ -79,8 +79,8 @@ function JaggType(f, branch, leaf)
             return Nojagg
         end
         # Object members (kObject/kAny) and object pointers (kObjectP/kAnyP).
-        # These are not STL containers, so do not fall through to the
-        # `streamer.fSTLtype` check below — that field doesn't exist on
+        # These are not STL containers, so do not fall through to the `streamer.fSTLtype`
+        # check below - that field doesn't exist on
         # TStreamerObject*. Mirror the TStreamerBase behaviour: a TLeafElement
         # with fLenType==0 carries a per-entry object header, so it's offset-jagged.
         if typeof(streamer) <: Union{TStreamerObject, TStreamerObjectAny,
