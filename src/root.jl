@@ -203,8 +203,13 @@ function getindex(d::ROOTDirectory, s)
         paths = split(s, '/')
         return d[first(paths)][join(paths[2:end], "/")]
     end
-    tkey = d.keys[findfirst(isequal(s), keys(d))]
+    idx = findfirst(isequal(s), keys(d))
+    isnothing(idx) && throw(KeyError(s))
+    tkey = d.keys[idx]
     streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
+    if streamer === TNamed
+        return tkey.fTitle
+    end
     S = streamer(d.fobj, tkey, d.refs)
     return S
 end
