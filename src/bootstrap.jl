@@ -1402,18 +1402,55 @@ function readfields!(io::IO, fields, ::Type{TFriendElement_2})
     fields[:fOwnFile] = readtype(io, Bool)
 end
 
-# TTreeIndex is a TTree's optional fast-lookup index (TVirtualIndex). UnROOT does
-# not use the index payload, so the bootstrap is a stub — the generic
-# `unpack(::ROOTStreamedObject)` already skips to `preamble.start + preamble.cnt`
-# after `readfields!` returns.
+# TTreeIndex - a TTree's optional secondary index (TVirtualIndex). The on-disk
+# layout (per TTreeIndex::Streamer) is:
+#   TVirtualIndex base (own preamble + TNamed)
+#   fMajorName: TString             - major key branch/expression name
+#   fMinorName: TString             - minor key branch/expression name (may be empty)
+#   fN: Long64_t                    - number of indexed entries
+#   fIndexValues: Long64_t[fN]      - sorted major key values
+#   fIndexValuesMinor: Long64_t[fN] - sorted minor key values (only when version > 1)
+#   fIndex: Long64_t[fN]            - permutation: sorted position -> original entry number
 abstract type TTreeIndex <: ROOTStreamedObject end
 Base.@kwdef struct TTreeIndex_1 <: TTreeIndex
     cursor::Cursor
+    fName::String
+    fTitle::String
+    fMajorName::String
+    fMinorName::String
+    fN::Int64
+    fIndexValues::Vector{Int64}
+    fIndexValuesMinor::Vector{Int64}
+    fIndex::Vector{Int64}
 end
 Base.@kwdef struct TTreeIndex_2 <: TTreeIndex
     cursor::Cursor
+    fName::String
+    fTitle::String
+    fMajorName::String
+    fMinorName::String
+    fN::Int64
+    fIndexValues::Vector{Int64}
+    fIndexValuesMinor::Vector{Int64}
+    fIndex::Vector{Int64}
 end
-readfields!(io::IO, fields, ::Type{<:TTreeIndex}) = nothing
+function _readfields_ttreeindex!(io, fields, version)
+    # TVirtualIndex base own preamble wraps tnamed. fTree is transient.
+    vi_preamble = Preamble(io, Missing)
+    stream!(io, fields, TNamed)
+    if !ismissing(vi_preamble.cnt)
+        seek(io, vi_preamble.start + vi_preamble.cnt)
+    end
+    fields[:fMajorName] = readtype(io, String)
+    fields[:fMinorName] = readtype(io, String)
+    fN = readtype(io, Int64)
+    fields[:fN] = fN
+    fields[:fIndexValues] = [readtype(io, Int64) for _ in 1:fN]
+    fields[:fIndexValuesMinor] = version > 1 ? [readtype(io, Int64) for _ in 1:fN] : Int64[]
+    fields[:fIndex] = [readtype(io, Int64) for _ in 1:fN]
+end
+readfields!(io::IO, fields, ::Type{TTreeIndex_1}) = _readfields_ttreeindex!(io, fields, 1)
+readfields!(io::IO, fields, ::Type{TTreeIndex_2}) = _readfields_ttreeindex!(io, fields, 2)
 
 abstract type TAttBox2D <: ROOTStreamedObject end
 struct TAttBox2D_0 <: TAttBox2D end
