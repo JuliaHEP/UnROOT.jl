@@ -1402,6 +1402,19 @@ function readfields!(io::IO, fields, ::Type{TFriendElement_2})
     fields[:fOwnFile] = readtype(io, Bool)
 end
 
+# TTreeIndex is a TTree's optional fast-lookup index (TVirtualIndex). UnROOT does
+# not use the index payload, so the bootstrap is a stub — the generic
+# `unpack(::ROOTStreamedObject)` already skips to `preamble.start + preamble.cnt`
+# after `readfields!` returns.
+abstract type TTreeIndex <: ROOTStreamedObject end
+Base.@kwdef struct TTreeIndex_1 <: TTreeIndex
+    cursor::Cursor
+end
+Base.@kwdef struct TTreeIndex_2 <: TTreeIndex
+    cursor::Cursor
+end
+readfields!(io::IO, fields, ::Type{<:TTreeIndex}) = nothing
+
 abstract type TAttBox2D <: ROOTStreamedObject end
 struct TAttBox2D_0 <: TAttBox2D end
 readfields!(c::Cursor, fields, ::Type{TAttBox2D_0}) = nothing
