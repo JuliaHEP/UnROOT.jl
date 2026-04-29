@@ -172,6 +172,12 @@ end
 
     f = UnROOT.samplefile("issue11_tdirectory.root")
     @test sum(LazyBranch(f, "Data/mytree/Particle0_E")) ≈ 1012.0
+
+    # TNamed inside a TDirectory should return its fTitle string
+    f = UnROOT.samplefile("km3net_online.root")
+    @test f["META/JMeta"] == "JDataWriter"
+    @test startswith(f["META/JDataWriter"], "GIT=12.0.0-alpha.10")
+    @test_throws KeyError f["META/does_not_exist"]
 end
 
 @testset "TBaskets in TTree" begin
