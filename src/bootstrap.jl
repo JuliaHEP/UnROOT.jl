@@ -68,7 +68,7 @@ Base.@kwdef struct TNamed_1 <: TNamed
     fName::String
     fTitle::String
 end
-function readfields!(io, fields, ::Type{TNamed_1})
+function readfields!(io::IO, fields, ::Type{TNamed_1})
     parsefields!(io, fields, TObject)
     fields[:fName] = readtype(io, String)
     fields[:fTitle] = readtype(io, String)
@@ -76,13 +76,13 @@ end
 
 abstract type TAttLine <: ROOTStreamedObject end
 struct TAttLine_1 <: TAttLine end
-function readfields!(io, fields, T::Type{TAttLine_1})
+function readfields!(io::IO, fields, T::Type{TAttLine_1})
     fields[:fLineColor] = readtype(io, Int16)
     fields[:fLineStyle] = readtype(io, Int16)
     fields[:fLineWidth] = readtype(io, Int16)
 end
 struct TAttLine_2 <: TAttLine end
-function readfields!(io, fields, T::Type{TAttLine_2})
+function readfields!(io::IO, fields, T::Type{TAttLine_2})
     fields[:fLineColor] = readtype(io, Int16)
     fields[:fLineStyle] = readtype(io, Int16)
     fields[:fLineWidth] = readtype(io, Int16)
@@ -90,12 +90,12 @@ end
 
 abstract type TAttFill <: ROOTStreamedObject end
 struct TAttFill_1 <: TAttFill end
-function readfields!(io, fields, T::Type{TAttFill_1})
+function readfields!(io::IO, fields, T::Type{TAttFill_1})
     fields[:fFillColor] = readtype(io, Int16)
     fields[:fFillStyle] = readtype(io, Int16)
 end
 struct TAttFill_2 <: TAttFill end
-function readfields!(io, fields, T::Type{TAttFill_2})
+function readfields!(io::IO, fields, T::Type{TAttFill_2})
     fields[:fFillColor] = readtype(io, Int16)
     fields[:fFillStyle] = readtype(io, Int16)
 end
@@ -104,7 +104,7 @@ abstract type TAttMarker <: ROOTStreamedObject end
 struct TAttMarker_1 <: TAttMarker end
 const TAttMarker_2 = TAttMarker_1
 const TAttMarker_3 = TAttMarker_1
-function readfields!(io, fields, T::Type{TAttMarker_1})
+function readfields!(io::IO, fields, T::Type{TAttMarker_1})
     fields[:fMarkerColor] = readtype(io, Int16)
     fields[:fMarkerStyle] = readtype(io, Int16)
     fields[:fMarkerSize] = readtype(io, Float32)
@@ -112,7 +112,7 @@ end
 
 abstract type TAttAxis <: ROOTStreamedObject end
 struct TAttAxis_4 <: TAttAxis end
-function readfields!(io, fields, T::Type{TAttAxis_4})
+function readfields!(io::IO, fields, T::Type{TAttAxis_4})
     fields[:fNdivisions] = readtype(io, Int32)
     fields[:fAxisColor] = readtype(io, Int16)
     fields[:fLabelColor] = readtype(io, Int16)
@@ -152,9 +152,9 @@ function _readfields_taxis_v6v8!(io, fields)
     fields[:fTimeDisplay] = readtype(io, Bool)
     fields[:fTimeFormat] = readtype(io, String)
 end
-readfields!(io, fields, ::Type{TAxis_6}) = _readfields_taxis_v6v8!(io, fields)
-readfields!(io, fields, ::Type{TAxis_7}) = _readfields_taxis_v6v8!(io, fields)
-readfields!(io, fields, ::Type{TAxis_8}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io::IO, fields, ::Type{TAxis_6}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io::IO, fields, ::Type{TAxis_7}) = _readfields_taxis_v6v8!(io, fields)
+readfields!(io::IO, fields, ::Type{TAxis_8}) = _readfields_taxis_v6v8!(io, fields)
 
 # v9–v10: fBits2 (UShort_t) added in v9.
 # fLabels (THashList*, v9+) and fModLabs (TList*, v10+) are pointer fields
@@ -167,8 +167,8 @@ function _readfields_taxis_v9v10!(io, fields)
     fields[:fTimeDisplay] = readtype(io, Bool)
     fields[:fTimeFormat] = readtype(io, String)
 end
-readfields!(io, fields, ::Type{TAxis_9}) = _readfields_taxis_v9v10!(io, fields)
-readfields!(io, fields, ::Type{TAxis_10}) = _readfields_taxis_v9v10!(io, fields)
+readfields!(io::IO, fields, ::Type{TAxis_9}) = _readfields_taxis_v9v10!(io, fields)
+readfields!(io::IO, fields, ::Type{TAxis_10}) = _readfields_taxis_v9v10!(io, fields)
 
 abstract type TH1 <: ROOTStreamedObject end
 # Versions 3–8 all use ROOT's automatic schema evolution (ReadClassBuffer);
@@ -179,20 +179,20 @@ struct TH1_5 <: TH1 end
 struct TH1_6 <: TH1 end
 struct TH1_7 <: TH1 end
 struct TH1_8 <: TH1 end
-function readfields!(io, fields, T::Type{<:TH1}) end
+function readfields!(io::IO, fields, T::Type{<:TH1}) end
 
 abstract type TH2 <: ROOTStreamedObject end
 struct TH2_3 <: TH2 end
 struct TH2_4 <: TH2 end
 struct TH2_5 <: TH2 end
-function readfields!(io, fields, T::Type{<:TH2}) end
+function readfields!(io::IO, fields, T::Type{<:TH2}) end
 
 abstract type TH3 <: ROOTStreamedObject end
 struct TH3_3 <: TH3 end
 struct TH3_4 <: TH3 end
 struct TH3_5 <: TH3 end
 struct TH3_6 <: TH3 end
-function readfields!(io, fields, T::Type{<:TH3}) end
+function readfields!(io::IO, fields, T::Type{<:TH3}) end
 
 Base.@kwdef struct ROOT_3a3a_TIOFeatures <: ROOTStreamedObject
     fIOBits
@@ -1396,7 +1396,7 @@ Base.@kwdef struct TFriendElement_2 <: TFriendElement
     fTreeName::String
     fOwnFile::Bool
 end
-function readfields!(io, fields, ::Type{TFriendElement_2})
+function readfields!(io::IO, fields, ::Type{TFriendElement_2})
     stream!(io, fields, TNamed)
     fields[:fTreeName] = readtype(io, String)
     fields[:fOwnFile] = readtype(io, Bool)
