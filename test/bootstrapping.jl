@@ -174,6 +174,20 @@ end
     @test sum(LazyBranch(f, "Data/mytree/Particle0_E")) ≈ 1012.0
 end
 
+@testset "TTreeIndex" begin
+    f = UnROOT.samplefile("ttreeindex.root")
+    t = f["t"]
+    ti = t.fTreeIndex
+    @test ti isa UnROOT.TTreeIndex_2
+    @test ti.fMajorName == "major"
+    @test ti.fMinorName == "minor"
+    @test ti.fN == 6
+    @test ti.fIndexValues      == Int64[1, 1, 2, 2, 3, 3]
+    @test ti.fIndexValuesMinor == Int64[1, 2, 1, 2, 1, 2]
+    @test ti.fIndex            == Int64[3, 1, 2, 5, 0, 4]
+    close(f)
+end
+
 @testset "TBaskets in TTree" begin
     f = UnROOT.samplefile("tree_with_tbaskets_from_uproot-issue327.root")
     close(f)
