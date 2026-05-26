@@ -29,7 +29,7 @@ jobs:
       - name: Generate root file
         run: |
           julia --code-coverage --project ./test/RNTupleWriting/output_sample.jl test1.root
-      - uses: cvmfs-contrib/github-action-cvmfs@c792ebd2acb0d0b30a0a7b31e91ad831c67fef54 # v4.1
+      - uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4 # v5.5
       - name: Read root file in C++
         run: |
           source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
