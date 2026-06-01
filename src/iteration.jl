@@ -299,9 +299,47 @@ function Base.getindex(lt::LazyTree, rang)
     return LazyTree(NamedTuple{bnames}(branches))
 end
 
-function Base.view(lt::LazyTree, idx...)
-    return LazyTree(map(x->view(x, idx...), Tables.columns(lt)))
+"""
+    LazyTreeView{T<:NamedTuple, I} <: AbstractVector{LazyEvent{T}}
+
+A lazy, non-copying view into a subset of rows of a [`LazyTree`](@ref), returned by
+`view(tree, idx)` / `@view tree[idx]`. It stores the parent tree's columns together
+with the selected row `indices`, so indexing yields the exact same `LazyEvent{T}` as
+the parent tree. In particular `eltype(@view tree[r]) === eltype(tree)`, which means a
+method written for a concrete `LazyEvent{T}` accepts events from both a tree and a view
+of it.
+"""
+struct LazyTreeView{T<:NamedTuple, I} <: AbstractVector{LazyEvent{T}}
+    treetable::T
+    indices::I
 end
+
+Base.IndexStyle(::Type{<:LazyTreeView}) = IndexLinear()
+Base.size(v::LazyTreeView) = (length(getfield(v, :indices)),)
+Base.getindex(v::LazyTreeView, i::Int) = LazyEvent(getfield(v, :treetable), getfield(v, :indices)[i])
+Base.getindex(v::LazyTreeView, i::CartesianIndex{1}) = v[i[1]]
+# keep sub-slicing lazy and eltype-stable
+Base.getindex(v::LazyTreeView, r::AbstractVector{<:Integer}) =
+    LazyTreeView(getfield(v, :treetable), getfield(v, :indices)[r])
+
+Base.propertynames(v::LazyTreeView) = propertynames(getfield(v, :treetable))
+Base.getproperty(v::LazyTreeView, s::Symbol) =
+    view(getproperty(getfield(v, :treetable), s), getfield(v, :indices))
+Base.names(v::LazyTreeView) = [String(x) for x in propertynames(v)]
+
+Tables.columns(v::LazyTreeView) =
+    map(col -> view(col, getfield(v, :indices)), getfield(v, :treetable))
+Tables.columnaccess(::LazyTreeView) = true
+Tables.rowaccess(::LazyTreeView) = true
+Tables.rows(v::LazyTreeView) = v
+Tables.schema(v::LazyTreeView) =
+    Tables.Schema(names(v), [eltype(col) for col in values(Tables.columns(v))])
+
+function Base.view(lt::LazyTree, idx...)
+    return LazyTreeView(Tables.columns(lt), idx...)
+end
+Base.view(v::LazyTreeView, idx...) =
+    LazyTreeView(getfield(v, :treetable), getfield(v, :indices)[idx...])
 
 # a specific event
 Base.getindex(lt::LazyTree, ::typeof(!), s) = lt[:, s]
