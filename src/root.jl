@@ -487,11 +487,18 @@ function auto_T_JaggT(f::ROOTFile, branch; customstructs::Dict{String, Type})
     parentname = branch.fParentName
 
     # Custom struct lookup.
-    # When classname == parentname the branch is a field of its own class, so we
-    # use "ClassName.fieldTitle" as the identifier (KM3NeT-style dot notation).
-    identifier = classname == parentname ? join([classname, branch.fTitle], '.') : classname
-    if haskey(customstructs, identifier)
-        return customstructs[identifier], Nojagg
+    # First try the specific "ClassName.fieldTitle" identifier.
+    # This also resolves split sub-branches of a derived class, where
+    # the branch carries a base class name that differs from the parent (and would
+    # otherwise collapse to a non-unique bare class name shared by sibling
+    # branches). Fall back to the bare class name when the branch is not a field
+    # of its own class, preserving the previous behaviour.
+    specific_identifier = join([classname, branch.fTitle], '.')
+    if haskey(customstructs, specific_identifier)
+        return customstructs[specific_identifier], Nojagg
+    end
+    if classname != parentname && haskey(customstructs, classname)
+        return customstructs[classname], Nojagg
     end
 
     # Streamer-based resolution: use fTypeName from the TStreamerElement.
