@@ -238,3 +238,91 @@ end
     # RNTuple -> Arrow -> DataFrame should be same as RNTuple -> DataFrame
     @test df_arrow == df_direct
 end
+
+# Test files from scikit-hep-testdata (same source as uproot's test suite),
+# all written with the final RNTuple spec (anchor version 1.0.x.x).
+# Expected values cross-checked against uproot 5.7.4.
+@testset "RNTuple v1.0 spec files (scikit-hep-testdata)" begin
+    @testset "int + float" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_int_float_rntuple_v1-0-0-0.root"), "ntuple")
+        @test collect(t.one_integers) == Int32.(9:-1:0)
+        @test collect(t.two_floats) == Float32[9.9, 8.8, 7.7, 6.6, 5.5, 4.4, 3.3, 2.2, 1.1, 0.0]
+    end
+
+    @testset "bit column" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_bit_rntuple_v1-0-0-0.root"), "ntuple")
+        @test collect(t.one_bit) == Bool[1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
+    end
+
+    @testset "split-int zigzag (large magnitudes)" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_splitint_rntuple_v1-0-1-0.root"), "ntuple")
+        @test collect(t.int16)[1:6] == Int16[0, 1, -1, 16384, -16384, 32767]
+        @test collect(t.int32)[1:6] == Int32[0, 1, -1, 1073741824, -1073741824, 2147483647]
+        @test collect(t.int64)[1:6] == Int64[0, 1, -1, 4611686018427387904, -4611686018427387904, 9223372036854775807]
+    end
+
+    @testset "multicluster index" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_index_multicluster_rntuple_v1-0-0-0.root"), "ntuple")
+        v = collect(t.int_vector)
+        # two clusters of 100 entries: [i, i] then [i, i+1]
+        @test v == [[Int16[i, i] for i in 0:99]; [Int16[i, i+1] for i in 0:99]]
+    end
+
+    @testset "deferred (extension) columns" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_extension_columns_rntuple_v1-0-0-0.root"), "ntuple")
+        ff = collect(t.float_field)
+        iv = collect(t.intvec_field)
+        @test length(ff) == length(iv) == 600
+        # float_field deferred from entry 200: zeros before (values cross-checked with uproot)
+        @test all(iszero, ff[1:200])
+        @test ff[201:206] == Float32[0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
+        @test ff[end-2:end] == Float32[197.5, 198.5, 199.5]
+        # intvec_field deferred from entry 400: empty before
+        @test all(isempty, iv[1:400])
+        @test iv[401] == Int32[0, 1]
+        @test iv[600] == Int32[199, 200]
+    end
+
+    @testset "nested structs" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_nested_structs_rntuple_v1-0-0-0.root"), "ntuple")
+        s = collect(t.my_struct)
+        @test length(s) == 10
+        @test s[1].i == 0
+        @test s[1].sub_struct.i == 1
+        @test s[1].sub_struct.sub_sub_struct.i == 2
+        @test s[1].sub_struct.sub_sub_struct.v == Int32[0, 1]
+        @test s[10].sub_struct.sub_sub_struct.v == Int32[9, 10]
+    end
+
+    @testset "stl containers (v1.0)" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_stl_containers_rntuple_v1-0-0-0.root"), "ntuple")
+        @test collect(t.string) == ["one", "two", "three", "four", "five"]
+        @test collect(t.vector_int32) == [Int32.(1:n) for n in 1:5]
+        @test collect(t.vector_string) == [["one", "two", "three", "four", "five"][1:n] for n in 1:5]
+    end
+
+    @testset "truncated and quantized floats" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_float_types_rntuple_v1-0-0-0.root"), "ntuple")
+        # values cross-checked against uproot
+        @test collect(t.trunc10)[1:3] ≈ Float32[1.0, 1.319414f13, -4.2351647f-22]
+        @test collect(t.trunc16)[1:3] ≈ Float32[1.234375, 1.4637249f13, -6.2865727f-22]
+        @test collect(t.trunc24)[1:3] ≈ Float32[1.2345581, 1.4660066f13, -6.2874774f-22]
+        @test collect(t.trunc31)[1:3] ≈ Float32[1.2345679, 1.4660154f13, -6.2875986f-22]
+        @test collect(t.quant1)[1:3] == Float32[3.0, 3.0, -2.0]
+        @test collect(t.quant8)[1:3] ≈ Float32[1.2352941, 1.6666666, 0.0]
+        @test collect(t.quant16)[1:3] ≈ Float32[1.2345312, 1.6666666, 0.0]
+        @test collect(t.quant20)[1:3] ≈ Float32[1.234566, 1.6666666, 0.0]
+        @test collect(t.quant24)[1:3] ≈ Float32[1.2345679, 1.6666666, 0.0]
+        @test collect(t.quant25)[1:3] ≈ Float32[1.2345679, 1.6666665, -5.9604645f-8]
+        @test collect(t.quant32)[1:3] ≈ Float32[1.2345679, 1.6666666, 0.0]
+    end
+
+    @testset "real-world staff ntuple" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/ntpl001_staff_rntuple_v1-0-0-0.root"), "Staff")
+        @test length(t) == 3354
+        @test collect(t.Category)[1:4] == Int32[202, 530, 316, 361]
+        @test collect(t.Division)[1:4] == ["PS", "EP", "PS", "PS"]
+        @test collect(t.Nation)[end] == "ZZ"
+        @test collect(t.Cost)[end] == 12716
+    end
+end

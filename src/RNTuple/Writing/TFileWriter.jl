@@ -31,7 +31,8 @@ function color_diff(ary1, ary2)
 end
 
 function rnt_write(io::IO, x::AbstractString; legacy=false)
-    L = length(x)
+    # byte count, not character count: we write codeunits below
+    L = ncodeunits(x)
     if legacy
         if L > typemax(UInt8)
             error("String longer than 255 not implemented")
@@ -58,6 +59,7 @@ end
 
 struct Page_write{T <: AbstractVector{UInt8}}
     data::T
+    num_elements::Int32
 end
 
 function rnt_write(io::IO, x::Page_write; checksum=true)
@@ -187,13 +189,15 @@ function rnt_write(io::IO, x::UnROOT.ColumnRecord)
     rnt_write(io, x.nbits)
     rnt_write(io, x.field_id)
     rnt_write(io, x.flags)
+    # final (1.0) spec: representation index first, then the optional first
+    # element index gated on the deferred-column flag 0x01
+    rnt_write(io, x.representation_idx)
     if !iszero(x.first_ele_idx)
-        if x.flags != 0x08
-            error("First element index is set but flags is not 0x08")
+        if iszero(x.flags & 0x01)
+            error("First element index is set but the deferred-column flag (0x01) is not")
         end
         rnt_write(io, x.first_ele_idx)
     end
-    rnt_write(io, x.representation_idx)
 end
 
 function rnt_write(io::IO, x::RNTupleFrame{T}) where T
@@ -497,10 +501,14 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     nothing
 end
 
+_rnt_cpp_typename(T::Type{<:Real}) = RNT_WRITE_CPP_TYPE_NAME_DICT[T]
+_rnt_cpp_typename(::Type{<:AbstractString}) = "std::string"
+_rnt_cpp_typename(T::Type{<:AbstractVector}) = "std::vector<" * _rnt_cpp_typename(eltype(T)) * ">"
+
 # vector case
 function add_field_column_record!(field_records, column_records, input_T::Type{<:AbstractVector}, NAME; parent_field_id, col_field_id = parent_field_id)
     implicit_field_id = length(field_records)
-    fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0001, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name="", type_alias="", field_desc="", )
+    fr =  UnROOT.FieldRecord(; field_version=0x00000000, type_version=0x00000000, parent_field_id, struct_role=0x0001, flags=0x0000, repetition=0, source_field_id=-1, root_streamer_checksum=-1, field_name=string(NAME), type_name=_rnt_cpp_typename(input_T), type_alias="", field_desc="", )
     push!(field_records, fr)
     rnt_col_type = RNT_COL_TYPE_TABLE[RNT_WRITE_JL_TYPE_DICT[Index64] + 1]
     cr_offset = UnROOT.ColumnRecord(rnt_col_type.type, rnt_col_type.nbits, col_field_id, 0x00, 0x00, 0)
@@ -526,115 +534,186 @@ function schema_to_field_column_records(table)
     return field_records, column_records
 end
 
-function generate_page_links(column_records, pages_obses)
+function generate_page_links(pages, page_positions)
     outer_list = RNTuplePageOuterList{RNTuplePageInnerList{PageDescription}}([])
-    for (cr, page_obs) in zip(column_records, pages_obses)
-        Nbytes = length(page_obs.object.data)
-        Nitems = Nbytes * 8 ÷ cr.nbits
+    for (page, pos) in zip(pages, page_positions)
         inner_list = RNTuplePageInnerList([
-                PageDescription(Nitems, Locator(Nbytes, page_obs.position))
+                PageDescription(page.num_elements, Locator(length(page.data), pos))
             ])
-            push!(outer_list, inner_list)
+        push!(outer_list, inner_list)
     end
     return RNTuplePageTopList([outer_list])
 end
 
+# serialized TKey32 header (26 bytes of fixed fields) + three length-prefixed strings
+_tkey32_len(class, name, title) =
+    Int16(26 + 3 + ncodeunits(class) + ncodeunits(name) + ncodeunits(title))
+
+"""
+    _write_rblob(file::IO, payload::AbstractVector{UInt8}) -> Int64
+
+Write an RBlob TKey followed by `payload` with correctly computed key sizes.
+Returns the file position where the payload starts (for locators).
+"""
+function _write_rblob(file::IO, payload::AbstractVector{UInt8})
+    klen = _tkey32_len("RBlob", "", "")
+    key = RBlob(; fNbytes = Int32(klen + length(payload)), fVersion = 4,
+                  fObjLen = Int32(length(payload)), fDatime = Stubs.WRITE_TIME,
+                  fKeyLen = klen, fCycle = 1,
+                  fSeekKey = Int32(position(file)), fSeekPdir = 100,
+                  fClassName = "RBlob", fName = "", fTitle = "")
+    rnt_write(file, key)
+    pos = position(file)
+    write(file, payload)
+    return pos
+end
+
+_buffer_bytes(writer::Function) = (io = IOBuffer(); writer(io); take!(io))
+
+"""
+    write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
+
+Write `table` (any Tables.jl-compatible table, e.g. a `NamedTuple` of vectors)
+into `file` as an RNTuple inside a freshly created ROOT file structure. The
+output is readable by UnROOT itself, uproot, and ROOT (≥ 6.34).
+
+Supported column element types: `Bool` (bit column), `Int8`–`Int64`,
+`UInt8`–`UInt64`, `Float16`/`Float32`/`Float64`, `String`, and (nested)
+`Vector`s of these.
+
+Current limitations: data is written uncompressed as a single cluster with one
+page per column; struct/union columns are not supported.
+
+# Example
+```julia
+julia> open("out.root", "w") do io
+           UnROOT.write_rntuple(io, (x=[1.0, 2.0], s=["a", "b"]); rntuple_name="t")
+       end
+
+julia> LazyTree("out.root", "t")
+```
+"""
 function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
     if !istable(table)
         error("RNTuple writing accepts object compatible with Tables.jl interface, got type $(typeof(table))")
     end
 
     input_cols = columntable(table)
-    if !allequal(length, input_cols)
+    if !allequal(map(length, values(input_cols)))
         error("Top-level columns must have the same length")
     end
     input_length = length(input_cols[begin])
 
-    rntAnchor_update = Dict{Symbol, Any}()
+    # name-dependent sizes of the TFile container records
+    klen_tfile = _tkey32_len("TFile", file_name, "")
+    tnamed_len = 2 + ncodeunits(file_name)            # (1+name) + (1+empty title)
+    fNbytesName = Int32(klen_tfile + tnamed_len)
+    tfile_objlen = Int32(tnamed_len + 30 + 30)        # TNamed + directory header + padding
+    klen_dir = _tkey32_len("", file_name, "")
+    klen_anchor = _tkey32_len("ROOT::RNTuple", rntuple_name, "")
+    anchor_objlen = Int32(length(Stubs.magic_6bytes) + 72)  # streamed header + anchor v2 payload + checksum
+    fNbytesKeys = Int32(klen_dir + 4 + klen_anchor)
+    klen_end = _tkey32_len("", file_name, "")
+    fNbytesFree = Int32(klen_end + 10)
+    fNbytesInfo = Int32(64 + length(Stubs.tsreamerinfo_compressed))  # constant streamer record
 
-    file_preamble_obs = rnt_write_observe(file, Stubs.file_preamble)
-    fileheader_obs = rnt_write_observe(file, Stubs.fileheader)
-    dummy_padding1_obs = rnt_write_observe(file, Stubs.dummy_padding1)
+    rnt_write(file, Stubs.file_preamble)
+    fileheader = UnROOT.FileHeader32(
+        100,                  # fBEGIN
+        0, 0,                 # fEND, fSeekFree (patched at the end)
+        fNbytesFree, 1,       # fNbytesFree, nfree
+        fNbytesName, 0x04,
+        0,                    # fCompress
+        0, fNbytesInfo,       # fSeekInfo (patched), fNbytesInfo
+        zeros(SVector{18,UInt8}))
+    fileheader_obs = rnt_write_observe(file, fileheader)
+    rnt_write(file, Stubs.dummy_padding1)
+    @assert position(file) == 100
 
-    fileheader_obs[:fBEGIN] = UInt32(position(file))
+    rnt_write(file, UnROOT.TKey32(klen_tfile + tfile_objlen, 4, tfile_objlen, Stubs.WRITE_TIME,
+                                  klen_tfile, 1, 100, 0, "TFile", file_name, ""))
+    rnt_write(file, UnROOT.TFile_write(file_name, ""))
+    tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, Stubs.WRITE_TIME, Stubs.WRITE_TIME,
+                                                fNbytesKeys, fNbytesName, 100, 0,
+                                                0)  # fSeekKeys patched below
+    tdirectory32_obs = rnt_write_observe(file, tdirectory32)
+    rnt_write(file, Stubs.dummy_padding2)
 
-    tkey32_tfile_obs = rnt_write_observe(file, Stubs.tkey32_tfile)
-    tkey32_tfile_obs[:fName] = file_name
-    tfile_obs = rnt_write_observe(file, Stubs.tfile)
-
-    tdirectory32_obs = rnt_write_observe(file, Stubs.tdirectory32)
-    dummy_padding2_obs = rnt_write_observe(file, Stubs.dummy_padding2)
-
-    RBlob1 = UnROOT.RBlob(; fNbytes = 0x00DC, fVersion = 0x0004, fObjLen = 0x000000BA, fDatime = Stubs.WRITE_TIME, fKeyLen = 34,
-    fCycle = 0x0001, fSeekKey = position(file), fSeekPdir = 100, fClassName = "RBlob", fName = "", fTitle = "")
-    RBlob1_update = Dict{Symbol, Any}()
-    RBlob1_obs = rnt_write_observe(file, RBlob1)
+    # RNTuple header envelope
     field_records, col_records = schema_to_field_column_records(table)
     rnt_header = UnROOT.RNTupleHeader(
-    zero(UInt64), rntuple_name, "", "ROOT v6.35.001",
-    field_records, col_records,
-    UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[]
-    )
+        zero(UInt64), rntuple_name, "", "ROOT v6.35.001",
+        field_records, col_records,
+        UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
+    header_bytes = _buffer_bytes(io -> rnt_write(io, rnt_header))
+    fSeekHeader = _write_rblob(file, header_bytes)
 
-    rntAnchor_update[:fSeekHeader] = UInt32(position(file))
-    rnt_header_obs = rnt_write_observe(file, rnt_header)
-    rntAnchor_update[:fNBytesHeader] = rnt_header_obs.len
-    rntAnchor_update[:fLenHeader] = rnt_header_obs.len
-    RBlob1_update[:fObjLen] = rnt_header_obs.len
-    RBlob1_update[:fNbytes] = rnt_header_obs.len + 34
-
-    Base.setindex!(RBlob1_obs, RBlob1_update)
-
-    RBlob2_obs = rnt_write_observe(file, Stubs.RBlob2)
+    # pages (one page per column, one cluster), all in one RBlob
     pages_arys = mapreduce(rnt_col_to_ary, vcat, input_cols)
     @assert length(pages_arys) == length(col_records)
     pages = [rnt_ary_to_page(ary, cr) for (ary, cr) in zip(pages_arys, col_records)]
-    pages_obses = [rnt_write_observe(file, page) for page in pages]
+    pages_payload = _buffer_bytes(io -> foreach(p -> rnt_write(io, p), pages))
+    pages_begin = _write_rblob(file, pages_payload)
+    page_positions = Vector{Int64}(undef, length(pages))
+    let pos = pages_begin
+        for (i, p) in enumerate(pages)
+            page_positions[i] = pos
+            pos += length(p.data) + 8  # data + xxh3 checksum
+        end
+    end
 
-    RBlob3_obs = rnt_write_observe(file, Stubs.RBlob3)
+    # page list envelope
+    header_checksum = _checksum(rnt_header)
     cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
-    nested_page_locations = generate_page_links(col_records, pages_obses)
+    nested_page_locations = generate_page_links(pages, page_positions)
+    pagelink = UnROOT.PageLink(header_checksum, cluster_summary.payload, nested_page_locations)
+    pagelink_bytes = _buffer_bytes(io -> rnt_write(io, pagelink))
+    pagelink_pos = _write_rblob(file, pagelink_bytes)
 
-    pagelink = UnROOT.PageLink(_checksum(rnt_header_obs.object), cluster_summary.payload, nested_page_locations)
-    pagelink_obs = rnt_write_observe(file, pagelink)
-
-    RBlob4_obs = rnt_write_observe(file, Stubs.RBlob4)
-    rntAnchor_update[:fSeekFooter] = UInt32(position(file))
-    rnt_footer = UnROOT.RNTupleFooter(0, _checksum(rnt_header_obs.object), UnROOT.RNTupleSchemaExtension([], [], [], []), [
-        UnROOT.ClusterGroupRecord(0, input_length, 1, UnROOT.EnvLink(pagelink_obs.len, UnROOT.Locator(pagelink_obs.len, pagelink_obs.position, ))),
+    # footer envelope
+    rnt_footer = UnROOT.RNTupleFooter(0, header_checksum, UnROOT.RNTupleSchemaExtension([], [], [], []), [
+        UnROOT.ClusterGroupRecord(0, input_length, 1,
+            UnROOT.EnvLink(length(pagelink_bytes), UnROOT.Locator(length(pagelink_bytes), pagelink_pos))),
     ])
-    rnt_footer_obs = rnt_write_observe(file, rnt_footer)
-    rntAnchor_update[:fNBytesFooter] = rnt_footer_obs.len
-    rntAnchor_update[:fLenFooter] = rnt_footer_obs.len
+    footer_bytes = _buffer_bytes(io -> rnt_write(io, rnt_footer))
+    fSeekFooter = _write_rblob(file, footer_bytes)
 
-    tkey32_anchor_position = position(file)
-    tkey32_anchor = UnROOT.TKey32(0x00000080, 4, typemin(Int32), Stubs.WRITE_TIME, 50, 1, tkey32_anchor_position, 100, "ROOT::RNTuple", rntuple_name, "")
-    tkey32_anchor_obs1 = rnt_write_observe(file, tkey32_anchor)
-    tkey32_anchor_update = Dict{Symbol, Any}()
-    magic_6bytes_obs = rnt_write_observe(file, Stubs.magic_6bytes)
-    rnt_anchor_obs = rnt_write_observe(file, Stubs.rnt_anchor)
-    Base.setindex!(rnt_anchor_obs, rntAnchor_update)
-    tkey32_anchor_update[:fObjlen] = rnt_anchor_obs.len + magic_6bytes_obs.len
-    Base.setindex!(tkey32_anchor_obs1, tkey32_anchor_update)
+    # anchor: all locator values are known by now, no patching needed
+    rnt_anchor = UnROOT.ROOT_3a3a_RNTuple(1, 0, 0, 0,
+        fSeekHeader, length(header_bytes), length(header_bytes),
+        fSeekFooter, length(footer_bytes), length(footer_bytes),
+        0x0000000040000000, 0)  # checksum computed in rnt_write
+    tkey32_anchor = UnROOT.TKey32(klen_anchor + anchor_objlen, 4, anchor_objlen, Stubs.WRITE_TIME,
+                                  klen_anchor, 1, position(file), 100, "ROOT::RNTuple", rntuple_name, "")
+    rnt_write(file, tkey32_anchor)
+    rnt_write(file, Stubs.magic_6bytes)
+    rnt_write(file, rnt_anchor)
 
-    tdirectory32_obs[:fSeekKeys] = UInt32(position(file))
-    tkey32_TDirectory_obs = rnt_write_observe(file, Stubs.tkey32_TDirectory)
-    n_keys_obs = rnt_write_observe(file, Stubs.n_keys)
-    tkey32_anchor_obs2 = rnt_write_observe(file, tkey32_anchor)
-    Base.setindex!(tkey32_anchor_obs2, tkey32_anchor_update)
+    # directory key listing (1 key: the anchor)
+    tdirectory32_obs[:fSeekKeys] = Int32(position(file))
+    rnt_write(file, UnROOT.TKey32(fNbytesKeys, 4, Int32(4 + klen_anchor), Stubs.WRITE_TIME,
+                                  klen_dir, 1, position(file), 100, "", file_name, ""))
+    rnt_write(file, Stubs.n_keys)
+    rnt_write(file, tkey32_anchor)
 
+    # streamer info (constant compressed TList blob)
     fileheader_obs[:fSeekInfo] = UInt32(position(file))
-    tkey32_TStreamerInfo_obs = rnt_write_observe(file, Stubs.tkey32_TStreamerInfo)
-    tsreamerinfo_compressed_obs = rnt_write_observe(file, Stubs.tsreamerinfo_compressed)
-    fileheader_obs[:fSeekFree] = UInt32(position(file))
-    tfile_end_obs = rnt_write_observe(file, Stubs.tfile_end)
-    fileheader_obs[:fEND] = UInt32(position(file))
+    rnt_write(file, UnROOT.TKey32(fNbytesInfo, 4, 1254, Stubs.WRITE_TIME,
+                                  64, 1, position(file), 100, "TList", "StreamerInfo", "Doubly linked list"))
+    rnt_write(file, Stubs.tsreamerinfo_compressed)
 
-    flush!(RBlob1_obs)
-    flush!(tkey32_anchor_obs1)
-    flush!(tkey32_anchor_obs2)
-    flush!(tkey32_tfile_obs)
-    flush!(tdirectory32_obs)
+    # free-segments record: one segment [fEND, 2000000000]
+    fSeekFree = position(file)
+    fileheader_obs[:fSeekFree] = UInt32(fSeekFree)
+    fEND = fSeekFree + fNbytesFree
+    rnt_write(file, UnROOT.TKey32(fNbytesFree, 4, 10, Stubs.WRITE_TIME,
+                                  klen_end, 1, fSeekFree, 100, "", file_name, ""))
+    rnt_write(file, UInt16(1); legacy=true)        # TFree version
+    rnt_write(file, UInt32(fEND); legacy=true)     # first free byte
+    rnt_write(file, UInt32(2000000000); legacy=true)
+    @assert position(file) == fEND
+    fileheader_obs[:fEND] = UInt32(fEND)
+
     flush!(fileheader_obs)
-    flush!(rnt_anchor_obs)
+    flush!(tdirectory32_obs)
 end

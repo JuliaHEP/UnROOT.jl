@@ -19,6 +19,9 @@ struct ROOTFile
     directory::ROOTDirectory
     customstructs::Dict{String, Type}
     cache::Dict{Any, Any}
+    # protects `cache` and the stateful seek/read on `fobj` during object
+    # lookup, so that `f[path]` is safe to call from multiple threads
+    lock::ReentrantLock
 end
 function close(f::ROOTFile)
     close(f.fobj)
@@ -87,16 +90,17 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
         unpack(head_buffer, FileHeader64)
     end
 
-    # Streamers
+    # Streamers (the record is exactly fNbytesInfo bytes; a fixed-size read
+    # would truncate large streamer records and over-read remote files)
     seek(fobj, header.fSeekInfo)
-    stream_buffer = OffsetBuffer(IOBuffer(read(fobj, 10^5)), Int(header.fSeekInfo))
+    stream_buffer = OffsetBuffer(IOBuffer(read(fobj, Int(header.fNbytesInfo))), Int(header.fSeekInfo))
     streamers = Streamers(stream_buffer)
 
     seek(head_buffer, header.fBEGIN + header.fNbytesName)
     dir_header = unpack(head_buffer, ROOTDirectoryHeader)
     dirkey = dir_header.fSeekKeys
     seek(fobj, dirkey)
-    tail_buffer = @async IOBuffer(read(fobj, 10^7))
+    tail_buffer = @async IOBuffer(read(fobj, Int(dir_header.fNbytesKeys)))
 
     seek(head_buffer, header.fBEGIN)
     tkey = unpack(head_buffer, TKey)
@@ -109,7 +113,7 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
-    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, Dict())
+    ROOTFile(filename, format_version, header, fobj, tkey, streamers, directory, customstructs, Dict(), ReentrantLock())
 end
 
 function Base.show(io::IO, f::ROOTFile)
@@ -163,8 +167,10 @@ end
 
 
 function Base.getindex(f::ROOTFile, s::AbstractString)
-    get!(f.cache, s) do 
-        _getindex(f, s)
+    Base.@lock f.lock begin
+        get!(f.cache, s) do
+            _getindex(f, s)
+        end
     end
 end
 

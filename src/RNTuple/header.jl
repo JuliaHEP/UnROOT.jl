@@ -45,19 +45,31 @@ struct ColumnRecord
     flags::UInt16
     representation_idx::UInt16
     first_ele_idx::Int64
+    # inclusive value range, present when flag 0x02 is set (e.g. Real32Quant)
+    min_value::Float64
+    max_value::Float64
 end
+ColumnRecord(type, nbits, field_id, flags, representation_idx, first_ele_idx) =
+    ColumnRecord(type, nbits, field_id, flags, representation_idx, first_ele_idx, NaN, NaN)
 function _rntuple_read(io, ::Type{ColumnRecord})
     type = read(io, UInt16)
     nbits = read(io, UInt16)
     field_id = read(io, UInt32)
     flags = read(io, UInt16)
-    first_ele_idx = if !iszero(flags & 0x0008)
+    # final (1.0) spec: representation index comes before the optional first
+    # element index (deferred-column flag 0x01) and value range (flag 0x02)
+    representation_idx = read(io, UInt16)
+    first_ele_idx = if !iszero(flags & 0x0001)
         read(io, Int64)
     else
         0
     end
-    representation_idx = read(io, UInt16)
-    ColumnRecord(type, nbits, field_id, flags, representation_idx, first_ele_idx)
+    min_value, max_value = if !iszero(flags & 0x0002)
+        read(io, Float64), read(io, Float64)
+    else
+        NaN, NaN
+    end
+    ColumnRecord(type, nbits, field_id, flags, representation_idx, first_ele_idx, min_value, max_value)
 end
 
 
