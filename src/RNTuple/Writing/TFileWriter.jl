@@ -550,15 +550,15 @@ _tkey32_len(class, name, title) =
     Int16(26 + 3 + ncodeunits(class) + ncodeunits(name) + ncodeunits(title))
 
 """
-    _write_rblob(file::IO, payload::AbstractVector{UInt8}) -> Int64
+    _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime) -> Int64
 
 Write an RBlob TKey followed by `payload` with correctly computed key sizes.
 Returns the file position where the payload starts (for locators).
 """
-function _write_rblob(file::IO, payload::AbstractVector{UInt8})
+function _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime)
     klen = _tkey32_len("RBlob", "", "")
     key = RBlob(; fNbytes = Int32(klen + length(payload)), fVersion = 4,
-                  fObjLen = Int32(length(payload)), fDatime = Stubs.WRITE_TIME,
+                  fObjLen = Int32(length(payload)), fDatime = fdatime,
                   fKeyLen = klen, fCycle = 1,
                   fSeekKey = Int32(position(file)), fSeekPdir = 100,
                   fClassName = "RBlob", fName = "", fTitle = "")
@@ -569,6 +569,20 @@ function _write_rblob(file::IO, payload::AbstractVector{UInt8})
 end
 
 _buffer_bytes(writer::Function) = (io = IOBuffer(); writer(io); take!(io))
+
+"""
+    _root_datime([t]) -> UInt32
+
+Encode a wall-clock time as ROOT's `TDatime` (the `fDatime` field of every TKey):
+a 32-bit packed `(year-1995):month:day:hour:min:sec`. Defaults to the current
+local time, so written files carry a real timestamp instead of a frozen one.
+"""
+function _root_datime(t::Base.Libc.TmStruct = Base.Libc.TmStruct(time()))
+    year = t.year + 1900
+    return UInt32(year - 1995) << 26 | UInt32(t.month + 1) << 22 |
+           UInt32(t.mday) << 17 | UInt32(t.hour) << 12 |
+           UInt32(t.min) << 6 | UInt32(t.sec)
+end
 
 """
     write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
@@ -604,6 +618,16 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     end
     input_length = length(input_cols[begin])
 
+    fdatime = _root_datime()  # real timestamp on every key
+
+    # The streamed ROOT::RNTuple anchor is wrapped in a 6-byte object preamble
+    # (4-byte (kByteCountMask | byte count) + 2-byte class version, big-endian)
+    # and followed by an 8-byte xxhash checksum.
+    anchor_payload_nbytes = 64        # 4×UInt16 + 7×UInt64
+    anchor_class_version = 2
+    anchor_preamble_nbytes = 6
+    anchor_objlen = Int32(anchor_preamble_nbytes + anchor_payload_nbytes + 8)
+
     # name-dependent sizes of the TFile container records
     klen_tfile = _tkey32_len("TFile", file_name, "")
     tnamed_len = 2 + ncodeunits(file_name)            # (1+name) + (1+empty title)
@@ -611,13 +635,14 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     tfile_objlen = Int32(tnamed_len + 30 + 30)        # TNamed + directory header + padding
     klen_dir = _tkey32_len("", file_name, "")
     klen_anchor = _tkey32_len("ROOT::RNTuple", rntuple_name, "")
-    anchor_objlen = Int32(length(Stubs.magic_6bytes) + 72)  # streamed header + anchor v2 payload + checksum
     fNbytesKeys = Int32(klen_dir + 4 + klen_anchor)
     klen_end = _tkey32_len("", file_name, "")
     fNbytesFree = Int32(klen_end + 10)
     fNbytesInfo = Int32(64 + length(Stubs.tsreamerinfo_compressed))  # constant streamer record
 
-    rnt_write(file, Stubs.file_preamble)
+    # file format magic + on-disk format version (what readers check)
+    write(file, b"root")
+    rnt_write(file, Int32(63501); legacy=true)
     fileheader = UnROOT.FileHeader32(
         100,                  # fBEGIN
         0, 0,                 # fEND, fSeekFree (patched at the end)
@@ -627,33 +652,37 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         0, fNbytesInfo,       # fSeekInfo (patched), fNbytesInfo
         zeros(SVector{18,UInt8}))
     fileheader_obs = rnt_write_observe(file, fileheader)
-    rnt_write(file, Stubs.dummy_padding1)
+    write(file, zeros(UInt8, 100 - position(file)))   # zero-pad up to fBEGIN
     @assert position(file) == 100
 
-    rnt_write(file, UnROOT.TKey32(klen_tfile + tfile_objlen, 4, tfile_objlen, Stubs.WRITE_TIME,
+    rnt_write(file, UnROOT.TKey32(klen_tfile + tfile_objlen, 4, tfile_objlen, fdatime,
                                   klen_tfile, 1, 100, 0, "TFile", file_name, ""))
     rnt_write(file, UnROOT.TFile_write(file_name, ""))
-    tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, Stubs.WRITE_TIME, Stubs.WRITE_TIME,
+    tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, fdatime, fdatime,
                                                 fNbytesKeys, fNbytesName, 100, 0,
                                                 0)  # fSeekKeys patched below
     tdirectory32_obs = rnt_write_observe(file, tdirectory32)
+    # TUUID (version + 16 bytes) and reserved tail of the directory record; the
+    # reader does not use these, so a zeroed UUID is sufficient.
     rnt_write(file, Stubs.dummy_padding2)
 
-    # RNTuple header envelope
+    # RNTuple header envelope. The writer identifier honestly reports UnROOT.jl
+    # (not a ROOT version) per the ROOT team's request not to impersonate ROOT.
     field_records, col_records = schema_to_field_column_records(table)
+    writer_identifier = "UnROOT.jl $(pkgversion(@__MODULE__))"
     rnt_header = UnROOT.RNTupleHeader(
-        zero(UInt64), rntuple_name, "", "ROOT v6.35.001",
+        zero(UInt64), rntuple_name, "", writer_identifier,
         field_records, col_records,
         UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
     header_bytes = _buffer_bytes(io -> rnt_write(io, rnt_header))
-    fSeekHeader = _write_rblob(file, header_bytes)
+    fSeekHeader = _write_rblob(file, header_bytes, fdatime)
 
     # pages (one page per column, one cluster), all in one RBlob
     pages_arys = mapreduce(rnt_col_to_ary, vcat, input_cols)
     @assert length(pages_arys) == length(col_records)
     pages = [rnt_ary_to_page(ary, cr) for (ary, cr) in zip(pages_arys, col_records)]
     pages_payload = _buffer_bytes(io -> foreach(p -> rnt_write(io, p), pages))
-    pages_begin = _write_rblob(file, pages_payload)
+    pages_begin = _write_rblob(file, pages_payload, fdatime)
     page_positions = Vector{Int64}(undef, length(pages))
     let pos = pages_begin
         for (i, p) in enumerate(pages)
@@ -668,7 +697,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     nested_page_locations = generate_page_links(pages, page_positions)
     pagelink = UnROOT.PageLink(header_checksum, cluster_summary.payload, nested_page_locations)
     pagelink_bytes = _buffer_bytes(io -> rnt_write(io, pagelink))
-    pagelink_pos = _write_rblob(file, pagelink_bytes)
+    pagelink_pos = _write_rblob(file, pagelink_bytes, fdatime)
 
     # footer envelope
     rnt_footer = UnROOT.RNTupleFooter(0, header_checksum, UnROOT.RNTupleSchemaExtension([], [], [], []), [
@@ -676,29 +705,33 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
             UnROOT.EnvLink(length(pagelink_bytes), UnROOT.Locator(length(pagelink_bytes), pagelink_pos))),
     ])
     footer_bytes = _buffer_bytes(io -> rnt_write(io, rnt_footer))
-    fSeekFooter = _write_rblob(file, footer_bytes)
+    fSeekFooter = _write_rblob(file, footer_bytes, fdatime)
 
     # anchor: all locator values are known by now, no patching needed
     rnt_anchor = UnROOT.ROOT_3a3a_RNTuple(1, 0, 0, 0,
         fSeekHeader, length(header_bytes), length(header_bytes),
         fSeekFooter, length(footer_bytes), length(footer_bytes),
         0x0000000040000000, 0)  # checksum computed in rnt_write
-    tkey32_anchor = UnROOT.TKey32(klen_anchor + anchor_objlen, 4, anchor_objlen, Stubs.WRITE_TIME,
+    tkey32_anchor = UnROOT.TKey32(klen_anchor + anchor_objlen, 4, anchor_objlen, fdatime,
                                   klen_anchor, 1, position(file), 100, "ROOT::RNTuple", rntuple_name, "")
     rnt_write(file, tkey32_anchor)
-    rnt_write(file, Stubs.magic_6bytes)
+    # object preamble for the streamed anchor: byte count (covering the version
+    # word + payload, no checksum) | kByteCountMask, then the class version
+    rnt_write(file, UInt32(Const.kByteCountMask | (2 + anchor_payload_nbytes)); legacy=true)
+    rnt_write(file, UInt16(anchor_class_version); legacy=true)
     rnt_write(file, rnt_anchor)
 
     # directory key listing (1 key: the anchor)
     tdirectory32_obs[:fSeekKeys] = Int32(position(file))
-    rnt_write(file, UnROOT.TKey32(fNbytesKeys, 4, Int32(4 + klen_anchor), Stubs.WRITE_TIME,
+    rnt_write(file, UnROOT.TKey32(fNbytesKeys, 4, Int32(4 + klen_anchor), fdatime,
                                   klen_dir, 1, position(file), 100, "", file_name, ""))
-    rnt_write(file, Stubs.n_keys)
+    rnt_write(file, Int32(1); legacy=true)  # number of keys in this directory
     rnt_write(file, tkey32_anchor)
 
-    # streamer info (constant compressed TList blob)
+    # streamer info (constant compressed TList blob describing ROOT::RNTuple;
+    # name-independent, so kept verbatim)
     fileheader_obs[:fSeekInfo] = UInt32(position(file))
-    rnt_write(file, UnROOT.TKey32(fNbytesInfo, 4, 1254, Stubs.WRITE_TIME,
+    rnt_write(file, UnROOT.TKey32(fNbytesInfo, 4, 1254, fdatime,
                                   64, 1, position(file), 100, "TList", "StreamerInfo", "Doubly linked list"))
     rnt_write(file, Stubs.tsreamerinfo_compressed)
 
@@ -706,7 +739,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
     fSeekFree = position(file)
     fileheader_obs[:fSeekFree] = UInt32(fSeekFree)
     fEND = fSeekFree + fNbytesFree
-    rnt_write(file, UnROOT.TKey32(fNbytesFree, 4, 10, Stubs.WRITE_TIME,
+    rnt_write(file, UnROOT.TKey32(fNbytesFree, 4, 10, fdatime,
                                   klen_end, 1, fSeekFree, 100, "", file_name, ""))
     rnt_write(file, UInt16(1); legacy=true)        # TFree version
     rnt_write(file, UInt32(fEND); legacy=true)     # first free byte
