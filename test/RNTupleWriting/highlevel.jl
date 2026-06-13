@@ -1,5 +1,6 @@
 using UnROOT
 using Test
+using Random: MersenneTwister
 using Tables: columntable
 
 # round-trip helper: write `table` to a fresh file and read it back as a LazyTree
@@ -94,4 +95,16 @@ end
     table = (; x = collect(Int64, 1:2_100_000))
     t = _write_read(table; compression=404)
     @test collect(t.x) == table.x
+end
+
+@testset "RNTuple Writing - large incompressible data" begin
+    # random data does not compress; the writer must store it uncompressed
+    # without error. ~2.4MB exceeds the zlib stored-block bound that a naive
+    # buffer would miss, so this also guards `_zlib_compress`.
+    rng = MersenneTwister(0xC0FFEE)
+    table = (; r = rand(rng, Int64, 300_000))
+    for compression in (101, 404, 505)  # ZLIB, LZ4, ZSTD
+        t = _write_read(table; compression)
+        @test collect(t.r) == table.r
+    end
 end

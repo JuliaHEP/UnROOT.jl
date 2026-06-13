@@ -56,9 +56,15 @@ function _write_compressed_block!(io::IO, algo::Int, level::Int, block::Vector{U
 end
 
 function _zlib_compress(block::Vector{UInt8})
-    # zlib output is at most a few bytes larger than the input for incompressible data
-    out = Vector{UInt8}(undef, length(block) + 64)
+    # For incompressible input libdeflate emits *stored* deflate blocks, which
+    # are slightly larger than the input (5 bytes per 65535-byte block, plus the
+    # 6-byte zlib header/adler). Size the buffer with a safe upper bound so the
+    # call can never fail for lack of space (which would otherwise return a
+    # LibDeflateError, not bytes).
+    bound = length(block) + 5 * cld(length(block), 65535) + 64
+    out = Vector{UInt8}(undef, bound)
     n = zlib_compress!(Compressor(), out, block)
+    n isa Integer || error("zlib compression failed: $n")
     resize!(out, n)
     return out
 end

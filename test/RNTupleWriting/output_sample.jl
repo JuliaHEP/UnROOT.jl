@@ -1,4 +1,5 @@
 using UnROOT
+using Random: MersenneTwister
 
 # Generate a sample RNTuple file together with a JSON sidecar describing the
 # exact values written, so an external reader (C++ ROOT, see
@@ -48,6 +49,13 @@ end
 # nested vector to exercise vector<vector<...>>
 addcol!("x_vecvec_Int32",
     [[Int32[Int32(k) for k in 1:inner] for inner in 1:((i - 1) % 3)] for i in 1:N])
+
+# incompressible (random) columns: these cannot be compressed, so the writer
+# must fall back to storing the page uncompressed. ROOT must still read them.
+# Values are captured in the JSON sidecar, so correctness is still checked.
+const RNG = MersenneTwister(0x5eed)
+addcol!("x_rand_Int64", rand(RNG, Int64, N))
+addcol!("x_rand_vec_UInt8", [rand(RNG, UInt8, 8 + (i - 1) % 24) for i in 1:N])
 
 const RNTUPLE_NAME = "myntuple"
 table = NamedTuple{Tuple(Symbol.(names))}(Tuple(cols))
