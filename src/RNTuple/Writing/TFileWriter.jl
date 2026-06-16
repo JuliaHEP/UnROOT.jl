@@ -336,7 +336,26 @@ function rnt_write(io::IO, x::UnROOT.RNTuplePageInnerList)
     write(io, temp_io)
 end
 
-function rnt_write(io::IO, x::UnROOT.PageLink; envelope=true)
+# Writer-only inner page list: carries the per-column element offset and 32-bit
+# compression settings that trail the inner list frame (see the "Page Locations"
+# section of the RNTuple spec). The reader's `RNTuplePageInnerList` skips this
+# trailer, so it does not need these fields.
+struct InnerPageListWrite
+    pages::Vector{PageDescription}
+    element_offset::Int64
+    compression::UInt32
+end
+
+# Writer-only page-link envelope whose nested list carries `InnerPageListWrite`
+# items (with element offset + compression settings). Field names match
+# `UnROOT.PageLink` so the serialization below is shared.
+struct PageLinkWrite
+    header_checksum::UInt64
+    cluster_summaries::Vector{ClusterSummary}
+    nested_page_locations::RNTuplePageTopList{RNTuplePageOuterList{InnerPageListWrite}}
+end
+
+function rnt_write(io::IO, x::Union{UnROOT.PageLink,PageLinkWrite}; envelope=true)
     temp_io = IOBuffer()
     rnt_write(temp_io, x.header_checksum)
     rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_summaries))
@@ -534,12 +553,32 @@ function schema_to_field_column_records(table)
     return field_records, column_records
 end
 
-function generate_page_links(pages, page_positions)
-    outer_list = RNTuplePageOuterList{RNTuplePageInnerList{PageDescription}}([])
-    for (page, pos) in zip(pages, page_positions)
-        inner_list = RNTuplePageInnerList([
-                PageDescription(page.num_elements, Locator(length(page.data), pos))
-            ])
+function rnt_write(io::IO, x::InnerPageListWrite)
+    temp_io = IOBuffer()
+    for p in x.pages
+        rnt_write(temp_io, p)
+    end
+    write(temp_io, x.element_offset, x.compression)
+    size = position(temp_io) + sizeof(Int64) + sizeof(Int32)
+    write(io, Int64(-size))
+    write(io, Int32(length(x.pages)))
+    seekstart(temp_io)
+    write(io, temp_io)
+end
+
+"""
+    generate_page_links(page_locators, compression) -> RNTuplePageTopList
+
+Build the nested page-location list for a single cluster. `page_locators` is a
+vector of `(num_elements, nbytes, offset)` for each column's single page;
+`compression` is the fCompress code recorded per column.
+"""
+function generate_page_links(page_locators, compression::Integer)
+    outer_list = RNTuplePageOuterList{InnerPageListWrite}([])
+    for (num_elements, nbytes, pos) in page_locators
+        inner_list = InnerPageListWrite(
+            [PageDescription(num_elements, Locator(nbytes, pos))],
+            0, UInt32(compression))
         push!(outer_list, inner_list)
     end
     return RNTuplePageTopList([outer_list])
@@ -550,22 +589,27 @@ _tkey32_len(class, name, title) =
     Int16(26 + 3 + ncodeunits(class) + ncodeunits(name) + ncodeunits(title))
 
 """
-    _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime) -> Int64
+    _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime; compression=0) -> (pos, nbytes)
 
-Write an RBlob TKey followed by `payload` with correctly computed key sizes.
-Returns the file position where the payload starts (for locators).
+Write an RBlob TKey followed by `payload` with correctly computed key sizes,
+optionally compressing the payload with ROOT's block framing for the given
+`compression` (fCompress) code. The key's `fObjLen` records the uncompressed
+size and `fNbytes` the on-disk size, so a reader can tell whether the blob is
+compressed. Returns the file position where the (possibly compressed) payload
+starts and its on-disk byte count (for locators).
 """
-function _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime)
+function _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime; compression::Integer=0)
+    ondisk = _root_compress(payload, compression)
     klen = _tkey32_len("RBlob", "", "")
-    key = RBlob(; fNbytes = Int32(klen + length(payload)), fVersion = 4,
+    key = RBlob(; fNbytes = Int32(klen + length(ondisk)), fVersion = 4,
                   fObjLen = Int32(length(payload)), fDatime = fdatime,
                   fKeyLen = klen, fCycle = 1,
                   fSeekKey = Int32(position(file)), fSeekPdir = 100,
                   fClassName = "RBlob", fName = "", fTitle = "")
     rnt_write(file, key)
     pos = position(file)
-    write(file, payload)
-    return pos
+    write(file, ondisk)
+    return pos, length(ondisk)
 end
 
 _buffer_bytes(writer::Function) = (io = IOBuffer(); writer(io); take!(io))
@@ -584,8 +628,13 @@ function _root_datime(t::Base.Libc.TmStruct = Base.Libc.TmStruct(time()))
            UInt32(t.min) << 6 | UInt32(t.sec)
 end
 
+# Default on-disk compression: LZ4 (algorithm 4) at level 4, i.e. ROOT fCompress
+# code 404 — matching ROOT's RNTuple default for the LZ4 algorithm.
+const RNT_DEFAULT_COMPRESSION = 100 * Const.kLZ4 + 4
+
 """
-    write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
+    write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root",
+                  rntuple_name="myntuple", compression=$(100 * 4 + 4))
 
 Write `table` (any Tables.jl-compatible table, e.g. a `NamedTuple` of vectors)
 into `file` as an RNTuple inside a freshly created ROOT file structure. The
@@ -595,8 +644,13 @@ Supported column element types: `Bool` (bit column), `Int8`–`Int64`,
 `UInt8`–`UInt64`, `Float16`/`Float32`/`Float64`, `String`, and (nested)
 `Vector`s of these.
 
-Current limitations: data is written uncompressed as a single cluster with one
-page per column; struct/union columns are not supported.
+`compression` is a ROOT `fCompress` code (`algorithm*100 + level`); pass `0` for
+no compression. Supported algorithms: `4` LZ4 (default, level 4), `1` ZLIB,
+`5` ZSTD. Each page and the header/footer/page-list envelopes are compressed
+independently, and any block that fails to shrink is stored uncompressed.
+
+Current limitations: data is written as a single cluster with one page per
+column; struct/union columns are not supported.
 
 # Example
 ```julia
@@ -607,7 +661,8 @@ julia> open("out.root", "w") do io
 julia> LazyTree("out.root", "t")
 ```
 """
-function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rntuple_name="myntuple")
+function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root",
+                       rntuple_name="myntuple", compression::Integer=RNT_DEFAULT_COMPRESSION)
     if !istable(table)
         error("RNTuple writing accepts object compatible with Tables.jl interface, got type $(typeof(table))")
     end
@@ -648,7 +703,7 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         0, 0,                 # fEND, fSeekFree (patched at the end)
         fNbytesFree, 1,       # fNbytesFree, nfree
         fNbytesName, 0x04,
-        0,                    # fCompress
+        Int32(compression),   # fCompress
         0, fNbytesInfo,       # fSeekInfo (patched), fNbytesInfo
         zeros(SVector{18,UInt8}))
     fileheader_obs = rnt_write_observe(file, fileheader)
@@ -675,42 +730,52 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root", rn
         field_records, col_records,
         UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
     header_bytes = _buffer_bytes(io -> rnt_write(io, rnt_header))
-    fSeekHeader = _write_rblob(file, header_bytes, fdatime)
+    fSeekHeader, header_nbytes = _write_rblob(file, header_bytes, fdatime; compression)
 
-    # pages (one page per column, one cluster), all in one RBlob
+    # pages (one page per column, one cluster), all in one RBlob. Each page is
+    # compressed independently and carries an XxHash-3 checksum of its on-disk
+    # (compressed) bytes, so the per-column locators can point inside the blob.
     pages_arys = mapreduce(rnt_col_to_ary, vcat, input_cols)
     @assert length(pages_arys) == length(col_records)
     pages = [rnt_ary_to_page(ary, cr) for (ary, cr) in zip(pages_arys, col_records)]
-    pages_payload = _buffer_bytes(io -> foreach(p -> rnt_write(io, p), pages))
-    pages_begin = _write_rblob(file, pages_payload, fdatime)
-    page_positions = Vector{Int64}(undef, length(pages))
+    page_ondisk = [_root_compress(p.data, compression) for p in pages]
+    pages_payload = _buffer_bytes() do io
+        for od in page_ondisk
+            write(io, od)
+            write(io, xxh3_64(od))   # checksum over the on-disk (compressed) bytes
+        end
+    end
+    pages_begin, _ = _write_rblob(file, pages_payload, fdatime)  # container itself not re-compressed
+    page_locators = Vector{Tuple{Int32,Int64,Int64}}(undef, length(pages))
     let pos = pages_begin
-        for (i, p) in enumerate(pages)
-            page_positions[i] = pos
-            pos += length(p.data) + 8  # data + xxh3 checksum
+        for i in eachindex(pages)
+            nbytes = length(page_ondisk[i])
+            page_locators[i] = (pages[i].num_elements, nbytes, pos)
+            pos += nbytes + 8  # on-disk data + xxh3 checksum
         end
     end
 
     # page list envelope
     header_checksum = _checksum(rnt_header)
     cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
-    nested_page_locations = generate_page_links(pages, page_positions)
-    pagelink = UnROOT.PageLink(header_checksum, cluster_summary.payload, nested_page_locations)
+    nested_page_locations = generate_page_links(page_locators, compression)
+    pagelink = PageLinkWrite(header_checksum, cluster_summary.payload, nested_page_locations)
     pagelink_bytes = _buffer_bytes(io -> rnt_write(io, pagelink))
-    pagelink_pos = _write_rblob(file, pagelink_bytes, fdatime)
+    pagelink_pos, pagelink_nbytes = _write_rblob(file, pagelink_bytes, fdatime; compression)
 
     # footer envelope
     rnt_footer = UnROOT.RNTupleFooter(0, header_checksum, UnROOT.RNTupleSchemaExtension([], [], [], []), [
         UnROOT.ClusterGroupRecord(0, input_length, 1,
-            UnROOT.EnvLink(length(pagelink_bytes), UnROOT.Locator(length(pagelink_bytes), pagelink_pos))),
+            UnROOT.EnvLink(length(pagelink_bytes), UnROOT.Locator(pagelink_nbytes, pagelink_pos))),
     ])
     footer_bytes = _buffer_bytes(io -> rnt_write(io, rnt_footer))
-    fSeekFooter = _write_rblob(file, footer_bytes, fdatime)
+    fSeekFooter, footer_nbytes = _write_rblob(file, footer_bytes, fdatime; compression)
 
-    # anchor: all locator values are known by now, no patching needed
+    # anchor: all locator values are known by now, no patching needed.
+    # fNBytes* is the on-disk (compressed) size; fLen* is the uncompressed size.
     rnt_anchor = UnROOT.ROOT_3a3a_RNTuple(1, 0, 0, 0,
-        fSeekHeader, length(header_bytes), length(header_bytes),
-        fSeekFooter, length(footer_bytes), length(footer_bytes),
+        fSeekHeader, header_nbytes, length(header_bytes),
+        fSeekFooter, footer_nbytes, length(footer_bytes),
         0x0000000040000000, 0)  # checksum computed in rnt_write
     tkey32_anchor = UnROOT.TKey32(klen_anchor + anchor_objlen, 4, anchor_objlen, fdatime,
                                   klen_anchor, 1, position(file), 100, "ROOT::RNTuple", rntuple_name, "")

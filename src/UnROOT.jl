@@ -15,7 +15,7 @@ using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays
 using LRUCache
 import IterTools: groupby
 
-using LibDeflate: zlib_decompress!, Decompressor, crc32
+using LibDeflate: zlib_decompress!, zlib_compress!, Decompressor, Compressor, crc32
 using BitIntegers: @define_integers
 
 import Tables, PrettyTables
@@ -67,6 +67,7 @@ include("RNTuple/fieldcolumn_reading.jl")
 include("RNTuple/displays.jl")
 
 include("RNTuple/Writing/page_writing.jl")
+include("RNTuple/Writing/compression.jl")
 include("RNTuple/Writing/TFileWriter.jl")
 include("RNTuple/Writing/Stubs.jl")
 

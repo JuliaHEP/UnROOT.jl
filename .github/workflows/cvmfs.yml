@@ -26,14 +26,21 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@a45e8fa8be21c18a06b7177052533149e61e9b38 # v3.1.0
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
-      - name: Generate root file
+      - name: Generate root files (no compression + LZ4 + ZSTD + ZLIB)
         run: |
-          julia --code-coverage --project ./test/RNTupleWriting/output_sample.jl test1.root
+          for comp in 0 404 505 101; do
+            julia --code-coverage --project ./test/RNTupleWriting/output_sample.jl sample_$comp.root $comp
+          done
       - uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4 # v5.5
-      - name: Read root file in C++
+      - name: Read and verify files in C++ ROOT
         run: |
           source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
-          python ./test/RNTupleWriting/test1.py test1.root
+          set -e
+          for comp in 0 404 505 101; do
+            echo "::group::Validate compression=$comp"
+            python ./test/RNTupleWriting/validate_rntuple.py sample_$comp.root
+            echo "::endgroup::"
+          done
       - uses: julia-actions/julia-processcoverage@03114f09f119417c3242a9fb6e0b722676aedf38 # v1.2.2
       - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         env:
