@@ -29,11 +29,14 @@ function rnt_ary_to_page(ary::AbstractVector, cr::ColumnRecord) end
 
 function rnt_ary_to_page(ary::AbstractVector{Bool}, cr::ColumnRecord)
     chunks = BitVector(ary).chunks
-    Page_write(reinterpret(UInt8, chunks))
+    bytes = reinterpret(UInt8, chunks)
+    # bit-packed pages store exactly ceil(n/8) bytes; BitVector chunks are
+    # 64-bit padded, so truncate (unused trailing bits are zero by invariant)
+    Page_write(bytes[1:cld(length(ary), 8)], Int32(length(ary)))
 end
 
 function rnt_ary_to_page(ary::AbstractVector{T}, cr::ColumnRecord) where {T<:Number}
-    Page_write(page_encode(ary, cr))
+    Page_write(page_encode(ary, cr), Int32(length(ary)))
 end
 
 function page_encode(ary::AbstractVector{T}, cr::ColumnRecord) where {T}

@@ -15,6 +15,8 @@ Base.promote_rule(::Type{Index32}, ::Type{Int64}) = Int64
     issplit::Bool = false
     isdelta::Bool = false
     iszigzag::Bool = false
+    istrunc::Bool = false
+    isquant::Bool = false
 end
 
 #https://github.com/root-project/root/blob/1de46e89958fd3946d2d6995c810391b781d39ac/tree/ntuple/v7/doc/BinaryFormatSpecification.md?plain=1#L479
@@ -38,7 +40,7 @@ RNTuple_ColumnType(type = 0x0F, nbits = 64, name = :Index64     , jltype = Index
 RNTuple_ColumnType(type = 0x10, nbits = 96, name = :Switch      , jltype = Switch),
 RNTuple_ColumnType(type = 0x11, nbits = 16, name = :SplitInt16  , jltype = Int16, issplit=true, iszigzag=true),
 RNTuple_ColumnType(type = 0x12, nbits = 16, name = :SplitUInt16 , jltype = UInt16, issplit=true),
-RNTuple_ColumnType(type = 0x13, nbits = 64, name = :SplitInt32  , jltype = Int32, issplit=true, iszigzag=true),
+RNTuple_ColumnType(type = 0x13, nbits = 32, name = :SplitInt32  , jltype = Int32, issplit=true, iszigzag=true),
 RNTuple_ColumnType(type = 0x14, nbits = 32, name = :SplitUInt32 , jltype = UInt32, issplit=true),
 RNTuple_ColumnType(type = 0x15, nbits = 64, name = :SplitInt64  , jltype = Int64, issplit=true, iszigzag=true),
 RNTuple_ColumnType(type = 0x16, nbits = 64, name = :SplitUInt64 , jltype = UInt64, issplit=true),
@@ -47,8 +49,9 @@ RNTuple_ColumnType(type = 0x18, nbits = 32, name = :SplitReal32 , jltype = Float
 RNTuple_ColumnType(type = 0x19, nbits = 64, name = :SplitReal64 , jltype = Float64, issplit=true),
 RNTuple_ColumnType(type = 0x1A, nbits = 32, name = :SplitIndex32, jltype = Index32, issplit=true, isdelta=true),
 RNTuple_ColumnType(type = 0x1B, nbits = 64, name = :SplitIndex64, jltype = Index64, issplit=true, isdelta=true),
-# (0x1C, 10-31, :Real32Trunc  ), #??
-# (0x1D,  1-32, :Real32Quant  ), #??
+# variable-width: the actual bit width comes from the column record's nbits
+RNTuple_ColumnType(type = 0x1C, nbits = 32, name = :Real32Trunc , jltype = Float32, istrunc=true),
+RNTuple_ColumnType(type = 0x1D, nbits = 32, name = :Real32Quant , jltype = Float32, isquant=true),
 )
 
 const RNT_WRITE_JL_TYPE_DICT = Dict(
@@ -71,7 +74,9 @@ const RNT_WRITE_JL_TYPE_DICT = Dict(
 
 const RNT_WRITE_CPP_TYPE_NAME_DICT = Dict(
     Bool => "bool",
-    Float16 => "std::float16_t",
+    # there is no float16 fundamental field type in the spec: half-precision
+    # data is a `float` field stored on a Real16 column
+    Float16 => "float",
     Float32 => "float",
     Float64 => "double",
     Int8 => "std::int8_t",

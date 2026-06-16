@@ -29,7 +29,7 @@ read_seek_nb(fobj::MmapStream, seek, nb) = fobj.mmap_ary[seek+1:seek+nb]
 function Base.read(fobj::MmapStream, nb::Integer)
     stop = min(fobj.seekloc + nb, fobj.size)
     b = fobj.mmap_ary[fobj.seekloc+1 : stop]
-    fobj.seekloc += nb
+    fobj.seekloc = stop
     return b
 end
 
@@ -61,5 +61,6 @@ function Base.seekstart(fobj::AbstractSourceStream)
 end
 
 function Base.read(fobj::AbstractSourceStream)
-    read(fobj, fobj.size - fobj.seekloc + 1)
+    # seekloc is 0-based, so the remainder is exactly size - seekloc
+    read(fobj, fobj.size - fobj.seekloc)
 end

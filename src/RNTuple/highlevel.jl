@@ -94,8 +94,10 @@ function Base.getindex(s::RNTupleSchema, idx)
 end
 
 function Base.getindex(rf::RNTupleField, idx::Int)
+    # deliberately bounds-checked: `maxthreadid()` can grow after construction
+    # (adopted threads), and an out-of-range `tid` must not corrupt memory
     tid = Threads.threadid()
-    tlock = @inbounds rf.thread_locks[tid]
+    tlock = rf.thread_locks[tid]
     Base.@lock tlock begin 
         br = @inbounds rf.buffer_ranges[tid]
         localidx = if idx ∉ br
@@ -108,10 +110,12 @@ function Base.getindex(rf::RNTupleField, idx::Int)
 end
 
 function _read_page_list(rn, nth=1)
-    get!(rn.pagelinks, nth) do
-        #TODO add multiple cluster group support
-        bytes = _read_envlink(rn.io, rn.footer.cluster_group_records[nth].page_list_link);
-        _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
+    Base.@lock rn.pagelinks_lock begin
+        get!(rn.pagelinks, nth) do
+            #TODO add multiple cluster group support
+            bytes = _read_envlink(rn.io, rn.footer.cluster_group_records[nth].page_list_link);
+            _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
+        end
     end
 end
 
@@ -120,11 +124,12 @@ function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
     cluster_summaries, nested_page_locations = page_list.cluster_summaries, page_list.nested_page_locations
 
     for (cluster_idx, cluster) in enumerate(cluster_summaries)
-        first_entry = cluster.first_entry_number 
+        first_entry = cluster.first_entry_number
         n_entries = cluster.number_of_entries
         if first_entry + n_entries >= idx
             br = first_entry+1:(first_entry+n_entries)
-            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, nested_page_locations[cluster_idx])
+            cluster_info = ClusterInfo(nested_page_locations[cluster_idx], first_entry, n_entries)
+            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, cluster_info)
             @inbounds rf.buffer_ranges[tid] = br
             return idx - br.start + 1
         end
@@ -178,6 +183,9 @@ struct RNTuple{O}
     header::RNTupleHeader
     footer::RNTupleFooter
     pagelinks::Dict{Int, PageLink}
+    # protects `pagelinks`: fields read in parallel only hold their own
+    # per-thread lock, so the shared page-list cache needs its own
+    pagelinks_lock::ReentrantLock
     schema::RNTupleSchema
     function RNTuple(io::O, anchor, header, footer, schema) where {O}
         new{O}(
@@ -186,6 +194,7 @@ struct RNTuple{O}
             header,
             footer,
             Dict{Int, PageLink}(),
+            ReentrantLock(),
             RNTupleSchema(schema),
         )
     end

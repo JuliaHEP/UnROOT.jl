@@ -76,7 +76,20 @@ end
 function basketarray(f::ROOTFile, branch, ithbasket::AbstractVector{<:Integer})
     tuples = [rawbasketarray(f, branch, i) for i in ithbasket]
     rawdata = reduce(vcat, first.(tuples))
-    rawoffsets = reduce(vcat, last.(tuples))
+    # Each basket's offsets are relative to the start of its own data (first
+    # offset 0, last offset == content size), so when concatenating baskets we
+    # must shift every subsequent basket's offsets by the accumulated data size
+    # (same re-basing as `readbranchraw`).
+    if all(t -> isempty(t[2]), tuples)
+        rawoffsets = Int32[]
+    else
+        rawoffsets = Int32[0]
+        position = Int32(0)
+        for (data, offsets) in tuples
+            append!(rawoffsets, (@view offsets[2:end]) .+ position)
+            position += Int32(length(data))
+        end
+    end
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
     return interped_data(rawdata, rawoffsets, T, J)
 end
@@ -160,13 +173,12 @@ basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
 basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
 
 function Base.hash(lb::LazyBranch, h::UInt)
+    # delegate to the TBranch/TBranchElement hash (file name, branch name,
+    # entry count): plain TBranch has no fClassName, and mutable read-state
+    # (buffer_range) must not enter the hash because `==` compares contents
     h = hash(lb.f, h)
-    h = hash(lb.b.fClassName, h)
-    h = hash(lb.L, h)
-    for br in lb.buffer_range
-        h = hash(br, h)
-    end
-    return h
+    h = hash(lb.b, h)
+    return hash(lb.L, h)
 end
 Base.size(ba::LazyBranch) = (ba.L,)
 Base.length(ba::LazyBranch) = ba.L
@@ -196,8 +208,10 @@ and update buffer and buffer range accordingly.
 """
 
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
+    # deliberately bounds-checked: `maxthreadid()` can grow after construction
+    # (adopted threads), and an out-of-range `tid` must not corrupt memory
     tid = Threads.threadid()
-    tlock = @inbounds ba.thread_locks[tid]
+    tlock = ba.thread_locks[tid]
     # index within the basket
     Base.@lock tlock begin
         br = @inbounds ba.buffer_range[tid]
@@ -540,6 +554,7 @@ function Base.iterate(tree::T, idx=1) where {T<:LazyTree}
 end
 
 function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
+    isempty(range) && return T[]
     ib1 = findfirst(x -> x > (first(range) - 1), ba.fEntry)
     ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) 
     if isnothing(ib1) #Check if we are completely on the recovered basket
