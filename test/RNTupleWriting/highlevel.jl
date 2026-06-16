@@ -1,12 +1,13 @@
 using UnROOT
 using Test
+using Random: MersenneTwister
 using Tables: columntable
 
 # round-trip helper: write `table` to a fresh file and read it back as a LazyTree
-function _write_read(table; file_name="roundtrip.root", rntuple_name="myntuple")
+function _write_read(table; file_name="roundtrip.root", rntuple_name="myntuple", compression=UnROOT.RNT_DEFAULT_COMPRESSION)
     path = joinpath(mktempdir(), file_name)
     open(path, "w") do io
-        UnROOT.write_rntuple(io, table; file_name, rntuple_name)
+        UnROOT.write_rntuple(io, table; file_name, rntuple_name, compression)
     end
     return LazyTree(path, rntuple_name)
 end
@@ -55,4 +56,55 @@ end
     table = (; s = ["", "a", "α β γ", repeat("x", 1000)])
     t = _write_read(table)
     @test collect(t.s) == table.s
+end
+
+@testset "RNTuple Writing - compression round trip" begin
+    # the default is LZ4 (404); also exercise no-compression, ZSTD and ZLIB
+    table = (;
+        i64 = collect(Int64, 1:500),
+        f64 = Float64[sin(i) for i in 1:500],
+        b   = [isodd(i) for i in 1:500],
+        s   = ["str_$(i % 7)" for i in 1:500],
+        v   = [collect(Int32, 1:(i % 5)) for i in 1:500],
+    )
+    for compression in (UnROOT.RNT_DEFAULT_COMPRESSION, 0, 404, 505, 101)
+        t = _write_read(table; compression)
+        for c in keys(table)
+            @test all(collect(getproperty(t, c)) .== getproperty(table, c))
+        end
+    end
+end
+
+@testset "RNTuple Writing - default is LZ4 and it shrinks data" begin
+    table = (; x = collect(Int64, 1:10_000))  # highly compressible
+    dir = mktempdir()
+    p_lz4 = joinpath(dir, "lz4.root")
+    p_raw = joinpath(dir, "raw.root")
+    open(io -> UnROOT.write_rntuple(io, table; rntuple_name="t"), p_lz4, "w")
+    open(io -> UnROOT.write_rntuple(io, table; rntuple_name="t", compression=0), p_raw, "w")
+    @test filesize(p_lz4) < filesize(p_raw)
+    @test collect(LazyTree(p_lz4, "t").x) == table.x
+    # default really is LZ4: the file header records fCompress == 404
+    rootfile = UnROOT.ROOTFile(p_lz4)
+    @test rootfile.header.fCompress == UnROOT.RNT_DEFAULT_COMPRESSION == 404
+    close(rootfile)
+end
+
+@testset "RNTuple Writing - multi-block compression (>16MB page)" begin
+    # 2.1M Int64 = ~16.8MB > 2^24-1, so a single page spans multiple LZ4 blocks
+    table = (; x = collect(Int64, 1:2_100_000))
+    t = _write_read(table; compression=404)
+    @test collect(t.x) == table.x
+end
+
+@testset "RNTuple Writing - large incompressible data" begin
+    # random data does not compress; the writer must store it uncompressed
+    # without error. ~2.4MB exceeds the zlib stored-block bound that a naive
+    # buffer would miss, so this also guards `_zlib_compress`.
+    rng = MersenneTwister(0xC0FFEE)
+    table = (; r = rand(rng, Int64, 300_000))
+    for compression in (101, 404, 505)  # ZLIB, LZ4, ZSTD
+        t = _write_read(table; compression)
+        @test collect(t.r) == table.r
+    end
 end
