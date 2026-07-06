@@ -30,6 +30,11 @@ end
 
 
 # running length coded string
+#
+# ROOT stores each string as a 1-byte length prefix followed by the raw
+# bytes. Strings of 255 bytes or more use an escape: the length byte is
+# 0xFF (255) and the real length follows as a 4-byte big-endian Int32.
+# See TBufferFile::ReadString / ReadStdString in ROOT.
 function runlength_string(::Type{T}, data; offset=10) where T
     out = T[]
     maxlength = length(data)
@@ -37,8 +42,16 @@ function runlength_string(::Type{T}, data; offset=10) where T
     i = offset + 1
     while true
         i+1 > maxlength && break
-        _len = data[i]
+        _len = Int(data[i])
+        if _len == 255
+            # 0xFF marker: the real length is the next 4 bytes (big-endian).
+            i + 4 > maxlength && break
+            _len = (Int(data[i+1]) << 24) | (Int(data[i+2]) << 16) |
+                   (Int(data[i+3]) <<  8) |  Int(data[i+4])
+            i += 4
+        end
         stop = i + _len
+        stop > maxlength && break
         s = T(@view data[i+1 : stop])
         i = stop+1
         push!(out, s)

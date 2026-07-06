@@ -38,3 +38,33 @@ end
     end
     close(rootfile)
 end
+
+@testset "runlength_string long-string (0xFF) marker" begin
+    # ROOT stores strings >= 255 bytes with a 0xFF marker byte followed by
+    # a 4-byte big-endian length; shorter strings use a single length byte.
+    function encode(s)
+        b = UInt8[]
+        n = ncodeunits(s)
+        if n < 255
+            push!(b, UInt8(n))
+        else
+            push!(b, 0xff)
+            push!(b, UInt8((n >> 24) & 0xff), UInt8((n >> 16) & 0xff),
+                     UInt8((n >>  8) & 0xff), UInt8( n        & 0xff))
+        end
+        append!(b, codeunits(s))
+        b
+    end
+    offset = 6
+    short1 = "abc"
+    long   = repeat("x", 397)   # >= 255 bytes, triggers the escape
+    short2 = "de"
+    data = vcat(zeros(UInt8, offset), encode(short1), encode(long), encode(short2))
+
+    out = UnROOT.runlength_string(String, data; offset=offset)
+    @test out == [short1, long, short2]
+    @test ncodeunits(out[2]) == 397
+
+    # A truncated buffer must not throw: parsing stops at the last complete string.
+    @test UnROOT.runlength_string(String, data[1:end-1]; offset=offset) == [short1, long]
+end
