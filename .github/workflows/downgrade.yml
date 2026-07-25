@@ -22,7 +22,7 @@ jobs:
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: ${{ matrix.version }}
-      - uses: julia-actions/julia-downgrade-compat@fab1defb76df9fd672f63c94df73ce131d32e134 # v2.6.1
+      - uses: julia-actions/julia-downgrade-compat@2c401f8b47edbcafc2e1edbff8e71f33dce71822 # v2.6.2
         with:
           skip: Pkg,TOML,Mmap,Test,Random,InteractiveUtils
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
