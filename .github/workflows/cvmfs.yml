@@ -24,7 +24,7 @@ jobs:
         with:
           version: '1'
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@a45e8fa8be21c18a06b7177052533149e61e9b38 # v3.1.0
+      - uses: julia-actions/cache@b7788abd52452d5bc033d69796e110d9906af4ab # v3.2.0
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
       - name: Generate root files (no compression + LZ4 + ZSTD + ZLIB)
         run: |
