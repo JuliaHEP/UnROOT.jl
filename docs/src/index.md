@@ -1,3 +1,24 @@
+```@raw html
+---
+layout: home
+
+hero:
+  name: "UnROOT.jl"
+  tagline: "Pure Julia I/O for .root file - TTree, RNTuple and more."
+  image:
+    src: /logo.png
+    alt: UnROOT_Logo
+  actions:
+    - theme: brand
+      text: "Quick Start"
+      link: /exampleusage
+    - theme: alt
+      text: APIs
+      link: /internalapis
+
+---
+```
+
 ## Introduction
 Apart from the pursue of performance, we also strive to provide intuitive and compostable interface.
 After all, "theoretically" fast doesn't mean the performance is accessible for the first-time physics
