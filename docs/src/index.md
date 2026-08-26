@@ -125,8 +125,8 @@ julia> names(t)
 
 julia> t.Evt_trks_trks_pos_y
 10-element LazyBranch{SubArray{Float64, 1, Vector{Float64}, Tuple{UnitRange{Int64}}, true},
-UnROOT.Nooffsetjagg, ArraysOfArrays.VectorOfVectors{Float64, Vector{Float64}, Vector{Int32},
-Vector{Tuple{}}}}:
+UnROOT.Nooffsetjagg, ArraysOfArrays.PartsView{Float64, Vector{Float64}, Vector{Int32},
+Vector{Tuple{}}, SubArray{Float64, 1, Vector{Float64}, Tuple{UnitRange{Int64}}, true}}}:
  [615.1089636184813, 615.1089636184813, … 574.836340445788, 576.5382993955498]
  ...
  ...

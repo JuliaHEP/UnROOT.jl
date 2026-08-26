@@ -12,6 +12,16 @@ reinterpret(a,b) = Base.reinterpret(a,b)
 import AbstractTrees: children, printnode, print_tree
 
 using CodecLz4, CodecXz, CodecZstd, StaticArrays, LorentzVectors, ArraysOfArrays, FHist
+
+# ArraysOfArrays v1 renames VectorOfVectors to PartsView and adds its element type as a type parameter
+@static if isdefined(ArraysOfArrays, :PartsView)
+    using ArraysOfArrays: PartsView
+    _partsview_type(::Type{VT}, ::Type{VI}) where {VT,VI} =
+        PartsView{eltype(VT), VT, VI, Vector{Tuple{}}, Base.promote_op(view, VT, UnitRange{Int})}
+else
+    const PartsView = ArraysOfArrays.VectorOfVectors
+    _partsview_type(::Type{VT}, ::Type{VI}) where {VT,VI} = PartsView{eltype(VT), VT, VI, Vector{Tuple{}}}
+end
 using LRUCache
 import IterTools: groupby
 

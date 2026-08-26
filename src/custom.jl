@@ -61,11 +61,11 @@ end
 
 function interped_data(data::Vector{UInt8}, rawoffsets::Vector{Int32}, ::Type{Vector{T}}, ::Type{J}) where {T<:AbstractString, J<:Union{Offsetjagg, Offset6jagg}}
     rawoffsets .+= 1
-    v = VectorOfVectors(data, rawoffsets)
+    v = PartsView(data, rawoffsets)
     res = runlength_string.(T, v; offset=offsetof(J))
-    dummy = VectorOfVectors(res)
+    dummy = PartsView(res)
     # to maintain Int32 indexing
-    return VectorOfVectors(dummy.data, Vector{Int32}(dummy.elem_ptr))
+    return PartsView(dummy.data, Vector{Int32}(dummy.elem_ptr))
 end
 
 # Custom struct interpretation
@@ -145,7 +145,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Vector{LVF64}}, ::Type{Offset
     real_data = interped_data(rawdata, offset, LVF64, Nojagg)
     offset .÷= _size
     offset .+= 1
-    VectorOfVectors(real_data, offset)
+    PartsView(real_data, offset)
 end
 function interped_data(rawdata, rawoffsets, ::Type{LVF64}, ::Type{J}) where J <: JaggType
     # even with rawoffsets, we know each TLV is destinied to be 64 bytes

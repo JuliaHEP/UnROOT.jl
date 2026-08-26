@@ -273,7 +273,7 @@ function interped_data(rawdata, rawoffsets, ::Type{Bool}, ::Type{Nojagg})
 end
 function interped_data(rawdata, rawoffsets, ::Type{String}, ::Type{Nojagg})
     rawoffsets .= rawoffsets .+ 1
-    vov_bytes = VectorOfVectors(rawdata, rawoffsets)
+    vov_bytes = PartsView(rawdata, rawoffsets)
     return [readtype(IOBuffer(v), String) for v in vov_bytes]
 end
 function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:JaggType}
@@ -292,10 +292,10 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
             jagg_offset = 10
         end
         subT = eltype(eltype(T))
-        out = VectorOfVectors(T(), Int32[1])
+        out = PartsView(T(), Int32[1])
         @views for i in 1:(length(rawoffsets)-1)
             flat = rawdata[(rawoffsets[i]+1+jagg_offset:rawoffsets[i+1])]
-            row = VectorOfVectors{subT}()
+            row = PartsView{subT}()
             cursor = 1
             while cursor < length(flat)
                 n = ntoh(reinterpret(Int32, flat[cursor:cursor+sizeof(Int32)-1])[1])
@@ -338,7 +338,7 @@ function interped_data(rawdata, rawoffsets, ::Type{T}, ::Type{J}) where {T, J<:J
         end
         real_data = ntoh.(reinterpret(T, rawdata))
         offset .= (offset .÷ _size) .+ 1
-        return VectorOfVectors(real_data, offset, ArraysOfArrays.no_consistency_checks)
+        return PartsView(real_data, offset, ArraysOfArrays.no_consistency_checks)
     end
 end
 

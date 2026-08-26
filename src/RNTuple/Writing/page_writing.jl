@@ -7,7 +7,7 @@ in the same order.
 """
 rnt_col_to_ary(col::AbstractVector{<:Real}) = Any[col]
 function rnt_col_to_ary(col::AbstractVector{<:AbstractVector})
-    vov = VectorOfVectors(col)
+    vov = PartsView(col)
     content = flatview(vov)
     # 0-based indexing
     offset = ArraysOfArrays.element_ptr(vov) .- 1

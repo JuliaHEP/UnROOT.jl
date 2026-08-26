@@ -77,7 +77,7 @@ function read_field(io, field::StringField{O, T}, page_list) where {O, T}
 
     o = one(eltype(offset))
     jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
-    res = String.(VectorOfVectors(content, jloffset))
+    res = String.(PartsView(content, jloffset))
     return res::_field_output_type(field)
 end
 
@@ -147,14 +147,14 @@ function read_field(io, field::LeafField{Bool}, page_list)
     return res::_field_output_type(field)
 end
 
-_field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{eltype(_field_output_type(T)), _field_output_type(T), Vector{eltype(O)}, Vector{Tuple{}}}
+_field_output_type(::Type{VectorField{O, T}}) where {O, T} = _partsview_type(_field_output_type(T), Vector{eltype(O)})
 function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
     offset = read_field(io, field.offset_col, page_list)
     content = read_field(io, field.content_col, page_list)
     o = one(eltype(offset))
 
     jloffset = pushfirst!(offset .+ o, o) #change to 1-indexed, and add a 1 at the beginning
-    res = VectorOfVectors(content, jloffset)
+    res = PartsView(content, jloffset)
     return res::_field_output_type(field)
 end
 
