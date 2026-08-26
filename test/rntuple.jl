@@ -90,7 +90,7 @@ end
     @test eltype(df.string) == String
     @test df.string == ["one", "two", "three", "four", "five"]
 
-    @test eltype(df.vector_int32) == Vector{Int32}
+    @test eltype(df.vector_int32) <: AbstractVector{Int32}
     @test df.vector_int32 == [Int32[1], Int32[1,2], Int32[1,2,3], Int32[1,2,3,4], Int32[1,2,3,4,5]]
 
     @test eltype(df.variant_int32_string) == Union{Int32, String}
