@@ -147,7 +147,13 @@ function read_field(io, field::LeafField{Bool}, page_list)
     return res::_field_output_type(field)
 end
 
-_field_output_type(::Type{VectorField{O, T}}) where {O, T} = VectorOfVectors{eltype(_field_output_type(T)), _field_output_type(T), Vector{eltype(O)}, Vector{Tuple{}}}
+# ArraysOfArrays v1 (which introduced PartsView) adds the element type of VectorOfVectors as a fifth type parameter
+@static if isdefined(ArraysOfArrays, :PartsView)
+    _vov_type(::Type{VT}, ::Type{VI}) where {VT, VI} = VectorOfVectors{eltype(VT), VT, VI, Vector{Tuple{}}, Base.promote_op(view, VT, UnitRange{Int})}
+else
+    _vov_type(::Type{VT}, ::Type{VI}) where {VT, VI} = VectorOfVectors{eltype(VT), VT, VI, Vector{Tuple{}}}
+end
+_field_output_type(::Type{VectorField{O, T}}) where {O, T} = _vov_type(_field_output_type(T), Vector{eltype(O)})
 function read_field(io, field::VectorField{O, T}, page_list) where {O, T}
     offset = read_field(io, field.offset_col, page_list)
     content = read_field(io, field.content_col, page_list)
