@@ -31,7 +31,7 @@ jobs:
           for comp in 0 404 505 101; do
             julia --code-coverage --project ./test/RNTupleWriting/output_sample.jl sample_$comp.root $comp
           done
-      - uses: cvmfs-contrib/github-action-cvmfs@10197e000cc0add8e54ac4fb73d3ed44e2de72b4 # v5.5
+      - uses: cvmfs-contrib/github-action-cvmfs@72f2a8d366043978d6aebee154bc9ed321c2f2a8 # v5.6
       - name: Read and verify files in C++ ROOT
         run: |
           source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
