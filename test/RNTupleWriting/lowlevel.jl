@@ -1,5 +1,5 @@
 using UnROOT: rnt_write, RNTupleFrame, ClusterSummary, PageDescription, Write_RNTupleListFrame, RBlob, Stubs
-using XXHashNative: xxh3_64
+using UnROOT: xxh3_64
 using Tables: columntable
 using Random
 
@@ -244,16 +244,13 @@ for _ = 1:10, T in RNT_primitive_Ts
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
 
-    if isfile("a.root")
-        rm("a.root")
-    end
-
-    open("a.root", "w") do f
+    path = joinpath(mktempdir(), "a.root")
+    open(path, "w") do f
         write(f, nio)
     end
 
     rntuple_name = "myntuple"
-    t = LazyTree("a.root", rntuple_name)
+    t = LazyTree(path, rntuple_name)
     @test sort(names(t)) == sort(collect(keys(newtable)))
     @test only(columntable(t)) == only(columntable(newtable))
 
@@ -268,16 +265,13 @@ end
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
 
-    if isfile("a.root")
-        rm("a.root")
-    end
-
-    open("a.root", "w") do f
+    path = joinpath(mktempdir(), "a.root")
+    open(path, "w") do f
         write(f, nio)
     end
 
     rntuple_name = "myntuple"
-    t = LazyTree("a.root", rntuple_name)
+    t = LazyTree(path, rntuple_name)
     @test sort(names(t)) == sort(collect(keys(newtable)))
     for i in propertynames(t)
         @test all(getproperty(t, i) .== newtable[String(i)])
@@ -292,16 +286,13 @@ end
     UnROOT.write_rntuple(newio, newtable)
     nio = take!(newio)
 
-    if isfile("a.root")
-        rm("a.root")
-    end
-
-    open("a.root", "w") do f
+    path = joinpath(mktempdir(), "a.root")
+    open(path, "w") do f
         write(f, nio)
     end
 
     rntuple_name = "myntuple"
-    t = LazyTree("a.root", rntuple_name)
+    t = LazyTree(path, rntuple_name)
     @test sort(names(t)) == sort(collect(keys(newtable)))
     for i in propertynames(t)
         @test all(getproperty(t, i) .== newtable[String(i)])

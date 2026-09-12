@@ -51,12 +51,9 @@ function _read_locator!(dst::Vector{UInt8}, io, locator, uncomp_size::Integer)
     decompress_bytes!(dst, read_seek_nb(io, locator.offset, locator.num_bytes), uncomp_size)
 end
 
-const _envlink_cache = LRU{Tuple{Any,EnvLink},Vector{UInt8}}(maxsize = 200)
-function _read_envlink(io, link::EnvLink)
-    get!(_envlink_cache, (io, link)) do
-        _read_locator(io, link.locator, link.uncomp_size)
-    end
-end
+# The parsed page lists are cached per RNTuple (`RNTuple.pagelinks`), so the
+# raw envelope bytes are not cached here.
+_read_envlink(io, link::EnvLink) = _read_locator(io, link.locator, link.uncomp_size)
 
 @SimpleStruct struct PageDescription
     num_elements::Int32
@@ -64,7 +61,7 @@ end
 end
 
 # https://discourse.julialang.org/t/simd-gather-result-in-slow-down/95161/2
-function split2_reinterpret!(dst, src::Vector{UInt8})
+function split2_reinterpret!(dst, src::AbstractVector{UInt8})
     count = length(src) ÷ 2
     res = reinterpret(UInt16, dst)
     @inbounds for i = 1:count
@@ -73,7 +70,7 @@ function split2_reinterpret!(dst, src::Vector{UInt8})
     end
     return dst
 end
-function split4_reinterpret!(dst, src::Vector{UInt8})
+function split4_reinterpret!(dst, src::AbstractVector{UInt8})
     count = length(src) ÷ 4
     res = reinterpret(UInt32, dst)
     @inbounds for i = 1:count
@@ -82,7 +79,7 @@ function split4_reinterpret!(dst, src::Vector{UInt8})
     end
     return dst
 end
-function split8_reinterpret!(dst, src::Vector{UInt8})
+function split8_reinterpret!(dst, src::AbstractVector{UInt8})
     count = length(src) ÷ 8
     res = reinterpret(UInt64, dst)
     @inbounds for i = 1:count
