@@ -64,6 +64,18 @@ open(OUTFILE, "w") do io
     UnROOT.write_rntuple(io, table; rntuple_name=RNTUPLE_NAME, compression=COMPRESSION)
 end
 
+# the same table written in three clusters through the incremental API:
+# recreate + append!, then re-open the file with update and append! once more
+const APPENDED = replace(OUTFILE, r"\.root$" => "") * "_appended.root"
+rows(r) = map(c -> c[r], table)
+UnROOT.recreate(APPENDED; compression=COMPRESSION) do f
+    f[RNTUPLE_NAME] = rows(1:40)
+    append!(f[RNTUPLE_NAME], rows(41:70))
+end
+UnROOT.update(APPENDED) do f
+    append!(f[RNTUPLE_NAME], rows(71:N))
+end
+
 # ---- write the JSON sidecar (hand-rolled, no extra dependency) --------------
 leaftype(::Type{T}) where {T} = T
 leaftype(::Type{<:AbstractString}) = String
@@ -90,7 +102,10 @@ for (idx, (name, v)) in enumerate(zip(names, cols))
           ", \"values\": ", jval(v), idx == length(names) ? "}\n" : "},\n")
 end
 print(io, "  ]\n}\n")
-write(OUTFILE * ".expected.json", take!(io))
+expected_json = take!(io)
+write(OUTFILE * ".expected.json", expected_json)
+write(APPENDED * ".expected.json", expected_json)
 
 println("wrote $OUTFILE (compression=$COMPRESSION, $(length(names)) columns, $N entries)")
-println("wrote $OUTFILE.expected.json")
+println("wrote $APPENDED (same table, three clusters via recreate/append!/update)")
+println("wrote $OUTFILE.expected.json and $APPENDED.expected.json")

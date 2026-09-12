@@ -224,6 +224,7 @@ struct RNTuple{O}
 end
 
 function _length(rn::RNTuple)::Int
+    isempty(rn.footer.cluster_group_records) && return 0   # no cluster written yet
     last_record_idx = lastindex(rn.footer.cluster_group_records)
     page_list = _read_page_list(rn, last_record_idx)
     last_cs = page_list.cluster_summaries[end]
