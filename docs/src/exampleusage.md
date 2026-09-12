@@ -20,8 +20,52 @@ usually is the best approach.
 
 
 ## Writing out `.root` files
-Currently `UnROOT.jl` is focused on reading only, however, it's semi-trivial to leverage Python world
-for write operation since it's not performance critical.
+
+### Write out an `RNTuple` (native)
+`UnROOT.jl` writes RNTuples natively. Any [Tables.jl](https://github.com/JuliaData/Tables.jl)
+table whose columns hold numbers, `Bool`s, `String`s or (nested) `Vector`s of these can be
+written; the files are readable by UnROOT itself, [uproot](https://github.com/scikit-hep/uproot5)
+and ROOT (≥ 6.34). The one-shot form writes a single RNTuple into a fresh file:
+
+```julia
+julia> using UnROOT
+
+julia> table = (x = collect(1.0:5.0), s = ["a", "b", "c", "d", "e"], v = [rand(Int32, i) for i in 1:5]);
+
+julia> open(io -> UnROOT.write_rntuple(io, table; rntuple_name="events"), "example.root", "w")
+
+julia> LazyTree("example.root", "events")
+```
+
+The incremental interface follows the shape of uproot's writing API: open a file with
+[`UnROOT.recreate`](@ref) (or [`UnROOT.create`](@ref), which refuses to overwrite), assign
+tables to names to create RNTuples, and `append!` to add clusters. Re-open an existing file
+with [`UnROOT.update`](@ref) to keep appending later, or to add further RNTuples to it:
+
+```julia
+julia> UnROOT.recreate("example.root") do f
+           f["events"] = table                      # first cluster
+           append!(f["events"], table)              # second cluster
+           UnROOT.mkrntuple(f, "meta", (run = Int32, tag = String))   # empty RNTuple
+       end
+
+julia> UnROOT.update("example.root") do f
+           append!(f["events"], table)              # third cluster
+           append!(f["meta"], (run = Int32[1], tag = ["v1"]))
+           length(f["events"])
+       end
+15
+```
+
+Each `append!` writes one cluster, so favour a few large appends over many small ones.
+Appending works on RNTuples written by ROOT or uproot as well, as long as their schema
+only uses the types listed above (the compression of the file is reused unless `update`
+is given a `compression` keyword). See the docstrings of [`UnROOT.write_rntuple`](@ref),
+[`UnROOT.mkrntuple`](@ref) and [`UnROOT.WritableROOTFile`](@ref) for details and limitations.
+
+### Write out a `TTree` (via Python)
+Writing `TTree`s is not implemented natively, but it's semi-trivial to leverage Python
+for that since it's not performance critical.
 
 You have the following choice:
 - [PythonCall.jl](https://github.com/cjdoris/PythonCall.jl) -- we will demo how to use this one
@@ -35,7 +79,6 @@ ENV["JULIA_PYTHONCALL_EXE"] = readchomp(`which python`)
 ```
 before the `using PythonCall` line. Especially if you're using LCG or Athena or CMSSW environment.
 
-### Write out a `TTree`
 ```julia
 julia> using PythonCall
 
