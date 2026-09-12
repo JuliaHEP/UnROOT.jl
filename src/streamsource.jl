@@ -24,7 +24,9 @@ mutable struct MmapStream <: AbstractSourceStream# Mmap based
      end
 end
 
-read_seek_nb(fobj::MmapStream, seek, nb) = fobj.mmap_ary[seek+1:seek+nb]
+# a view into the mapped file: callers that need to own (e.g. `resize!`) the
+# bytes copy them explicitly
+read_seek_nb(fobj::MmapStream, seek, nb) = @view fobj.mmap_ary[seek+1:seek+nb]
 
 function Base.read(fobj::MmapStream, nb::Integer)
     stop = min(fobj.seekloc + nb, fobj.size)

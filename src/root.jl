@@ -100,16 +100,15 @@ function ROOTFile(filename::AbstractString; customstructs = Dict("TLorentzVector
     dir_header = unpack(head_buffer, ROOTDirectoryHeader)
     dirkey = dir_header.fSeekKeys
     seek(fobj, dirkey)
-    tail_buffer = @async IOBuffer(read(fobj, Int(dir_header.fNbytesKeys)))
+    tail_buffer = IOBuffer(read(fobj, Int(dir_header.fNbytesKeys)))
 
     seek(head_buffer, header.fBEGIN)
     tkey = unpack(head_buffer, TKey)
 
-    wait(tail_buffer)
-    unpack(tail_buffer.result, TKey)
+    unpack(tail_buffer, TKey)
 
-    n_keys = readtype(tail_buffer.result, Int32)
-    keys = [unpack(tail_buffer.result, TKey) for _ in 1:n_keys]
+    n_keys = readtype(tail_buffer, Int32)
+    keys = [unpack(tail_buffer, TKey) for _ in 1:n_keys]
 
     directory = ROOTDirectory(tkey.fName, dir_header, keys, fobj, streamers.refs)
 
@@ -212,7 +211,11 @@ function getindex(d::ROOTDirectory, s)
     idx = findfirst(isequal(s), keys(d))
     isnothing(idx) && throw(KeyError(s))
     tkey = d.keys[idx]
-    streamer = getfield(@__MODULE__, Symbol(tkey.fClassName))
+    typename = safename(tkey.fClassName)
+    if !isdefined(@__MODULE__, Symbol(typename))
+        error("Reading objects of class '$(tkey.fClassName)' inside a TDirectory is not supported ('$s' in directory '$(d.name)')")
+    end
+    streamer = getfield(@__MODULE__, Symbol(typename))
     if streamer === TNamed
         return tkey.fTitle
     end
@@ -606,10 +609,10 @@ function readbasket(f::ROOTFile, branch, ith)
 end
 
 function readbasketseek(f::ROOTFile, branch::Union{TBranch, TBranchElement}, seek_pos::Int, nb)
-    local rawbuffer
-    rawbuffer = OffsetBuffer(IOBuffer(read_seek_nb(f.fobj, seek_pos, nb)), seek_pos)
-    basketkey = unpack(rawbuffer, TBasketKey)
-    compressedbytes = compressed_datastream(rawbuffer, basketkey)
+    rawbytes = read_seek_nb(f.fobj, seek_pos, nb)
+    basketkey = unpack(IOBuffer(rawbytes), TBasketKey)
+    # the compressed payload follows the key; no need to copy it out of `rawbytes`
+    compressedbytes = @view rawbytes[basketkey.fKeylen + 1:basketkey.fNbytes]
 
     @debug "Seek position: $seek_pos"
     basketrawbytes = decompress_datastreambytes(compressedbytes, basketkey)

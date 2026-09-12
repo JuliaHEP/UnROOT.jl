@@ -128,8 +128,40 @@ function compressed_datastream(io, tkey)
 end
 
 function _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
-    CodecLz4.LZ4_decompress_safe(input_ptr, output_ptr, input_size, output_size)
+    n = CodecLz4.LZ4_decompress_safe(input_ptr, output_ptr, input_size, output_size)
+    n == output_size || error("LZ4 decompression failed (corrupt or truncated data): expected $output_size bytes, got $n")
     nothing
+end
+
+# the RNTuple and TTree readers share this: decompress one ROOT compression
+# block into `uncomp_data[fulfilled+1 : fulfilled+uncompbytes]`
+function _decompress_block!(uncomp_data::Vector{UInt8}, fulfilled::Integer, cname, rawbytes::AbstractVector{UInt8}, uncompbytes::Integer)
+    if cname == @SVector UInt8['L', '4']
+        # skip checksum which is 8 bytes
+        input = @view rawbytes[9:end]
+        # raw Ptr arguments do not root their parent arrays in the ccall
+        GC.@preserve rawbytes uncomp_data begin
+            _decompress_lz4!(pointer(input), length(input), pointer(uncomp_data) + fulfilled, uncompbytes)
+        end
+    elseif cname == @SVector UInt8['Z', 'L']
+        output = @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes])
+        res = zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
+        res isa Integer || error("zlib decompression failed (corrupt or truncated data): $res")
+    elseif cname == @SVector UInt8['X', 'Z']
+        # `transcode` needs a plain Vector
+        @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(XzDecompressor, convert(Vector{UInt8}, rawbytes))
+    elseif cname == @SVector UInt8['Z', 'S']
+        # one-shot decompression straight into the output buffer
+        GC.@preserve rawbytes uncomp_data begin
+            n = CodecZstd.LibZstd.ZSTD_decompress(pointer(uncomp_data) + fulfilled, uncompbytes, pointer(rawbytes), length(rawbytes))
+            if CodecZstd.LibZstd.ZSTD_isError(n) != 0 || n != uncompbytes
+                error("ZSTD decompression failed (corrupt or truncated data): $(unsafe_string(CodecZstd.LibZstd.ZSTD_getErrorName(n)))")
+            end
+        end
+    else
+        error("Unsupported compression type '$(String(collect(cname)))'")
+    end
+    return nothing
 end
 
 """
@@ -139,44 +171,23 @@ Process the compressed bytes `compbytes` which was read out by `compressed_datas
 pointed to from `tkey`. This function simply return uncompressed bytes according to
 the compression algorithm detected (or the lack of).
 """
-function decompress_datastreambytes(compbytes, tkey)
-    # not compressed
-    iscompressed(tkey) || return compbytes
+function decompress_datastreambytes(compbytes::AbstractVector{UInt8}, tkey)
+    # not compressed: the caller may `resize!` the result, so hand out a Vector
+    iscompressed(tkey) || return convert(Vector{UInt8}, compbytes)
 
     # compressed
-    io = IOBuffer(compbytes)
     fulfilled = 0
+    pos = 1
     uncomp_data = Vector{UInt8}(undef, tkey.fObjlen)
     while fulfilled < tkey.fObjlen # careful with 0/1-based index when thinking about offsets
-        compression_header = unpack(io, CompressionHeader)
-        cname, _, compbytes, uncompbytes = unpack(compression_header)
-        rawbytes = read(io, compbytes)
+        compression_header = unpack(IOBuffer(@view compbytes[pos:pos+8]), CompressionHeader)
+        pos += 9
+        cname, _, nc, uncompbytes = unpack(compression_header)
+        rawbytes = @view compbytes[pos:pos+nc-1]
+        pos += nc
         @debug "Compression type: $(cname)"
-        @debug "Compressed/uncompressed size in bytes: $(compbytes) / $(uncompbytes)"
-
-        if cname == @SVector UInt8['L', '4']
-            # skip checksum which is 8 bytes
-            # original: lz4_decompress(rawbytes[9:end], uncompbytes)
-            input = @view rawbytes[9:end]
-            # raw Ptr arguments do not root their parent arrays in the ccall
-            GC.@preserve rawbytes uncomp_data begin
-                input_ptr = pointer(input)
-                input_size = length(input)
-                output_ptr = pointer(uncomp_data) + fulfilled
-                output_size = uncompbytes
-                _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
-            end
-        elseif cname == @SVector UInt8['Z', 'L']
-            output = @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes])
-            zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
-        elseif cname == @SVector UInt8['X', 'Z']
-            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
-        elseif cname == @SVector UInt8['Z', 'S']
-            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
-        else
-            error("Unsupported compression type '$(String(compression_header.algo))'")
-        end
-
+        @debug "Compressed/uncompressed size in bytes: $(nc) / $(uncompbytes)"
+        _decompress_block!(uncomp_data, fulfilled, cname, rawbytes, uncompbytes)
         fulfilled += uncompbytes
     end
     return uncomp_data
