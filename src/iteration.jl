@@ -138,10 +138,20 @@ struct _BufferSlot{B}
     range::UnitRange{Int64}
     buffer::B
 end
+
+"""
+    _SlotBox{B}
+
+Mutable holder of one thread's [`_BufferSlot`](@ref) (or `nothing` before the
+first read). The slot is an atomic field: refills store it with release
+semantics and readers load it with acquire semantics.
+"""
 mutable struct _SlotBox{B}
     @atomic slot::Union{Nothing, _BufferSlot{B}}
+    # explicit constructor: the default `_SlotBox(::Union{Nothing, _BufferSlot{B}})`
+    # would leave `B` unbound for `nothing`
+    _SlotBox{B}() where {B} = new{B}(nothing)
 end
-_SlotBox{B}() where {B} = _SlotBox{B}(nothing)
 @inline _load_slot(box::_SlotBox) = @atomic :acquire box.slot
 @inline _store_slot!(box::_SlotBox{B}, slot::_BufferSlot{B}) where {B} = (@atomic :release box.slot = slot)
 
