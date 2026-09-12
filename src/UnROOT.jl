@@ -53,7 +53,9 @@ include("custom.jl")
 include("displays.jl")
 
 using StructArrays: StructArray
-include("xxhash.jl")
+# XXH3-64 protects RNTuple envelopes/pages, XXH64 the LZ4 blocks; needs >= 1.1.1
+# (earlier versions hash inputs of length 1 mod 64 above 240 bytes incorrectly)
+using XXHashNative: xxh3_64, xxh64
 # using OhMyThreads: tmap
 
 include("RNTuple/bootstrap.jl")

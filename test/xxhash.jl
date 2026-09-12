@@ -1,11 +1,12 @@
 using Test
 using UnROOT: xxh3_64, xxh64
 
-# Known-answer tests for the vendored hash functions, generated with the
-# reference implementation (python-xxhash 3.x wrapping xxHash 0.8). The lengths
-# cover every code path of XXH3: empty, 1-3, 4-8, 9-16, 17-128, 129-240, and the
-# long path with partial blocks, a full block, and the `len ≡ 1 (mod 64)` case
-# that a previous dependency hashed incorrectly.
+# Known-answer tests for the hash functions UnROOT relies on for RNTuple and
+# LZ4 checksums, generated with the reference implementation (python-xxhash
+# 3.x wrapping xxHash 0.8). The lengths cover every code path of XXH3: empty,
+# 1-3, 4-8, 9-16, 17-128, 129-240, and the long path with partial blocks, a
+# full block, and the `len ≡ 1 (mod 64)` case that XXHashNative < 1.1.1 hashed
+# incorrectly.
 @testset "xxh3_64 and xxh64 known answers" begin
     pat(n, a, b) = UInt8[(i * a + b) % 256 for i in 0:n-1]
     cases = [
