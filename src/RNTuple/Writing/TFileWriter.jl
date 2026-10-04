@@ -1,7 +1,6 @@
 using StaticArrays
 using UnROOT
 using UnROOT: RNTupleFrame, ClusterSummary, PageDescription
-using XXHashNative: xxh3_64
 using Accessors
 using Tables: istable, columntable, schema
 
@@ -533,10 +532,10 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     cr_offset = UnROOT.ColumnRecord(rnt_col_type.type, rnt_col_type.nbits, col_field_id, 0x00, 0x00, 0)
     push!(column_records, cr_offset)
 
-    # TODO: this feels like a hack, think about it more
+    # the item sub-field always hangs off this vector field, however deeply the
+    # vectors are nested
     Element_T = eltype(input_T)
-    content_parent_field_id = Element_T <: Real ? implicit_field_id : parent_field_id
-    add_field_column_record!(field_records, column_records, Element_T, "_0"; parent_field_id = content_parent_field_id, col_field_id = length(field_records))
+    add_field_column_record!(field_records, column_records, Element_T, "_0"; parent_field_id = implicit_field_id, col_field_id = length(field_records))
     nothing
 end
 
@@ -601,6 +600,10 @@ starts and its on-disk byte count (for locators).
 function _write_rblob(file::IO, payload::AbstractVector{UInt8}, fdatime; compression::Integer=0)
     ondisk = _root_compress(payload, compression)
     klen = _tkey32_len("RBlob", "", "")
+    if position(file) + klen + length(ondisk) > typemax(Int32)
+        error("RNTuple writing only supports files smaller than 2 GiB (32-bit TKey offsets); " *
+              "split the table into several files")
+    end
     key = RBlob(; fNbytes = Int32(klen + length(ondisk)), fVersion = 4,
                   fObjLen = Int32(length(payload)), fDatime = fdatime,
                   fKeyLen = klen, fCycle = 1,

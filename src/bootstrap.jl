@@ -668,7 +668,40 @@ function Base.hash(b::Union{TBranch, TBranchElement}, h::UInt)
 end
 Base.length(b::Union{TBranch, TBranchElement}) = b.fEntries
 Base.eachindex(b::Union{TBranch, TBranchElement}) = Base.OneTo(b.fEntries)
-numbaskets(b::Union{TBranch, TBranchElement}) = findfirst(x->x>(b.fEntries-1),b.fBasketEntry)-1
+"""
+    numbaskets(b) -> Int
+
+Number of baskets of branch `b` that are stored as separate TKeys on disk. A
+branch may additionally hold one "embedded" basket (a `TBasket` streamed
+together with the branch itself, e.g. in recovered or `CloneTree`d files); that
+basket holds the entries from `fBasketEntry[numbaskets + 1]` to `fEntries`, see
+[`_basket_boundaries`](@ref).
+"""
+function numbaskets(b::Union{TBranch, TBranchElement})
+    n = findfirst(x -> x > (b.fEntries - 1), b.fBasketEntry)
+    # every entry is covered by an on-disk basket
+    n === nothing || return n - 1
+    # the trailing entries live in the embedded basket: `fWriteBasket` baskets
+    # have been written to disk before it
+    return Int(b.fWriteBasket)
+end
+
+"""
+    _basket_boundaries(b) -> Vector{Int64}
+
+Entry boundaries of the baskets of branch `b`: basket `i` holds the (1-based)
+entries `boundaries[i]+1:boundaries[i+1]`. Baskets `1:numbaskets(b)` are on
+disk; a trailing basket beyond that is the embedded one.
+"""
+function _basket_boundaries(b::Union{TBranch, TBranchElement})
+    nb = numbaskets(b)
+    bd = Int64[b.fBasketEntry[i] for i in 1:min(nb + 1, length(b.fBasketEntry))]
+    if isempty(bd) || bd[end] < b.fEntries
+        # the remaining entries are in the embedded basket
+        push!(bd, b.fEntries)
+    end
+    return bd
+end
 
 Base.@kwdef struct TBranch_8 <: TBranch
     cursor::Cursor
