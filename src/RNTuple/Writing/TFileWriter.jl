@@ -115,6 +115,22 @@ function rnt_write(io::IO, x::UnROOT.TKey32)
     @assert position(io) - p == x.fKeylen
 end
 
+function rnt_write(io::IO, x::UnROOT.TKey64)
+    p = position(io)
+    rnt_write(io, x.fNbytes; legacy=true)
+    rnt_write(io, x.fVersion; legacy=true)
+    rnt_write(io, x.fObjlen; legacy=true)
+    rnt_write(io, x.fDatime; legacy=true)
+    rnt_write(io, x.fKeylen; legacy=true)
+    rnt_write(io, x.fCycle; legacy=true)
+    rnt_write(io, x.fSeekKey; legacy=true)
+    rnt_write(io, x.fSeekPdir; legacy=true)
+    rnt_write(io, x.fClassName; legacy=true)
+    rnt_write(io, x.fName; legacy=true)
+    rnt_write(io, x.fTitle; legacy=true)
+    @assert position(io) - p == x.fKeylen
+end
+
 struct TFile_write
     filename::String
     unknown::String
@@ -417,6 +433,7 @@ function rnt_write(io::IO, x::UnROOT.RNTupleFooter; envelope=true)
     rnt_write(temp_io, x.header_checksum)
     rnt_write(temp_io, x.extension_header_links)
     rnt_write(temp_io, Write_RNTupleListFrame(x.cluster_group_records))
+    write(temp_io, x.trailing_bytes)
 
     # add id_length size and checksum size
     envelope_size = temp_io.size + sizeof(Int64) + sizeof(UInt64)
@@ -539,8 +556,8 @@ function add_field_column_record!(field_records, column_records, input_T::Type{<
     nothing
 end
 
-function schema_to_field_column_records(table)
-    input_schema = schema(table)
+schema_to_field_column_records(table) = schema_to_field_column_records(schema(columntable(table)))
+function schema_to_field_column_records(input_schema::Tables.Schema)
     input_Ts = input_schema.types
     input_names = input_schema.names
     field_records = UnROOT.FieldRecord[]
@@ -566,18 +583,22 @@ function rnt_write(io::IO, x::InnerPageListWrite)
 end
 
 """
-    generate_page_links(page_locators, compression) -> RNTuplePageTopList
+    generate_page_links(page_locators, compression, element_offsets=zeros(...)) -> RNTuplePageTopList
 
 Build the nested page-location list for a single cluster. `page_locators` is a
 vector of `(num_elements, nbytes, offset)` for each column's single page;
-`compression` is the fCompress code recorded per column.
+`compression` is the fCompress code recorded per column and `element_offsets`
+the number of elements each column already holds in earlier clusters (the
+column's global index of the first element in this cluster).
 """
-function generate_page_links(page_locators, compression::Integer)
+function generate_page_links(page_locators, compression::Integer,
+                             element_offsets::AbstractVector{<:Integer}=zeros(Int64, length(page_locators)))
+    length(element_offsets) == length(page_locators) || error("one element offset per column is required")
     outer_list = RNTuplePageOuterList{InnerPageListWrite}([])
-    for (num_elements, nbytes, pos) in page_locators
+    for (i, (num_elements, nbytes, pos)) in enumerate(page_locators)
         inner_list = InnerPageListWrite(
             [PageDescription(num_elements, Locator(nbytes, pos))],
-            0, UInt32(compression))
+            Int64(element_offsets[i]), UInt32(compression))
         push!(outer_list, inner_list)
     end
     return RNTuplePageTopList([outer_list])
@@ -652,8 +673,10 @@ no compression. Supported algorithms: `4` LZ4 (default, level 4), `1` ZLIB,
 `5` ZSTD. Each page and the header/footer/page-list envelopes are compressed
 independently, and any block that fails to shrink is stored uncompressed.
 
-Current limitations: data is written as a single cluster with one page per
-column; struct/union columns are not supported.
+The data is written as a single cluster with one page per column;
+struct/union columns are not supported. To write several RNTuples into one
+file, or to append clusters to an RNTuple (also in an existing file), use
+[`recreate`](@ref) / [`update`](@ref) and `append!`.
 
 # Example
 ```julia
@@ -669,152 +692,8 @@ function write_rntuple(file::IO, table; file_name="test_ntuple_minimal.root",
     if !istable(table)
         error("RNTuple writing accepts object compatible with Tables.jl interface, got type $(typeof(table))")
     end
-
-    input_cols = columntable(table)
-    if !allequal(map(length, values(input_cols)))
-        error("Top-level columns must have the same length")
-    end
-    input_length = length(input_cols[begin])
-
-    fdatime = _root_datime()  # real timestamp on every key
-
-    # The streamed ROOT::RNTuple anchor is wrapped in a 6-byte object preamble
-    # (4-byte (kByteCountMask | byte count) + 2-byte class version, big-endian)
-    # and followed by an 8-byte xxhash checksum.
-    anchor_payload_nbytes = 64        # 4×UInt16 + 7×UInt64
-    anchor_class_version = 2
-    anchor_preamble_nbytes = 6
-    anchor_objlen = Int32(anchor_preamble_nbytes + anchor_payload_nbytes + 8)
-
-    # name-dependent sizes of the TFile container records
-    klen_tfile = _tkey32_len("TFile", file_name, "")
-    tnamed_len = 2 + ncodeunits(file_name)            # (1+name) + (1+empty title)
-    fNbytesName = Int32(klen_tfile + tnamed_len)
-    tfile_objlen = Int32(tnamed_len + 30 + 30)        # TNamed + directory header + padding
-    klen_dir = _tkey32_len("", file_name, "")
-    klen_anchor = _tkey32_len("ROOT::RNTuple", rntuple_name, "")
-    fNbytesKeys = Int32(klen_dir + 4 + klen_anchor)
-    klen_end = _tkey32_len("", file_name, "")
-    fNbytesFree = Int32(klen_end + 10)
-    fNbytesInfo = Int32(64 + length(Stubs.tsreamerinfo_compressed))  # constant streamer record
-
-    # file format magic + on-disk format version (what readers check)
-    write(file, b"root")
-    rnt_write(file, Int32(63501); legacy=true)
-    fileheader = UnROOT.FileHeader32(
-        100,                  # fBEGIN
-        0, 0,                 # fEND, fSeekFree (patched at the end)
-        fNbytesFree, 1,       # fNbytesFree, nfree
-        fNbytesName, 0x04,
-        Int32(compression),   # fCompress
-        0, fNbytesInfo,       # fSeekInfo (patched), fNbytesInfo
-        zeros(SVector{18,UInt8}))
-    fileheader_obs = rnt_write_observe(file, fileheader)
-    write(file, zeros(UInt8, 100 - position(file)))   # zero-pad up to fBEGIN
-    @assert position(file) == 100
-
-    rnt_write(file, UnROOT.TKey32(klen_tfile + tfile_objlen, 4, tfile_objlen, fdatime,
-                                  klen_tfile, 1, 100, 0, "TFile", file_name, ""))
-    rnt_write(file, UnROOT.TFile_write(file_name, ""))
-    tdirectory32 = UnROOT.ROOTDirectoryHeader32(5, fdatime, fdatime,
-                                                fNbytesKeys, fNbytesName, 100, 0,
-                                                0)  # fSeekKeys patched below
-    tdirectory32_obs = rnt_write_observe(file, tdirectory32)
-    # TUUID (version + 16 bytes) and reserved tail of the directory record; the
-    # reader does not use these, so a zeroed UUID is sufficient.
-    rnt_write(file, Stubs.dummy_padding2)
-
-    # RNTuple header envelope. The writer identifier honestly reports UnROOT.jl
-    # (not a ROOT version) per the ROOT team's request not to impersonate ROOT.
-    field_records, col_records = schema_to_field_column_records(table)
-    writer_identifier = "UnROOT.jl $(pkgversion(@__MODULE__))"
-    rnt_header = UnROOT.RNTupleHeader(
-        zero(UInt64), rntuple_name, "", writer_identifier,
-        field_records, col_records,
-        UnROOT.AliasRecord[], UnROOT.ExtraTypeInfo[])
-    header_bytes = _buffer_bytes(io -> rnt_write(io, rnt_header))
-    fSeekHeader, header_nbytes = _write_rblob(file, header_bytes, fdatime; compression)
-
-    # pages (one page per column, one cluster), all in one RBlob. Each page is
-    # compressed independently and carries an XxHash-3 checksum of its on-disk
-    # (compressed) bytes, so the per-column locators can point inside the blob.
-    pages_arys = mapreduce(rnt_col_to_ary, vcat, input_cols)
-    @assert length(pages_arys) == length(col_records)
-    pages = [rnt_ary_to_page(ary, cr) for (ary, cr) in zip(pages_arys, col_records)]
-    page_ondisk = [_root_compress(p.data, compression) for p in pages]
-    pages_payload = _buffer_bytes() do io
-        for od in page_ondisk
-            write(io, od)
-            write(io, xxh3_64(od))   # checksum over the on-disk (compressed) bytes
-        end
-    end
-    pages_begin, _ = _write_rblob(file, pages_payload, fdatime)  # container itself not re-compressed
-    page_locators = Vector{Tuple{Int32,Int64,Int64}}(undef, length(pages))
-    let pos = pages_begin
-        for i in eachindex(pages)
-            nbytes = length(page_ondisk[i])
-            page_locators[i] = (pages[i].num_elements, nbytes, pos)
-            pos += nbytes + 8  # on-disk data + xxh3 checksum
-        end
-    end
-
-    # page list envelope
-    header_checksum = _checksum(rnt_header)
-    cluster_summary = Write_RNTupleListFrame([ClusterSummary(0, input_length)])
-    nested_page_locations = generate_page_links(page_locators, compression)
-    pagelink = PageLinkWrite(header_checksum, cluster_summary.payload, nested_page_locations)
-    pagelink_bytes = _buffer_bytes(io -> rnt_write(io, pagelink))
-    pagelink_pos, pagelink_nbytes = _write_rblob(file, pagelink_bytes, fdatime; compression)
-
-    # footer envelope
-    rnt_footer = UnROOT.RNTupleFooter(0, header_checksum, UnROOT.RNTupleSchemaExtension([], [], [], []), [
-        UnROOT.ClusterGroupRecord(0, input_length, 1,
-            UnROOT.EnvLink(length(pagelink_bytes), UnROOT.Locator(pagelink_nbytes, pagelink_pos))),
-    ])
-    footer_bytes = _buffer_bytes(io -> rnt_write(io, rnt_footer))
-    fSeekFooter, footer_nbytes = _write_rblob(file, footer_bytes, fdatime; compression)
-
-    # anchor: all locator values are known by now, no patching needed.
-    # fNBytes* is the on-disk (compressed) size; fLen* is the uncompressed size.
-    rnt_anchor = UnROOT.ROOT_3a3a_RNTuple(1, 0, 0, 0,
-        fSeekHeader, header_nbytes, length(header_bytes),
-        fSeekFooter, footer_nbytes, length(footer_bytes),
-        0x0000000040000000, 0)  # checksum computed in rnt_write
-    tkey32_anchor = UnROOT.TKey32(klen_anchor + anchor_objlen, 4, anchor_objlen, fdatime,
-                                  klen_anchor, 1, position(file), 100, "ROOT::RNTuple", rntuple_name, "")
-    rnt_write(file, tkey32_anchor)
-    # object preamble for the streamed anchor: byte count (covering the version
-    # word + payload, no checksum) | kByteCountMask, then the class version
-    rnt_write(file, UInt32(Const.kByteCountMask | (2 + anchor_payload_nbytes)); legacy=true)
-    rnt_write(file, UInt16(anchor_class_version); legacy=true)
-    rnt_write(file, rnt_anchor)
-
-    # directory key listing (1 key: the anchor)
-    tdirectory32_obs[:fSeekKeys] = Int32(position(file))
-    rnt_write(file, UnROOT.TKey32(fNbytesKeys, 4, Int32(4 + klen_anchor), fdatime,
-                                  klen_dir, 1, position(file), 100, "", file_name, ""))
-    rnt_write(file, Int32(1); legacy=true)  # number of keys in this directory
-    rnt_write(file, tkey32_anchor)
-
-    # streamer info (constant compressed TList blob describing ROOT::RNTuple;
-    # name-independent, so kept verbatim)
-    fileheader_obs[:fSeekInfo] = UInt32(position(file))
-    rnt_write(file, UnROOT.TKey32(fNbytesInfo, 4, 1254, fdatime,
-                                  64, 1, position(file), 100, "TList", "StreamerInfo", "Doubly linked list"))
-    rnt_write(file, Stubs.tsreamerinfo_compressed)
-
-    # free-segments record: one segment [fEND, 2000000000]
-    fSeekFree = position(file)
-    fileheader_obs[:fSeekFree] = UInt32(fSeekFree)
-    fEND = fSeekFree + fNbytesFree
-    rnt_write(file, UnROOT.TKey32(fNbytesFree, 4, 10, fdatime,
-                                  klen_end, 1, fSeekFree, 100, "", file_name, ""))
-    rnt_write(file, UInt16(1); legacy=true)        # TFree version
-    rnt_write(file, UInt32(fEND); legacy=true)     # first free byte
-    rnt_write(file, UInt32(2000000000); legacy=true)
-    @assert position(file) == fEND
-    fileheader_obs[:fEND] = UInt32(fEND)
-
-    flush!(fileheader_obs)
-    flush!(tdirectory32_obs)
+    f = WritableROOTFile(file, file_name; compression)
+    mkrntuple(f, rntuple_name, table)
+    close(f)          # flushes; the caller owns `file`
+    return nothing
 end

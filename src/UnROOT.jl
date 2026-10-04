@@ -71,6 +71,7 @@ include("RNTuple/Writing/page_writing.jl")
 include("RNTuple/Writing/compression.jl")
 include("RNTuple/Writing/TFileWriter.jl")
 include("RNTuple/Writing/Stubs.jl")
+include("RNTuple/Writing/writable.jl")
 
 _maxthreadid() = @static if VERSION < v"1.9"
     Threads.nthreads()

@@ -37,9 +37,11 @@ jobs:
           source /cvmfs/sft.cern.ch/lcg/views/dev3/latest/x86_64-ubuntu2204-gcc11-opt/setup.sh
           set -e
           for comp in 0 404 505 101; do
-            echo "::group::Validate compression=$comp"
-            python ./test/RNTupleWriting/validate_rntuple.py sample_$comp.root
-            echo "::endgroup::"
+            for f in sample_$comp.root sample_${comp}_appended.root; do
+              echo "::group::Validate $f"
+              python ./test/RNTupleWriting/validate_rntuple.py $f
+              echo "::endgroup::"
+            done
           done
       - uses: julia-actions/julia-processcoverage@03114f09f119417c3242a9fb6e0b722676aedf38 # v1.2.2
       - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
