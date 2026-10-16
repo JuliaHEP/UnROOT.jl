@@ -26,6 +26,8 @@ function _write_3byte_le!(io::IO, n::Integer)
 end
 
 # Compress one block (already <= 2^24-1 bytes) and emit its framed bytes.
+# Algorithm 0 is ROOT's "use the global default", which is ZLIB (e.g. the
+# old-style fCompress = 1 found in files written by other tools).
 function _write_compressed_block!(io::IO, algo::Int, level::Int, block::Vector{UInt8})
     if algo == Const.kLZ4
         comp = lz4_hc_compress(block, level)
@@ -34,7 +36,7 @@ function _write_compressed_block!(io::IO, algo::Int, level::Int, block::Vector{U
         _write_3byte_le!(io, length(block))
         write(io, hton(xxh64(comp)))              # 8-byte big-endian checksum
         write(io, comp)
-    elseif algo == Const.kZLIB
+    elseif algo == Const.kZLIB || algo == 0
         comp = _zlib_compress(block)
         write(io, UInt8('Z'), UInt8('L'), 0x08)
         _write_3byte_le!(io, length(comp))

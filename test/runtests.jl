@@ -32,5 +32,6 @@ nthreads == 1 && @warn "Running on a single thread. Please re-run the test suite
         include("rntuple.jl")
         include("./RNTupleWriting/lowlevel.jl")
         include("./RNTupleWriting/highlevel.jl")
+        include("./RNTupleWriting/append.jl")
     end
 end
