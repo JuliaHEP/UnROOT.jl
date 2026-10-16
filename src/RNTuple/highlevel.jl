@@ -13,17 +13,17 @@ backed with file IO source and a schema field from `RNTuple.schema`.
 struct RNTupleField{R, F, O, E} <: AbstractVector{E}
     rn::R
     field::F
-    buffers::Vector{O}
+    # per-thread cache of the last cluster read, see `_BufferSlot`; the locks
+    # only serialize the (slow) refill of a slot
+    slots::Vector{_SlotBox{O}}
     thread_locks::Vector{ReentrantLock}
-    buffer_ranges::Vector{UnitRange{Int64}}
     function RNTupleField(rn::R, field::F) where {R, F}
         O = _field_output_type(F)
         E = eltype(O)
         Nthreads = _maxthreadid()
-        buffers = Vector{O}(undef, Nthreads)
+        slots = [_SlotBox{O}() for _ in 1:Nthreads]
         thread_locks = [ReentrantLock() for _ in 1:Nthreads]
-        buffer_ranges = [0:-1 for _ in 1:Nthreads]
-        new{R, F, O, E}(rn, field, buffers, thread_locks, buffer_ranges)
+        new{R, F, O, E}(rn, field, slots, thread_locks)
     end
 end
 Base.length(rf::RNTupleField) = _length(rf.rn)
@@ -42,8 +42,10 @@ end
 
 function _clusterranges(lbs::AbstractVector{<:RNTupleField})
     rn = first(lbs).rn
-    cluster_summaries = _read_page_list(rn, 1).cluster_summaries
-    ranges = map(_rntuple_clusterrange, cluster_summaries)
+    ranges = UnitRange{Int64}[]
+    for gi in eachindex(rn.footer.cluster_group_records)
+        append!(ranges, map(_rntuple_clusterrange, _read_page_list(rn, gi).cluster_summaries))
+    end
     return ranges
 end
 
@@ -93,48 +95,69 @@ function Base.getindex(s::RNTupleSchema, idx)
     RNTupleSchema(getfield(s, :namedtuple)[idx])
 end
 
-function Base.getindex(rf::RNTupleField, idx::Int)
+function Base.getindex(rf::RNTupleField{R, F, O, E}, idx::Int) where {R, F, O, E}
     # deliberately bounds-checked: `maxthreadid()` can grow after construction
     # (adopted threads), and an out-of-range `tid` must not corrupt memory
     tid = Threads.threadid()
-    tlock = rf.thread_locks[tid]
-    Base.@lock tlock begin 
-        br = @inbounds rf.buffer_ranges[tid]
-        localidx = if idx ∉ br
-            _localindex_newcluster!(rf, idx, tid)
-        else
-            idx - br.start + 1
-        end
-        return @inbounds rf.buffers[tid][localidx]
+    slot = _load_slot(rf.slots[tid])
+    if slot === nothing || idx ∉ slot.range
+        slot = _refill_slot!(rf, tid, idx)
     end
+    return @inbounds slot.buffer[idx - first(slot.range) + 1]
 end
 
+"""
+    _read_page_list(rn, nth=1)
+
+The (cached) page list of the `nth` cluster group of `rn`.
+"""
 function _read_page_list(rn, nth=1)
     Base.@lock rn.pagelinks_lock begin
         get!(rn.pagelinks, nth) do
-            #TODO add multiple cluster group support
             bytes = _read_envlink(rn.io, rn.footer.cluster_group_records[nth].page_list_link);
             _rntuple_read(IOBuffer(bytes), RNTupleEnvelope{PageLink}).payload
         end
     end
 end
 
-function _localindex_newcluster!(rf::RNTupleField, idx::Int, tid::Int)
-    page_list =_read_page_list(rf.rn, 1)
-    cluster_summaries, nested_page_locations = page_list.cluster_summaries, page_list.nested_page_locations
-
-    for (cluster_idx, cluster) in enumerate(cluster_summaries)
-        first_entry = cluster.first_entry_number
-        n_entries = cluster.number_of_entries
-        if first_entry + n_entries >= idx
-            br = first_entry+1:(first_entry+n_entries)
-            cluster_info = ClusterInfo(nested_page_locations[cluster_idx], first_entry, n_entries)
-            @inbounds rf.buffers[tid] = read_field(rf.rn.io, rf.field, cluster_info)
-            @inbounds rf.buffer_ranges[tid] = br
-            return idx - br.start + 1
+# the (1-based) index of the cluster group that contains the 0-based `entry`
+function _cluster_group_index(rn, entry::Integer)
+    records = rn.footer.cluster_group_records
+    for (gi, cg) in enumerate(records)
+        if cg.minimum_entry_number <= entry < cg.minimum_entry_number + cg.entry_span
+            return gi
         end
     end
-    error("$idx-th event not found in cluster summaries")
+    # the group records should cover every entry; scan the summaries as a fallback
+    for gi in eachindex(records)
+        for cs in _read_page_list(rn, gi).cluster_summaries
+            if cs.first_entry_number <= entry < cs.first_entry_number + cs.number_of_entries
+                return gi
+            end
+        end
+    end
+    error("entry $entry not found in any cluster group")
+end
+
+# read the cluster holding `idx` into the slot of thread `tid` and return it
+@noinline function _refill_slot!(rf::RNTupleField{R, F, O, E}, tid::Int, idx::Int) where {R, F, O, E}
+    1 <= idx <= length(rf) || throw(BoundsError(rf, idx))
+    Base.@lock rf.thread_locks[tid] begin
+        page_list = _read_page_list(rf.rn, _cluster_group_index(rf.rn, idx - 1))
+        cluster_summaries, nested_page_locations = page_list.cluster_summaries, page_list.nested_page_locations
+        for (cluster_idx, cluster) in enumerate(cluster_summaries)
+            first_entry = cluster.first_entry_number
+            n_entries = cluster.number_of_entries
+            if first_entry < idx <= first_entry + n_entries
+                br = first_entry+1:(first_entry+n_entries)
+                cluster_info = ClusterInfo(nested_page_locations[cluster_idx], first_entry, n_entries)
+                slot = _BufferSlot{O}(br, read_field(rf.rn.io, rf.field, cluster_info))
+                _store_slot!(rf.slots[tid], slot)
+                return slot
+            end
+        end
+        error("$idx-th event not found in cluster summaries")
+    end
 end
 
 """
@@ -215,16 +238,20 @@ end
 LazyTree(rn::RNTuple, selection::Union{AbstractString, Regex}) = LazyTree(rn, [selection])
 function LazyTree(rn::RNTuple, selection)
     field_names = keys(rn)
+    field_names_set = Set(field_names)
     _m(r::Regex) = Base.Fix1(occursin, r)
-    filtered_names = mapreduce(∪, selection) do b
+    filtered_names = String[]
+    for b in selection
         if b isa Regex
-            filter(_m(b), field_names)
-        elseif b isa String
-            [b]
+            append!(filtered_names, filter(_m(b), field_names))
+        elseif b isa AbstractString
+            b ∈ field_names_set || throw(KeyError("$b is not a field of RNTuple $(rn.header.name), available fields: $(join(field_names, ", "))"))
+            push!(filtered_names, String(b))
         else
             error("branch selection must be String or Regex")
         end
     end
+    unique!(filtered_names)
 
     N = Tuple(Symbol.(filtered_names))
     skim_schema = getfield(rn.schema, :namedtuple)[N]

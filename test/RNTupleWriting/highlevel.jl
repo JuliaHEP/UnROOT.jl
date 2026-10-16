@@ -108,3 +108,44 @@ end
         @test collect(t.r) == table.r
     end
 end
+
+@testset "RNTuple Writing - nested vectors" begin
+    # the item sub-field of a vector must hang off that vector, however deep;
+    # this used to be wrong beyond one level of nesting
+    table = (;
+        vvs = [[["a"], ["bb", "c"]], Vector{String}[], [String[]], [["dddd"]]],
+        vvv = [[[Int32[1, 2], Int32[]], [Int32[3]]], Vector{Vector{Int32}}[], [[Int32[4, 5, 6]]], [[Int32[]]]],
+        vvb = [[[true, false], Bool[]], Vector{Bool}[], [[false]], [[true, true, true]]],
+    )
+    t = _write_read(table)
+    for c in keys(table)
+        @test collect(getproperty(t, c)) == getproperty(table, c)
+    end
+    # the schema records the right parent for every level
+    rn = t.vvs.rn
+    frs = rn.header.field_records
+    ivvs = findfirst(fr -> fr.field_name == "vvs", frs) - 1
+    inner = findfirst(fr -> fr.parent_field_id == ivvs && fr.field_name == "_0", frs) - 1
+    @test frs[inner + 1].type_name == "std::vector<std::string>"
+    leaf = findfirst(fr -> fr.parent_field_id == inner && fr.field_name == "_0", frs)
+    @test leaf !== nothing && frs[leaf].type_name == "std::string"
+end
+
+@testset "RNTuple Writing - envelope length ≡ 1 (mod 64)" begin
+    # the header envelope length depends on the RNTuple name; find a name for
+    # which the length is 1 mod 64 (the XXH3 length class a previous hash
+    # dependency got wrong) and make sure the file round-trips, i.e. the stored
+    # checksum is the one a spec-conforming reader recomputes
+    table = (; x = Int32[1, 2, 3])
+    found = false
+    for n in 1:64
+        name = "t"^n
+        t = _write_read(table; rntuple_name=name)
+        if t.x.rn.anchor.fLenHeader % 64 == 1
+            found = true
+            @test collect(t.x) == table.x
+            break
+        end
+    end
+    @test found
+end

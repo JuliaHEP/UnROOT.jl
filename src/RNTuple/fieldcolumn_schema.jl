@@ -57,18 +57,27 @@ isvoid(::Type{<:StringField}) = false
     struct LeafField{T}
         content_col_idx::Int
         columnrecord::ColumnRecord
+        alt_col_idx::Vector{Int}
+        alt_columnrecords::Vector{ColumnRecord}
     end
 
-Base case of field nesting, this links to a column in the RNTuple by 0-based index.
-`T` is the `eltype` of this field which mostly uses Julia native types except for
-`Switch`.
+Base case of field nesting, this links to a column in the RNTuple by 1-based index
+(`content_col_idx`). `T` is the `eltype` of this field which mostly uses Julia native
+types except for `Switch`.
 
-The `type` field is the RNTuple spec type number, used to record split encoding.
+A field may have several *column representations* (e.g. a `float` field stored as
+`Real32` in some clusters and `Real16` in others). `content_col_idx`/`columnrecord`
+describe the primary representation; `alt_col_idx`/`alt_columnrecords` the
+secondary ones. In every cluster exactly one representation is active, the others
+are suppressed (they have no pages), see [`_active_pages`](@ref).
 """
 struct LeafField{T}
     content_col_idx::Int
     columnrecord::ColumnRecord
+    alt_col_idx::Vector{Int}
+    alt_columnrecords::Vector{ColumnRecord}
 end
+LeafField{T}(idx, cr::ColumnRecord) where {T} = LeafField{T}(idx, cr, Int[], ColumnRecord[])
 Base.eltype(::Type{LeafField{T}}) where {T} = T
 isvoid(::Type{<:LeafField}) = false
 
@@ -87,63 +96,87 @@ struct RNTupleCardinality{T}
 end
 isvoid(::Type{<:RNTupleCardinality}) = false
 
-function _search_col_type(field_id, column_records, col_id::Int...)
-    if length(col_id) == 2 && column_records[col_id[2]].type == 0x02 #Char
-        index_record = column_records[col_id[1]]
-        char_record = column_records[col_id[2]]
-        index_typenum = index_record.type
-        LeafType = RNT_COL_TYPE_TABLE[index_typenum+0x01].jltype
+_jltype(cr::ColumnRecord) = RNT_COL_TYPE_TABLE[cr.type+0x01].jltype
+
+# Build the leaf for one field from its 1-based column indices. `primary` holds
+# the columns of the primary representation, `alts` the columns of each secondary
+# representation (same layout as `primary`).
+function _make_leaf(column_records, primary::Vector{Int}, alts::Vector{Vector{Int}})
+    if length(primary) == 2 && column_records[primary[2]].type == 0x02 #Char
+        # std::string: an index column followed by a Char column
+        all(length(a) == 2 for a in alts) || error("inconsistent column representations of a string field")
+        index_record = column_records[primary[1]]
+        char_record = column_records[primary[2]]
+        LeafType = _jltype(index_record)
         return StringField(
-            LeafField{LeafType}(col_id[1],index_record),
-            LeafField{Char}(col_id[2], char_record)
+            LeafField{LeafType}(primary[1], index_record, [a[1] for a in alts], [column_records[a[1]] for a in alts]),
+            LeafField{Char}(primary[2], char_record, [a[2] for a in alts], [column_records[a[2]] for a in alts])
         )
-    elseif length(col_id) == 1
-        record = column_records[only(col_id)]
-        LeafType = RNT_COL_TYPE_TABLE[record.type+0x01].jltype
-        return LeafField{LeafType}(only(col_id), record)
+    elseif length(primary) == 1
+        all(length(a) == 1 for a in alts) || error("inconsistent column representations of a leaf field")
+        record = column_records[only(primary)]
+        LeafType = _jltype(record)
+        return LeafField{LeafType}(only(primary), record, [only(a) for a in alts], [column_records[only(a)] for a in alts])
     else
-        error("un-handled RNTuple case, report issue to UnROOT.jl")
+        error("un-handled RNTuple case ($(length(primary)) columns attached to one field), report issue to UnROOT.jl")
     end
 end
 
-function find_alias(field_id, alias_columns)::Int
-    for a in alias_columns
-        if a.field_id == field_id
-            return a.physical_id
-        end
-    end
-    return -1
-end
+"""
+    _search_col_type(field_id, column_records, alias_columns)
 
+Find the column(s) attached to the (0-based) `field_id` and wrap them into a
+[`LeafField`](@ref) or [`StringField`](@ref). Alias columns (projected fields)
+redirect to the physical columns of another field. Returns `nothing` when no
+column is attached to the field (e.g. the `std::atomic<T>` wrapper field, whose
+payload lives in a sub-field).
+"""
 function _search_col_type(field_id, column_records::Vector, alias_columns::Vector)
-    col_id = Tuple(findall(column_records) do col
-        col.field_id == field_id
-    end)
-    physical_id = find_alias(field_id, alias_columns)
+    col_ids = findall(col -> col.field_id == field_id, column_records)
+    # alias records are 0-based physical column ids
+    alias_ids = [Int(a.physical_id) + 1 for a in alias_columns if a.field_id == field_id]
+    ids = isempty(alias_ids) ? col_ids : alias_ids
+    isempty(ids) && return nothing
 
-    if physical_id != -1
-        _search_col_type(field_id, column_records, physical_id + 1)
-    elseif !isempty(col_id)
-        _search_col_type(field_id, column_records, col_id...)
-    else
-        error("Unreachable reached, no alias column and empty column match")
-    end
+    # group the columns by representation index; the lowest index is the primary one
+    reps = sort!(unique(column_records[i].representation_idx for i in ids))
+    by_rep = [filter(i -> column_records[i].representation_idx == r, ids) for r in reps]
+    return _make_leaf(column_records, by_rep[1], by_rep[2:end])
+end
+
+# 1-based indices of the sub-fields of the (0-based) `field_id`
+function _subfield_indices(field_id, field_records)
+    ids = findall(f -> f.parent_field_id == field_id, field_records)
+    # top-level fields are their own parent
+    return filter!(!=(field_id + 1), ids)
 end
 
 
 function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_leaf})
     # field_id in 0-based index
     field = field_records[field_id + 1]
+    res = _search_col_type(field_id, column_records, alias_columns)
     if iszero(field.repetition)
-        res = _search_col_type(field_id, column_records, alias_columns)
+        if res === nothing
+            # no column attached: a transparent wrapper such as `std::atomic<T>`,
+            # whose payload is the single sub-field
+            subs = _subfield_indices(field_id, field_records)
+            length(subs) == 1 || error("leaf field '$(field.field_name)' of type '$(field.type_name)' has no column and $(length(subs)) sub-fields")
+            sub_field = field_records[only(subs)]
+            return _parse_field(only(subs) - 1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
+        end
         if eltype(res) <: Union{Index32, Index64}
             # https://github.com/root-project/root/pull/12127
             return RNTupleCardinality(res)
         else
             return res
         end
+    elseif res !== nothing
+        # fixed-size array whose elements live directly in the field's own column:
+        # `std::bitset<N>` (a Bit column)
+        return StdArrayField(field.repetition, res)
     else
-        # `std::array<>` for some reason splits in Field records and pretent to be a leaf field
+        # `std::array<T, N>`: the element type is described by a sub-field
         element_idx = findlast(field_records) do field
             field.parent_field_id == field_id
         end
@@ -180,24 +213,49 @@ function isvoid(::Type{StructField{N,T}}) where {N,T}
     isvoid(T) #|| all(startswith(":_"), String.(N))
 end
 
+# ROOT names the sub-fields holding the base classes of a record ":_0", ":_1", ...
+_is_base_class_field(f::FieldRecord) = occursin(r"^:_\d+$", f.field_name)
+
+"""
+    _parse_field(field_id, ..., ::Val{rntuple_role_struct})
+
+Parse a record (struct) field. The members of base classes (ROOT stores every
+base class as a sub-field named `:_N`) are flattened into the record, as ROOT
+and uproot do. When the same member name is inherited through more than one
+base class (or clashes with an own member), the inherited ones are disambiguated
+as `BaseClass::member`. Members that carry no data at all (recursively empty
+structs) are dropped.
+"""
 function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_struct})
-    element_ids = findall(field_records) do field
-        field.parent_field_id == field_id
+    element_ids = _subfield_indices(field_id, field_records)
+
+    # (name, parsed field, base class type name or nothing)
+    entries = Tuple{Symbol, Any, Union{Nothing, String}}[]
+    for element_idx in element_ids
+        sub_field = field_records[element_idx]
+        col = _parse_field(element_idx - 1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
+        if _is_base_class_field(sub_field) && col isa StructField
+            for (n, c) in zip(_struct_names(col), col.content_cols)
+                push!(entries, (n, c, sub_field.type_name))
+            end
+        elseif !isvoid(typeof(col))
+            push!(entries, (Symbol(sub_field.field_name), col, nothing))
+        end
     end
-    # need 1-based index here
-    setdiff!(element_ids, field_id + 1) # ignore itself
-    sub_fields = @view field_records[element_ids]
 
-    names = Tuple(Symbol(sub_field.field_name) for sub_field in sub_fields)
-    content_cols = Tuple(
-        _parse_field(element_idx - 1, field_records, column_records, alias_columns, Val(sub_field.struct_role))
-        for (element_idx, sub_field) in zip(element_ids, sub_fields)
+    # disambiguate inherited members whose names clash
+    counts = Dict{Symbol, Int}()
+    for (n, _, _) in entries
+        counts[n] = get(counts, n, 0) + 1
+    end
+    names = Tuple(
+        (base !== nothing && counts[n] > 1) ? Symbol(base, "::", n) : n
+        for (n, _, base) in entries
     )
-
-    mask = findall(!isvoid, typeof.(content_cols))
-    masked_cols = content_cols[mask]
-    return StructField{names[mask],typeof(masked_cols)}(masked_cols)
+    content_cols = Tuple(c for (_, c, _) in entries)
+    return StructField{names, typeof(content_cols)}(content_cols)
 end
+_struct_names(::StructField{N, T}) where {N, T} = N
 
 struct UnionField{S,T}
     switch_col::S
@@ -207,11 +265,7 @@ isvoid(::Type{<:UnionField}) = false
 
 function _parse_field(field_id, field_records, column_records, alias_columns, ::Val{rntuple_role_union})
     switch_col = _search_col_type(field_id, column_records, alias_columns)
-    element_ids = findall(field_records) do field
-        field.parent_field_id == field_id
-    end
-    # need 1-based index here
-    setdiff!(element_ids, field_id + 1)
+    element_ids = _subfield_indices(field_id, field_records)
     sub_fields = @view field_records[element_ids]
 
     content_cols = Tuple(

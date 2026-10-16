@@ -93,7 +93,8 @@ end
     @test eltype(df.vector_int32) <: AbstractVector{Int32}
     @test df.vector_int32 == [Int32[1], Int32[1,2], Int32[1,2,3], Int32[1,2,3,4], Int32[1,2,3,4,5]]
 
-    @test eltype(df.variant_int32_string) == Union{Int32, String}
+    # a variant without value (`valueless_by_exception`, tag 0) reads as `missing`
+    @test eltype(df.variant_int32_string) == Union{Missing, Int32, String}
     @test length(df.variant_int32_string) == 5
     @test df.variant_int32_string == Union{Int32, String}[Int32(1), "two", "three", Int32(4), Int32(5)]
 
@@ -154,14 +155,10 @@ end
 
     # test we've hit each thread's buffer
     @test all(
-        map(eachindex(field.buffers)) do b
-            if !isassigned(field.buffers, b)
-                return true
-            else
-                return  !isempty(field.buffers[b])
-            end
-
-    end)
+        map(field.slots) do box
+            s = UnROOT._load_slot(box)
+            return s === nothing || !isempty(s.buffer)
+        end)
     @test sum(accumulator) == sum(1:5e4)
 
     accumulator .= 0
@@ -324,5 +321,151 @@ end
         @test collect(t.Division)[1:4] == ["PS", "EP", "PS", "PS"]
         @test collect(t.Nation)[end] == "ZZ"
         @test collect(t.Cost)[end] == 12716
+    end
+end
+
+# More files from scikit-hep-testdata; every value below was cross-checked
+# against uproot 5.7.6 (all fields of all these files agree with uproot).
+@testset "RNTuple v1.0 spec files, part 2" begin
+    @testset "multiple cluster groups" begin
+        f = UnROOT.samplefile("RNTuple/test_multiple_cluster_groups_rntuple_v1-0-0-0.root")
+        rn = f["ntuple"]
+        @test length(rn.footer.cluster_group_records) == 3
+        t = LazyTree(f, "ntuple")
+        @test length(t) == 1000
+        # entries beyond the first cluster group live in the 2nd and 3rd group
+        @test collect(t.one) == Int32.(0:999)
+        @test t.one[1000] == 999
+        @test t.int_vector[1] == Int16[0, 1]
+        @test t.int_vector[500] == Int16[499, 500]
+        @test t.int_vector[1000] == Int16[999, 1000]
+        # 5 + 4 + 3 clusters
+        @test length(UnROOT._clusterranges(t)) == 12
+        @test sum(length, Tables.partitions(t)) == 1000
+        @test sum(p -> sum(p.one), Tables.partitions(t)) == sum(0:999)
+    end
+
+    @testset "multiple column representations (suppressed columns)" begin
+        # one `float` field stored as Real32 in some clusters and Real16 in others
+        f = UnROOT.samplefile("RNTuple/test_multiple_representations_rntuple_v1-0-0-0.root")
+        rn = f["ntuple"]
+        @test length(rn.header.column_records) == 2
+        leaf = rn.schema.real
+        @test leaf isa UnROOT.LeafField{Float32}
+        @test length(leaf.alt_col_idx) == 1
+        t = LazyTree(f, "ntuple")
+        @test eltype(t.real) == Float32
+        @test collect(t.real) == Float32[1.0, 2.0, 3.0]
+    end
+
+    @testset "std::atomic and std::bitset" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_atomic_bitset_rntuple_v1-0-0-0.root"), "ntuple")
+        @test collect(t.atomic_int) == Int32[1, 2, 3]
+        @test eltype(t.atomic_int) == Int32
+        @test length(t.bitset[1]) == 42
+        @test eltype(t.bitset[1]) == Bool
+        @test findall(t.bitset[1]) == [2, 4, 6]
+        @test findall(t.bitset[2]) == [2, 4, 6, 8, 10, 12, 14, 16]
+        @test findall(t.bitset[3]) == [4, 8, 12, 16]
+    end
+
+    @testset "empty struct and valueless variant" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_emptystruct_invalidvar_rntuple_v1-0-0-0.root"), "ntuple")
+        @test length(t) == 3
+        @test collect(t.empty_struct) == [(;), (;), (;)]
+        v = collect(t.variant)
+        @test eltype(t.variant) == Union{Missing, Int32, @NamedTuple{i::Int32}}
+        @test v[1] === Int32(1)
+        @test ismissing(v[2])   # tag 0: variant without value
+        @test v[3] == (i = Int32(2),)
+    end
+
+    @testset "class inheritance is flattened" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_class_inheritance_rntuple_v1-0-0-1.root"), "rntpl")
+        @test length(t) == 10
+        c = t.child[2]
+        # base class members appear as direct members, like in ROOT and uproot
+        @test Set(propertynames(c)) == Set([:child_1, :child_2, :base_a1, :base_a2, :base_a3])
+        @test c.child_1 == 2 && c.child_2 == 20.0 && c.base_a1 == 1 && c.base_a2 ≈ 0.1 && c.base_a3 == [0, 1, 2]
+        g = t.grandchild[10]
+        @test g.grandchild_1 == 27 && g.child_1 == 18 && g.base_a3 == [0, 9, 18]
+        # the same base class inherited via two paths is disambiguated by the class name
+        m = t.multi_grandparent[2]
+        @test Set(propertynames(m)) == Set([:multi_grand_parent1, :multi_grand_parent2, :multi_parent_1, :multi_parent_2, :base_b,
+                                            Symbol("MultiParent::base_a1"), Symbol("MultiParent::base_a2"), Symbol("MultiParent::base_a3"),
+                                            :child_1, :child_2, Symbol("Child::base_a1"), Symbol("Child::base_a2"), Symbol("Child::base_a3")])
+        @test m.multi_grand_parent1 == 5 && m.base_b == 10.0 && m.child_1 == 2
+        @test getproperty(m, Symbol("MultiParent::base_a3")) == [0, 1, 2]
+        @test getproperty(m, Symbol("Child::base_a2")) ≈ 0.1
+        mp = t.multi_parent[10]
+        @test Set(propertynames(mp)) == Set([:multi_parent_1, :multi_parent_2, :base_b, :base_a1, :base_a2, :base_a3])
+        @test mp.multi_parent_1 == 36 && mp.base_b == 90.0 && mp.base_a1 == 9
+    end
+
+    @testset "struct and vector<struct> (LorentzVector-like)" begin
+        t = LazyTree(UnROOT.samplefile("RNTuple/test_int_vfloat_tlv_vtlv_rntuple_v1-0-0-0.root"), "ntuple")
+        @test collect(t.one_integers) == Int32[9, 8, 7, 6, 5]
+        @test t.two_v_floats[1] == Float32[9, 8, 7, 6]
+        @test t.three_LV[1] === (pt = 19.0f0, eta = 19.0f0, phi = 19.0f0, mass = 19.0f0)
+        @test length(t.four_v_LVs[2]) == 7
+        @test t.four_v_LVs[2][5] == (pt = 18.0f0, eta = 18.0f0, phi = 18.0f0, mass = 18.0f0)
+    end
+
+    @testset "NanoAOD RNTupleImporter file (very wide structs)" begin
+        f = UnROOT.samplefile("RNTuple/cmsopendata2015_ttbar_19980_NANOAOD_RNTupleImporter_rntuple_v1-0-0-1.root")
+        # constructing the tree used to fail: `view` of a StructArray with >= 32
+        # columns is not inferrable, so it cannot back a VectorOfVectors
+        t = LazyTree(f, "Events")
+        @test length(t) == 10
+        @test length(propertynames(t)) == 969   # top-level fields
+        @test collect(t.nElectron) == UInt32[0, 0, 3, 1, 1, 2, 0, 5, 0, 1]
+        @test t.Electron_pt[3] ≈ Float32[55.494945, 22.64056, 11.299458]
+        # the collection containing the electron members is a wide struct
+        wide = [p for p in propertynames(t) if begin
+                    E = eltype(getproperty(t, p))
+                    E <: AbstractVector && eltype(E) <: NamedTuple && :Electron_pt ∈ fieldnames(eltype(E))
+                end]
+        @test length(wide) == 1
+        col = getproperty(t, only(wide))
+        @test length(fieldnames(eltype(eltype(col)))) >= 32
+        @test length(col[3]) == 3
+        @test col[3][1].Electron_pt ≈ 55.494945f0
+        # every field of the first event is readable
+        for p in propertynames(t)
+            getproperty(t, p)[1]
+        end
+        @test true
+    end
+
+    @testset "ATLAS PHYSLITE" begin
+        f = UnROOT.samplefile("RNTuple/uproot-physlite-rntuple_v1-0-0-0.root")
+        # the checksummed part of the DataHeader header envelope is 1217 bytes
+        # long: a previous hash dependency miscomputed XXH3 for lengths ≡ 1 (mod
+        # 64) and the checksum verification rejected the file
+        @test (f["DataHeader"].anchor.fLenHeader - 8) % 64 == 1
+        dh = LazyTree(f, "DataHeader")
+        @test length(dh) == 100
+        @test dh[2].DataHeader.m_commonOID2 == 0x0038295400000001
+        @test length(dh[2].DataHeader.m_fullElements) == 5
+        @test dh[2].DataHeader.m_fullElements[1] == (oid2 = 0x00000c7400000001, dbIdx = 0x00000001, objIdx = 0x00000063)
+        t = LazyTree(f, "EventData")
+        @test length(t) == 100
+        @test length(propertynames(t)) == 854   # top-level fields
+        @test t.var"EventInfoAuxDyn:eventNumber"[1:3] == [293298001, 293298007, 293298017]
+        pt = t.var"AnalysisJetsAuxDyn:pt"
+        @test length(pt[1]) == 9
+        @test pt[1][1:3] ≈ Float32[121843.53, 115375.39, 77780.22]
+        @test t.var"AnalysisElectronsAuxDyn:pt"[2] ≈ Float32[23935.309]
+        # `DataVector<xAOD::Jet_v1>` items carry no data themselves (everything
+        # is in the Aux stores): a vector of empty structs, sized by the offsets
+        @test length.(t.AnalysisJets[1:10]) == [9, 8, 9, 4, 7, 11, 8, 11, 4, 9]
+        @test t.AnalysisJets[1][1] == (;)
+        et = LazyTree(f, "EventTag")
+        @test et.EventNumber[1:3] == [293298001, 293298007, 293298017]
+    end
+
+    @testset "unknown field name" begin
+        f = UnROOT.samplefile("RNTuple/test_ntuple_int_5e4.root")
+        @test_throws KeyError LazyTree(f, "ntuple", ["nonexistent"])
     end
 end
