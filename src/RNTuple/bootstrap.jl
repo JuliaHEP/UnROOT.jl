@@ -62,7 +62,7 @@ function ROOT_3a3a_RNTuple(io, tkey::TKey, refs)
     return rnt
 end
 
-function decompress_bytes(compbytes::Vector{UInt8}, NTarget::Integer)
+function decompress_bytes(compbytes::AbstractVector{UInt8}, NTarget::Integer)
     if length(compbytes) >= NTarget
         return compbytes
     else
@@ -81,34 +81,15 @@ function decompress_bytes!(uncomp_data, compbytes, NTarget::Integer)
     end
 
     # compressed
-    io = IOBuffer(compbytes)
     fulfilled = 0
+    pos = 1
     while fulfilled < NTarget # careful with 0/1-based index when thinking about offsets
-        compression_header = unpack(io, CompressionHeader)
-        cname, _, compbytes, uncompbytes = unpack(compression_header)
-        rawbytes = read(io, compbytes)
-        if cname == @SVector UInt8['L', '4']
-            # skip checksum which is 8 bytes
-            # original: lz4_decompress(rawbytes[9:end], uncompbytes)
-            input = @view rawbytes[9:end]
-            # raw Ptr arguments do not root their parent arrays in the ccall
-            GC.@preserve rawbytes uncomp_data begin
-                input_ptr = pointer(input)
-                input_size = length(input)
-                output_ptr = pointer(uncomp_data) + fulfilled
-                output_size = uncompbytes
-                _decompress_lz4!(input_ptr, input_size, output_ptr, output_size)
-            end
-        elseif cname == @SVector UInt8['Z', 'L']
-            output = @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes])
-            zlib_decompress!(Decompressor(), output, rawbytes, uncompbytes)
-        elseif cname == @SVector UInt8['X', 'Z']
-            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(XzDecompressor, rawbytes)
-        elseif cname == @SVector UInt8['Z', 'S']
-            @view(uncomp_data[fulfilled+1:fulfilled+uncompbytes]) .= transcode(ZstdDecompressor, rawbytes)
-        else
-            error("Unsupported compression type '$(String(compression_header.algo))'")
-        end
+        compression_header = unpack(IOBuffer(@view compbytes[pos:pos+8]), CompressionHeader)
+        pos += 9
+        cname, _, nc, uncompbytes = unpack(compression_header)
+        rawbytes = @view compbytes[pos:pos+nc-1]
+        pos += nc
+        _decompress_block!(uncomp_data, fulfilled, cname, rawbytes, uncompbytes)
         fulfilled += uncompbytes
     end
     return uncomp_data

@@ -49,7 +49,9 @@ SAMPLES_DIR = joinpath(@__DIR__, "samples")
     rootfile = UnROOT.samplefile("issue61.root")
     arr = LazyTree(rootfile,"Events").Jet_pt;
     _ = length.(arr);
-    @test length.(arr.buffer) == length.(arr.buffer_range)
+    slots = filter(!isnothing, UnROOT._load_slot.(arr.slots))
+    @test !isempty(slots)
+    @test all(length(s.buffer) == length(s.range) for s in slots)
     close(rootfile)
 
     # issue 108
@@ -177,5 +179,40 @@ end
     @test :tmuon_E ∈ propertynames(t)
     @test t.ntrks[1] isa Integer
     @test t.tmuon_E[1] isa Real
+    close(f)
+end
+
+@testset "Embedded (recovered) baskets: basket bookkeeping" begin
+    # both files store all their data in a single embedded TBasket, so no
+    # basket boundary in `fBasketEntry` ever reaches `fEntries`
+    f = UnROOT.samplefile("nanoAOD_2015_CMS_Open_Data_ttbar.root")
+    t = LazyTree(f, "Events", ["Jet_pt", "MET_pt"])
+    @test UnROOT.numbaskets(t.Jet_pt.b) == 0
+    @test UnROOT._basket_boundaries(t.Jet_pt.b) == [0, 200]
+    @test UnROOT._clusterranges(t) == [1:200]
+    @test length(collect(UnROOT.Tables.partitions(t))) == 1
+    @test all(UnROOT._clusterbytes(t) .> 0)
+    @test length(collect(UnROOT.basketarray_iter(t.MET_pt))) == 1
+    allpt = collect(t.MET_pt)
+    @test t.MET_pt[190:200] == allpt[190:200]
+    @test t.MET_pt[1:200] == allpt
+    @test t.Jet_pt[199:200] == [t.Jet_pt[199], t.Jet_pt[200]]
+    @test_throws BoundsError t.MET_pt[201]
+    @test_throws BoundsError t.MET_pt[0]
+    close(f)
+
+    f = UnROOT.samplefile("issue241.root")
+    t = LazyTree(f, "proton", ["ekin", "edep"])
+    @test UnROOT.numbaskets(t.ekin.b) == 0
+    @test UnROOT._clusterranges(t) == [1:462]
+    @test sum(length, UnROOT.Tables.partitions(t)) == 462
+    @test t.ekin[460:462] == collect(t.ekin)[460:462]
+    close(f)
+end
+
+@testset "Unknown branch names raise KeyError" begin
+    f = UnROOT.samplefile("NanoAODv5_sample.root")
+    @test_throws KeyError LazyBranch(f, "Events/nonexistent")
+    @test_throws KeyError UnROOT.array(f, "Events/nonexistent")
     close(f)
 end

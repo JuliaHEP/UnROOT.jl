@@ -1,5 +1,3 @@
-using XXHashNative: xxh64
-
 # ROOT compression block framing for the RNTuple writer.
 #
 # ROOT stores a compressed buffer as a sequence of blocks. Each block starts

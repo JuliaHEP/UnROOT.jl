@@ -30,7 +30,7 @@ function array(f::ROOTFile, tree::TTree; raw=false)
 end
 
 function array(f::ROOTFile, branch; raw=false)
-    ismissing(branch) && error("No branch found (branch is missing)")
+    ismissing(branch) && throw(KeyError("No branch found (branch is missing)"))
     (!raw && length(branch.fLeaves.elements) > 1) && error(
         "Branches with multiple leaves are not supported yet. Try reading with `array(...; raw=true)`.",
     )
@@ -54,7 +54,7 @@ by [`interped_data`](@ref) to translate raw bytes into actual data.
 """
 function basketarray(f::ROOTFile, path::AbstractString, ithbasket)
     branch = f[path]
-    ismissing(branch) && error("No branch found at $path")
+    ismissing(branch) && throw(KeyError("no branch found at '$path'"))
     return basketarray(f, branch, ithbasket)
 end
 
@@ -74,6 +74,10 @@ function rawbasketarray(f::ROOTFile, branch, ithbasket::Integer)
 end
 
 function basketarray(f::ROOTFile, branch, ithbasket::AbstractVector{<:Integer})
+    T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
+    return _basketarray(f, branch, ithbasket, T, J)
+end
+function _basketarray(f::ROOTFile, branch, ithbasket::AbstractVector{<:Integer}, T, J)
     tuples = [rawbasketarray(f, branch, i) for i in ithbasket]
     rawdata = reduce(vcat, first.(tuples))
     # Each basket's offsets are relative to the start of its own data (first
@@ -90,14 +94,16 @@ function basketarray(f::ROOTFile, branch, ithbasket::AbstractVector{<:Integer})
             position += Int32(length(data))
         end
     end
-    T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
     return interped_data(rawdata, rawoffsets, T, J)
 end
 
 
 function basketarray(f::ROOTFile, branch, ithbasket::Integer)
-    rawdata, rawoffsets = rawbasketarray(f, branch, ithbasket)
     T, J = auto_T_JaggT(f, branch; customstructs=f.customstructs)
+    return _basketarray(f, branch, ithbasket, T, J)
+end
+function _basketarray(f::ROOTFile, branch, ithbasket::Integer, T, J)
+    rawdata, rawoffsets = rawbasketarray(f, branch, ithbasket)
     return interped_data(rawdata, rawoffsets, T, J)
 end
 
@@ -108,8 +114,46 @@ end
 Returns a `Base.Generator` yielding the output of `basketarray()` for all baskets.
 """
 function basketarray_iter(f::ROOTFile, branch)
-    return (basketarray(f, branch, i) for i in 1:numbaskets(branch))
+    return (basketarray(f, branch, i) for i in _basket_addresses(branch))
 end
+# the basket addresses `rawbasketarray` understands: the on-disk baskets by
+# index, plus `-1` for the embedded basket (if the branch has one)
+function _basket_addresses(branch)
+    nb = numbaskets(branch)
+    addrs = collect(1:nb)
+    length(_basket_boundaries(branch)) > nb + 1 && push!(addrs, -1)
+    return addrs
+end
+
+"""
+    _BufferSlot{B}
+
+One thread's cache of a lazy branch/field: the decoded data of one basket (or
+RNTuple cluster) together with the entry range it covers. Slots are immutable and
+published through an atomic field of [`_SlotBox`](@ref), so the hot read path
+(`getindex` of an entry that is already cached) takes no lock: a reader either sees
+a complete slot or the previous one, never a half-updated pair of buffer and range.
+"""
+struct _BufferSlot{B}
+    range::UnitRange{Int64}
+    buffer::B
+end
+
+"""
+    _SlotBox{B}
+
+Mutable holder of one thread's [`_BufferSlot`](@ref) (or `nothing` before the
+first read). The slot is an atomic field: refills store it with release
+semantics and readers load it with acquire semantics.
+"""
+mutable struct _SlotBox{B}
+    @atomic slot::Union{Nothing, _BufferSlot{B}}
+    # explicit constructor: the default `_SlotBox(::Union{Nothing, _BufferSlot{B}})`
+    # would leave `B` unbound for `nothing`
+    _SlotBox{B}() where {B} = new{B}(nothing)
+end
+@inline _load_slot(box::_SlotBox) = @atomic :acquire box.slot
+@inline _store_slot!(box::_SlotBox{B}, slot::_BufferSlot{B}) where {B} = (@atomic :release box.slot = slot)
 
 # function barrior to make getting individual index faster
 # TODO upstream some types into parametric types for Branch/BranchElement
@@ -145,13 +189,24 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
     f::ROOTFile
     b::Union{TBranch,TBranchElement}
     L::Int64
+    # entry boundaries of the baskets, see `_basket_boundaries`; basket `i`
+    # covers entries `fEntry[i]+1:fEntry[i+1]`
     fEntry::Vector{Int64}
-    buffer::Vector{B}
+    # number of baskets stored on disk; a basket index beyond this refers to
+    # the embedded (recovered) basket
+    nbaskets::Int
+    # the (type, jaggedness) pair `interped_data` needs for a basket of this
+    # branch, as determined once by `auto_T_JaggT`
+    interp_T::Type
+    interp_J::Type
+    # per-thread cache of the last basket read, see `_BufferSlot`; the locks
+    # only serialize the (slow) refill of a slot
+    slots::Vector{_SlotBox{B}}
     thread_locks::Vector{ReentrantLock}
-    buffer_range::Vector{UnitRange{Int64}}
 
     function LazyBranch(f::ROOTFile, b::Union{TBranch,TBranchElement})
         T, J = auto_T_JaggT(f, b; customstructs=f.customstructs)
+        interp_T, interp_J = T, J
         T = (T === Vector{Bool} ? BitVector : T)
         _buffer = T[]
         if J != Nojagg
@@ -161,16 +216,25 @@ mutable struct LazyBranch{T,J,B} <: AbstractVector{T}
             T = SubArray{eltype(T), 1, T, Tuple{UnitRange{Int64}}, true}
         end
         Nthreads = _maxthreadid()
-        return new{T,J,typeof(_buffer)}(f, b, length(b),
-                                        b.fBasketEntry,
-                                        [_buffer for _ in 1:Nthreads],
-                                        [ReentrantLock() for _ in 1:Nthreads],
-                                        [0:-1 for _ in 1:Nthreads])
+        B = typeof(_buffer)
+        return new{T,J,B}(f, b, length(b),
+                          _basket_boundaries(b),
+                          numbaskets(b),
+                          interp_T, interp_J,
+                          [_SlotBox{B}() for _ in 1:Nthreads],
+                          [ReentrantLock() for _ in 1:Nthreads])
     end
 end
-LazyBranch(f::ROOTFile, s::AbstractString) = LazyBranch(f, f[s])
-basketarray(lb::LazyBranch, ithbasket) = basketarray(lb.f, lb.b, ithbasket)
-basketarray_iter(lb::LazyBranch) = basketarray_iter(lb.f, lb.b)
+function LazyBranch(f::ROOTFile, s::AbstractString)
+    b = f[s]
+    ismissing(b) && throw(KeyError("no branch found at '$s'"))
+    return LazyBranch(f, b)
+end
+LazyBranch(::ROOTFile, ::Missing) = throw(KeyError("no branch found (the branch lookup returned `missing`)"))
+# the interpretation was determined when the LazyBranch was built, so the
+# streamer lookup in `auto_T_JaggT` is skipped for every basket
+basketarray(lb::LazyBranch, ithbasket) = _basketarray(lb.f, lb.b, ithbasket, lb.interp_T, lb.interp_J)
+basketarray_iter(lb::LazyBranch) = (basketarray(lb, i) for i in _basket_addresses(lb.b))
 
 function Base.hash(lb::LazyBranch, h::UInt)
     # delegate to the TBranch/TBranchElement hash (file name, branch name,
@@ -202,45 +266,39 @@ end
     Base.getindex(ba::LazyBranch{T, J}, idx::Integer) where {T, J}
 
 Get the `idx`-th element of a `LazyBranch`, starting at `1`. If `idx` is
-within the range of `ba.buffer_range`, it will directly return from `ba.buffer`.
-If not within buffer, it will fetch the correct basket by calling [`basketarray`](@ref)
-and update buffer and buffer range accordingly.
+within the range of the calling thread's cached basket, it is returned from that
+buffer without taking a lock. Otherwise the correct basket is fetched by calling
+[`basketarray`](@ref) and becomes the thread's cached basket.
 """
-
 function Base.getindex(ba::LazyBranch{T,J,B}, idx::Integer) where {T,J,B}
     # deliberately bounds-checked: `maxthreadid()` can grow after construction
     # (adopted threads), and an out-of-range `tid` must not corrupt memory
     tid = Threads.threadid()
-    tlock = ba.thread_locks[tid]
-    # index within the basket
-    Base.@lock tlock begin
-        br = @inbounds ba.buffer_range[tid]
-        localidx = if idx ∉ br
-            _localindex_newbasket!(ba, idx, tid)
-        else
-            idx - br.start + 1
-        end
-        return @inbounds ba.buffer[tid][localidx]
+    slot = _load_slot(ba.slots[tid])
+    if slot === nothing || idx ∉ slot.range
+        slot = _refill_slot!(ba, tid, idx)
     end
+    return @inbounds slot.buffer[idx - first(slot.range) + 1]
 end
 
-function _localindex_newbasket!(ba::LazyBranch{T,J,B}, idx::Integer, tid::Int) where {T,J,B}
-    seek_idx = findfirst(x -> x > (idx - 1), ba.fEntry) #support 1.0 syntax
-    br = _get_buffer_range(ba, tid, seek_idx)
-    ba.buffer_range[tid] = br
-    return idx - br.start + 1
-end
+# the (1-based) basket holding the (1-based) entry `idx`
+_basket_index(ba::LazyBranch, idx::Integer) = searchsortedlast(ba.fEntry, idx - 1)
+# basket indices beyond the on-disk baskets address the embedded basket, which
+# `rawbasketarray` reads for the magic index -1
+_basket_address(ba::LazyBranch, ib::Integer) = ib > ba.nbaskets ? -1 : ib
 
-@inbounds function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, seek_idx::Integer) where {T,J,B}
-    seek_idx -= 1
-    ba.buffer[tid] = basketarray(ba.f, ba.b, seek_idx)
-    (ba.fEntry[seek_idx] + 1)::Int:(ba.fEntry[seek_idx + 1])::Int
-end
-
-function _get_buffer_range(ba::LazyBranch{T, J, B}, tid::Integer, ::Nothing) where {T,J,B}
-    ba.buffer[tid] = basketarray(ba.f, ba.b, -1)  # -1 indicating recovered basket mechanics
-    # FIXME: this range is probably wrong for jagged data with non-empty offsets
-    (ba.b.fBasketEntry[end] + 1)::Int:ba.b.fEntries::Int
+# read the basket holding `idx` into the slot of thread `tid` and return it.
+# The lock only prevents two tasks that share a thread id from reading the same
+# basket at the same time.
+@noinline function _refill_slot!(ba::LazyBranch{T,J,B}, tid::Int, idx::Integer) where {T,J,B}
+    ib = _basket_index(ba, idx)
+    (1 <= ib < length(ba.fEntry)) || throw(BoundsError(ba, idx))
+    Base.@lock ba.thread_locks[tid] begin
+        br = (ba.fEntry[ib] + 1)::Int:(ba.fEntry[ib + 1])::Int
+        slot = _BufferSlot{B}(br, basketarray(ba, _basket_address(ba, ib)))
+        _store_slot!(ba.slots[tid], slot)
+        return slot
+    end
 end
 
 Base.IndexStyle(::Type{<:LazyBranch}) = IndexLinear()
@@ -509,26 +567,31 @@ function LazyTree(f::ROOTFile, tree::TTree, treepath, branches; sink = LazyTree)
     _m(r::Regex) = Base.Fix1(occursin, r)
     all_bnames = getbranchnamesrecursive(tree)
     # rename_map = Dict{Regex, SubstitutionString{String}}()
-    res_bnames = mapreduce(∪, branches) do b
+    all_bnames_set = Set(all_bnames)
+    res_bnames = Pair{String, String}[]
+    for b in branches
         if b isa Regex
-            [_b => normalize_branchname(_b) for _b ∈ filter(_m(b), all_bnames)]
+            append!(res_bnames, [_b => normalize_branchname(_b) for _b ∈ filter(_m(b), all_bnames)])
         elseif b isa Pair{Regex, SubstitutionString{String}}
-            [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)]
-        elseif b isa String
-            if any(n->startswith(n, "$b/$b"), all_bnames)
+            append!(res_bnames, [_b => replace(_b, first(b) => last(b)) for _b ∈ filter(_m(first.(b)), all_bnames)])
+        elseif b isa AbstractString
+            double_prefix = "$b/$b"
+            container_prefix = "$b/"
+            if any(n -> startswith(n, double_prefix), all_bnames)
                 # Double-prefix split class (e.g. "Electron/Electron.pt")
-                [_b => normalize_branchname(_b) for _b ∈ filter(n->startswith(n, "$b/$b"), all_bnames)]
-            elseif b ∉ all_bnames && any(n->startswith(n, "$b/"), all_bnames)
+                append!(res_bnames, [_b => normalize_branchname(_b) for _b ∈ filter(n -> startswith(n, double_prefix), all_bnames)])
+            elseif b ∉ all_bnames_set && any(n -> startswith(n, container_prefix), all_bnames)
                 # Container branch (split class without repeated prefix, e.g. "ODEvent/member")
                 # Strip the container prefix so column names are just "memberName"
-                [_b => normalize_branchname(chop(_b, head=length(b)+1, tail=0)) for _b ∈ filter(n->startswith(n, "$b/"), all_bnames)]
+                append!(res_bnames, [_b => normalize_branchname(chop(_b, head=length(b)+1, tail=0)) for _b ∈ filter(n -> startswith(n, container_prefix), all_bnames)])
             else
-                [b => normalize_branchname(b)]
+                push!(res_bnames, String(b) => normalize_branchname(b))
             end
         else
             error("branch selection must be string or regex")
         end
     end
+    unique!(res_bnames)
     for (b, norm_name) in res_bnames
         d[Symbol(norm_name)] = LazyBranch(f, "$treepath/$b")
     end
@@ -555,38 +618,38 @@ end
 
 function Base.getindex(ba::LazyBranch{T,J,B}, range::UnitRange) where {T,J,B}
     isempty(range) && return T[]
-    ib1 = findfirst(x -> x > (first(range) - 1), ba.fEntry)
-    ib2 = findfirst(x -> x > (last(range) - 1), ba.fEntry) 
-    if isnothing(ib1) #Check if we are completely on the recovered basket
-        offset = ba.b.fBasketEntry[end]
-        iths = [-1] # use magic number -1 as address for recovered basket only
-    elseif isnothing(ib2) # Check if we partially on the recovered basket
-        offset = ba.fEntry[ib1-1]
-        iths = vcat(collect(ib1-1:length(ba.fEntry)-1), -1) # append magic number -1 for recovered basket at the end of the basket address range
-    else # Keep everything as it was
-        offset = ba.fEntry[ib1-1]
-        iths = ib1-1:ib2-1
-    end
+    checkbounds(ba, range)
+    ib1 = _basket_index(ba, first(range))
+    ib2 = _basket_index(ba, last(range))
+    iths = [_basket_address(ba, ib) for ib in ib1:ib2]
+    offset = ba.fEntry[ib1]
     range = (first(range)-offset):(last(range)-offset)
-    return basketarray(ba, iths)[range]
+    data = basketarray(ba, iths)
+    # no need to copy when the requested range spans exactly the baskets read
+    range == eachindex(data) && return data
+    return data[range]
 end
 
 _clusterranges(t::LazyTree) = _clusterranges([getproperty(t,p) for p in propertynames(t)])
 function _clusterranges(lbs::AbstractVector{<:LazyBranch})
-    basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
+    basketentries = [lb.fEntry for lb in lbs]
     common = mapreduce(Set, ∩, basketentries) |> collect |> sort
     return [common[i]+1:common[i+1] for i in 1:length(common)-1]
 end
 _clusterbytes(t::LazyTree; kw...) = _clusterbytes([getproperty(t,p) for p in propertynames(t)]; kw...)
 function _clusterbytes(lbs::AbstractVector{<:LazyBranch}; compressed=false)
-    basketentries = [lb.b.fBasketEntry[1:numbaskets(lb.b)+1] for lb in lbs]
+    basketentries = [lb.fEntry for lb in lbs]
     common = mapreduce(Set, ∩, basketentries) |> collect |> sort
     bytes = zeros(Float64, length(common)-1)
     for lb in lbs
         b = lb.b
-        finflate = compressed ? 1.0 : b.fTotBytes/b.fZipBytes
-        entries = b.fBasketEntry[1:numbaskets(b)+1]
-        basketbytes = b.fBasketBytes[1:numbaskets(b)+1] * finflate
+        finflate = compressed ? 1.0 : (b.fZipBytes == 0 ? 1.0 : b.fTotBytes/b.fZipBytes)
+        entries = lb.fEntry
+        nb = numbaskets(b)
+        # on-disk baskets have a recorded size; the embedded basket (if any) is
+        # counted with its uncompressed data size
+        basketbytes = Float64[b.fBasketBytes[1:nb] * finflate; [Float64(length(bk.data)) for bk in b.fBaskets.elements if bk isa RecoveredTBasket]]
+        basketbytes = basketbytes[1:min(end, length(entries) - 1)]
         iclusters = searchsortedlast.(Ref(common), entries[1:end-1])
         pairs = zip(iclusters, basketbytes)
         sumbytes = [sum(last.(g)) for g in groupby(first, pairs)]
