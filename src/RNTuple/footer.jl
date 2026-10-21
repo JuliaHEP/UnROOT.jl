@@ -36,11 +36,32 @@ function _rntuple_read(io, ::Type{RNTupleSchemaExtension})
     return RNTupleSchemaExtension(field_records, column_records, alias_records, extra_type_info)
 end
 
-@SimpleStruct struct RNTupleFooter
+struct RNTupleFooter
     feature_flag::UInt64
     header_checksum::UInt64
     extension_header_links::RNTupleSchemaExtension
     cluster_group_records::Vector{ClusterGroupRecord}
+    # whatever follows the cluster group list in the footer payload (spec 1.0.1
+    # added a list frame of linked attribute sets there), kept verbatim so that
+    # the writer can reproduce a footer it appends cluster groups to
+    trailing_bytes::Vector{UInt8}
+end
+RNTupleFooter(feature_flag, header_checksum, extension_header_links, cluster_group_records) =
+    RNTupleFooter(feature_flag, header_checksum, extension_header_links, cluster_group_records, UInt8[])
+
+function _rntuple_read(io, ::Type{RNTupleFooter})
+    feature_flag = read(io, UInt64)
+    header_checksum = read(io, UInt64)
+    extension_header_links = _rntuple_read(io, RNTupleSchemaExtension)
+    cluster_group_records = _rntuple_read(io, Vector{ClusterGroupRecord})
+    # `io` holds the whole envelope: its first 8 bytes encode the envelope
+    # length, and the payload ends 8 bytes (checksum) before that
+    here = position(io)
+    seek(io, 0)
+    envelope_length = Int(read(io, UInt64) >> 16)
+    seek(io, here)
+    trailing_bytes = read(io, max(envelope_length - 8 - here, 0))
+    RNTupleFooter(feature_flag, header_checksum, extension_header_links, cluster_group_records, trailing_bytes)
 end
 
 function _read_locator(io, locator, uncomp_size::Integer)
