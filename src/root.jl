@@ -248,7 +248,10 @@ function Base.getindex(t::T, s::AbstractString) where {T<:Union{TTree, TBranchEl
         return t[first(paths)][join(paths[2:end], "/")]
     end
     @debug "Searching for branch '$s' in $(length(t.fBranches.elements)) branches."
-    for branch in t.fBranches.elements
+    # indexing avoids the `(element, state)` tuple `iterate` allocates on a `Vector{Any}`
+    branches = t.fBranches.elements
+    for i in eachindex(branches)
+        branch = branches[i]
         if branch.fName == s
             return branch
         end
